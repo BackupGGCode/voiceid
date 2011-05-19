@@ -1,9 +1,10 @@
 #!/bin/bash
 
+directory=$(dirname "$1")
 show=`basename "$1"`
 _show=$( echo "$show" | sed -e 's/ /_/g' | sed -e 's/\\//g' ) 
-mv "$show" "$_show"
-show=$_show
+mv "$directory"/"$show" "$directory"/"$_show"
+show="$directory"/$_show
 #echo $show
 #exit 1
 
