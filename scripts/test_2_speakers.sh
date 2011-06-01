@@ -4,7 +4,16 @@
 wave_1="$1"
 wave_2="$2"
 
+macosx=$(uname -a |grep "Darwin Kernel Version" )
+if [ -n $macosx  ]
+then
+temp_wav_basename=.ktemp.tmp
+else
+
 temp_wav_basename=$(mktemp --tmpdir=./ )
+fi
+
+
 temp_wav=${temp_wav_basename}.wav
 
 sox $wave_1 $wave_2 $temp_wav

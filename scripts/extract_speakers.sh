@@ -4,7 +4,7 @@
 videofile=$1
 
 
-./video2trim.sh $videofile
+./video2trim.sh "$videofile"
 
 
 directory=$(dirname "$1")
@@ -46,11 +46,12 @@ do
 		do 
 			printf "speaker_v %s | sample %s | speaker_db %s\n"  "$speaker_v"  $sample $speaker_db
 			num_speak=$(  ./test_2_speakers.sh db/$speaker_db/*wav $name/$speaker_v/$sample 2>&1 |grep ";;" | wc -l  )
+			seconds=$( soxi -s $name/$speaker_v/$sample )
 			if (( $num_speak <= $original_speak  ))
 			then 
-				similar=$(( $similar +1 ))	
+				similar=$(( $similar + $seconds   ))	
 			else
-				different=$(( $different +1 ))	
+				different=$(( $different + $seconds ))	
 			fi
 
 		done
