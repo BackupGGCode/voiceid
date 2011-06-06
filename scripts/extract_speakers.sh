@@ -71,7 +71,7 @@ do
 
 	for speaker_db in $speakers_in_db  
 	do
-		./parallel -j $processors  speakerdb_vs_samples "$speaker_db"  "$speaker_samples"
+		speakerdb_vs_samples "$speaker_db"  "$speaker_samples"
 
 	done
 	printf "*********\n"
