@@ -1,11 +1,45 @@
 #!/bin/bash
 
 
+processors=$(grep -c ^processor /proc/cpuinfo)
+
 videofile=$1
 
 
 ./video2trim.sh "$videofile"
 
+
+function speakerdb_vs_samples (){
+
+		speaker_db=$1
+		speaker_samples=$2		
+
+		original_speak=$(cat db/$speaker_db/speakers.txt)
+		similar=0
+		different=0
+		reportname=${speaker_v}_vs_${speaker_db}.txt		
+		echo "${speaker_v}_vs_${speaker_db}" > $reportname
+		for sample in $speaker_samples
+		do 
+			printf "speaker_v %s | sample %s | speaker_db %s"  "$speaker_v"  $sample $speaker_db   >> $reportname
+			num_speak=$(  ./test_2_speakers.sh db/$speaker_db/*wav $name/$speaker_v/$sample 2>&1 |grep ";;" | wc -l  )
+			seconds=$( soxi -s $name/$speaker_v/$sample )
+			if (( $num_speak <= $original_speak  ))
+			then 
+				similar=$(( $similar + $seconds   ))	
+				printf "*\n" >> $reportname
+			else
+				different=$(( $different + $seconds ))	
+				printf "\n" >> $reportname
+			fi
+
+		done
+		total=$(( $similar + $different ))
+		echo statistics for speaker $speaker_v >> $reportname
+		echo similarity = $((  (100 *  $similar  ) / $total  )) %  >> $reportname
+		cat $reportname
+
+}
 
 directory=$(dirname "$1")
 show=`basename "$1"`
@@ -35,30 +69,13 @@ do
 	speaker_samples=$( ls $name/$speaker_v )
 
 
-	for speaker_db in $speakers_in_db
+	for speaker_db in $speakers_in_db  
 	do
-
-		original_speak=$(cat db/$speaker_db/speakers.txt)
-		similar=0
-		different=0
-
-		for sample in $speaker_samples
-		do 
-			printf "speaker_v %s | sample %s | speaker_db %s\n"  "$speaker_v"  $sample $speaker_db
-			num_speak=$(  ./test_2_speakers.sh db/$speaker_db/*wav $name/$speaker_v/$sample 2>&1 |grep ";;" | wc -l  )
-			seconds=$( soxi -s $name/$speaker_v/$sample )
-			if (( $num_speak <= $original_speak  ))
-			then 
-				similar=$(( $similar + $seconds   ))	
-			else
-				different=$(( $different + $seconds ))	
-			fi
-
-		done
-		total=$(( $similar + $different ))
-		echo statistics for speaker $speaker_v
-		echo similarity = $((  (100 *  $similar  ) / $total  )) % 
+		parallel -j $processors  speakerdb_vs_samples "$speaker_db"  "$speaker_samples"
 
 	done
 	printf "*********\n"
 done
+
+
+
