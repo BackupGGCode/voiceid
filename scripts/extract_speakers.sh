@@ -23,7 +23,7 @@ function speakerdb_vs_samples (){
 		do 
 			seconds=$( soxi -s $name/$speaker_v/$sample )
 			printf "speaker_v %s | sample %13s | speaker_db %10s %10d "  "$speaker_v"  $sample $speaker_db $seconds   >> $reportname
-			num_speak=$(  ./test_2_speakers.sh db/$speaker_db/*wav $name/$speaker_v/$sample 2>&1 |grep ";;" | wc -l  )
+			num_speak=$(  ./test_2_speakers.sh db/$speaker_db/*wav $name/$speaker_v/$sample 2>&1 |grep -c ";;" )
 			if (( $num_speak <= $original_speak  ))
 			then 
 				similar=$(( $similar + $seconds   ))	
@@ -39,7 +39,7 @@ function speakerdb_vs_samples (){
 		echo similarity = $((  (100 *  $similar  ) / $total  )) %  >> $reportname
 		cat $reportname
 		
-		echo -e "\t${speaker_db}\t$((  (100 *  $similar  ) / $total  ))%" >>$totalreport
+		echo -e "\t${speaker_db} \t $((  (100 *  $similar  ) / $total  ))%" >>$totalreport
 }
 
 directory=$(dirname "$1")
