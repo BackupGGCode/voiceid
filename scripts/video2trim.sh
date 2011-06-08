@@ -17,6 +17,8 @@ fi ;
 gst-launch-0.10 filesrc location="$show" ! decodebin  ! audioresample ! 'audio/x-raw-int,rate=16000' !  audioconvert ! 'audio/x-raw-int,rate=16000,depth=16,signed=true,channels=1'    ! wavenc !   filesink location=${name}.wav
 
 ./wav2label.sh ${name}.wav 
+./label2srt.py ${name}.txt
+mv output.srt ${name}.srt 
 ./seg2trim.sh ${name}.seg
 
 
