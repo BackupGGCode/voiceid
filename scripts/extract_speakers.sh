@@ -1,6 +1,6 @@
-#!/bin/bash 
+#!/bin/bash  
 
-processors=$(grep -c ^processor /proc/cpuinfo)
+processors=$(( $(grep -c ^processor /proc/cpuinfo)  -1 ))
 videofile=$1
 
 max_score=0
@@ -23,7 +23,7 @@ function speakerdb_vs_samples (){
 		do 
 			seconds=$( soxi -s $name/$speaker_v/$sample )
 			sec=$( soxi -D $name/$speaker_v/$sample )
-			printf "speaker_v %s | sample %13s | speaker_db %10s %2F "  "$speaker_v"  $sample $speaker_db $sec   >> $reportname
+			printf "speaker_v %s | sample %13s | speaker_db %10s %s "  "$speaker_v"  $sample $speaker_db $sec   >> $reportname
 			num_speak=$(  ./test_2_speakers.sh db/$speaker_db/*wav $name/$speaker_v/$sample 2>&1 |grep -c ";;" )
 			if (( $num_speak <= $original_speak  ))
 			then 
@@ -72,6 +72,8 @@ echo "speakers in video = " $speakers_in_video
 speakers_in_db=$(ls db)
 echo "speakers in db = " $speakers_in_db
 
+declare -a bg_process
+
 
 
 for speaker_v in $speakers_in_video
@@ -85,8 +87,55 @@ do
 
 	for speaker_db in $speakers_in_db  
 	do
-		speakerdb_vs_samples "$speaker_db"  "$speaker_samples"
+		if ((  ${#bg_process[@]}  < $processors ))
+		then
+			echo " $processors processors"
+			echo " ${#bg_process[@]} processes"
+			speakerdb_vs_samples "$speaker_db"  "$speaker_samples" &
+			pid=$!
+			index=${#bg_process[@]}
+			bg_process[ $index  ]=$pid
+			echo starting process num $index with pid $pid
+                else
+			while (( ${#bg_process[@]}     >=   $processors   ))
+			do 
+#				echo " $processors processors"
+#				echo " ${#bg_process[@]} processes"
+				for proc in seq 0 $(( ${#bg_process[@]} -1 ))
+				do
+					if  [  -n "${bg_process[$proc]}" ]  &&  [ -z "$( ps hp ${bg_process[$proc]} )" ]
+					then
+						unset bg_process[$proc]
+#						echo unset proc $proc
+					fi
+				done
+				sleep 2
+			done
+ 			speakerdb_vs_samples "$speaker_db"  "$speaker_samples" &
+			pid=$!
+			index=${#bg_process[@]}
+			bg_process[ $index  ]=$pid
+			echo starting process num $index with pid $pid
+			
+		fi
+
+
 	done
+	while (( ${#bg_process[@]}  > 0     ))
+	do 
+#		echo " $processors processors"
+#		echo " ${#bg_process[@]} processes"
+		for proc in ${!bg_process[@]} 
+		do
+			echo "bg_process[$proc]= ${bg_process[$proc]}"
+			if  [ -z "$( ps hp ${bg_process[$proc]} )" ]
+			then
+				unset bg_process[$proc]
+			fi
+		done
+		sleep 3
+	done
+
 	echo -e "\tbest speaker: \t$best_speaker_name" >>$totalreport
 	echo -e "\t$speaker_v  \t$best_speaker_name" >>$reportcodename
 	printf "*********\n"
