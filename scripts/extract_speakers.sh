@@ -5,9 +5,10 @@ processors=$(grep -c ^processor /proc/cpuinfo)
 
 videofile=$1
 
+max_score=0
+best_speaker_name="unknown"
 
 ./video2trim.sh "$videofile"
-
 
 function speakerdb_vs_samples (){
 
@@ -35,11 +36,17 @@ function speakerdb_vs_samples (){
 
 		done
 		total=$(( $similar + $different ))
-		echo statistics for speaker $speaker_v >> $reportname
+		echo "statistics for speaker $speaker_v" >> $reportname
 		echo similarity = $((  (100 *  $similar  ) / $total  )) %  >> $reportname
 		cat $reportname
-		
-		echo -e "\t${speaker_db} \t $((  (100 *  $similar  ) / $total  ))%" >>$totalreport
+	
+                current_score=$((  (100 *  $similar  ) / $total  ))
+		if (( $max_score <= $current_score )) 	
+		then
+			max_score=$current_score
+			best_speaker_name=${speaker_db}	
+		fi	
+		echo -e "\t${speaker_db} \t $current_score%" >>$totalreport
 }
 
 directory=$(dirname "$1")
@@ -69,6 +76,7 @@ echo "speakers in db = " $speakers_in_db
 
 for speaker_v in $speakers_in_video
 do
+	best_speaker_name="unknown"
 	speaker_samples=$( ls $name/$speaker_v )
 
 	echo "$speaker_v:" >> $totalreport
@@ -76,8 +84,8 @@ do
 	for speaker_db in $speakers_in_db  
 	do
 		speakerdb_vs_samples "$speaker_db"  "$speaker_samples"
-
 	done
+	echo -e "\tbest speaker: \t$best_speaker_name" >>$totalreport
 	printf "*********\n"
 
 done
