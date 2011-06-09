@@ -1,8 +1,6 @@
-#!/bin/bash
-
+#!/bin/bash 
 
 processors=$(grep -c ^processor /proc/cpuinfo)
-
 videofile=$1
 
 max_score=0
@@ -23,7 +21,8 @@ function speakerdb_vs_samples (){
 		for sample in $speaker_samples
 		do 
 			seconds=$( soxi -s $name/$speaker_v/$sample )
-			printf "speaker_v %s | sample %13s | speaker_db %10s %10d "  "$speaker_v"  $sample $speaker_db $seconds   >> $reportname
+			sec=$( soxi -D $name/$speaker_v/$sample )
+			printf "speaker_v %s | sample %13s | speaker_db %10s %2F "  "$speaker_v"  $sample $speaker_db $sec   >> $reportname
 			num_speak=$(  ./test_2_speakers.sh db/$speaker_db/*wav $name/$speaker_v/$sample 2>&1 |grep -c ";;" )
 			if (( $num_speak <= $original_speak  ))
 			then 
@@ -76,7 +75,9 @@ echo "speakers in db = " $speakers_in_db
 
 for speaker_v in $speakers_in_video
 do
+
 	best_speaker_name="unknown"
+	max_score=0
 	speaker_samples=$( ls $name/$speaker_v )
 
 	echo "$speaker_v:" >> $totalreport
