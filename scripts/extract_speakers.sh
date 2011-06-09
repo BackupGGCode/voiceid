@@ -16,7 +16,8 @@ function speakerdb_vs_samples (){
 		original_speak=$(cat db/$speaker_db/speakers.txt)
 		similar=0
 		different=0
-		reportname=${speaker_v}_vs_${speaker_db}.txt		
+		reportname=${speaker_v}_vs_${speaker_db}.txt	
+		reportcodename=${speaker_v}_vs_${speaker_db}_small_report.txt
 		echo "${speaker_v}_vs_${speaker_db}" > $reportname
 		for sample in $speaker_samples
 		do 
@@ -87,9 +88,12 @@ do
 		speakerdb_vs_samples "$speaker_db"  "$speaker_samples"
 	done
 	echo -e "\tbest speaker: \t$best_speaker_name" >>$totalreport
+	echo -e "\t$speaker_v  \t$best_speaker_name" >>$reportcodename
 	printf "*********\n"
-
+	
 done
+
+./srt2subnames.sh ${name}.srt ${video}_SPEAKERS.txt 
 cat $totalreport
 
 
