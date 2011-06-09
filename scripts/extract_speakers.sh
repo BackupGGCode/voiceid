@@ -1,7 +1,21 @@
-#!/bin/bash  
+#!/bin/bash
 
-processors=$(( $(grep -c ^processor /proc/cpuinfo)  -1 ))
+processors=$(( $(grep -c ^processor /proc/cpuinfo  || sysctl  hw.ncpu | awk '{print $2}'  )  -1 ))
+#processors=15
 videofile=$1
+
+
+
+function kill_child(){
+
+	for job in $(jobs -p)
+	do 
+		kill -9 job
+	done
+}
+trap "kill_child" TERM
+
+
 
 max_score=0
 best_speaker_name="unknown"
@@ -103,7 +117,7 @@ do
 #				echo " ${#bg_process[@]} processes"
 				for proc in seq 0 $(( ${#bg_process[@]} -1 ))
 				do
-					if  [  -n "${bg_process[$proc]}" ]  &&  [ -z "$( ps hp ${bg_process[$proc]} )" ]
+					if  [  -n "${bg_process[$proc]}" ]  &&  [ -z "$( ps hp ${bg_process[$proc]} | grep -v PID  )" ]
 					then
 						unset bg_process[$proc]
 #						echo unset proc $proc
@@ -127,8 +141,8 @@ do
 #		echo " ${#bg_process[@]} processes"
 		for proc in ${!bg_process[@]} 
 		do
-			echo "bg_process[$proc]= ${bg_process[$proc]}"
-			if  [ -z "$( ps hp ${bg_process[$proc]} )" ]
+#			echo "bg_process[$proc]= ${bg_process[$proc]}"
+			if [  -n "${bg_process[$proc]}" ]  && [ -z "$( ps hp ${bg_process[$proc]} | grep -v PID )" ]
 			then
 				unset bg_process[$proc]
 			fi
@@ -136,8 +150,8 @@ do
 		sleep 3
 	done
 
-	echo -e "\tbest speaker: \t$best_speaker_name" >>$totalreport
-	echo -e "\t$speaker_v  \t$best_speaker_name" >>$reportcodename
+	echo -e "\tbest speaker: \t$best_speaker_name" >> $totalreport
+	echo -e "\t$speaker_v  \t$best_speaker_name" >> $reportcodename
 	printf "*********\n"
 	
 done

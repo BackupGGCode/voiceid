@@ -7,7 +7,7 @@ wave_2="$2"
 macosx=$(uname -a |grep "Darwin Kernel Version" )
 if [ -n "$macosx" ]
 then
-temp_wav_basename=.ktemp.tmp
+temp_wav_basename=$(basename $(mktemp -t t2s) )
 else
 temp_wav_basename=$(mktemp --tmpdir=./ )
 fi
