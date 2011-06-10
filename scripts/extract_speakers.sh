@@ -130,10 +130,7 @@ do
 			index=${#bg_process[@]}
 			bg_process[ $index  ]=$pid
 			echo starting process num $index with pid $pid
-			
 		fi
-
-
 	done
 	while (( ${#bg_process[@]}  > 0     ))
 	do 
@@ -156,7 +153,7 @@ do
 	
 done
 
-./srt2subnames.sh ${name}.srt ${video}_SPEAKERS.txt 
+./srt2subnames.sh ${name}.srt ${speaker_v}_vs_${speaker_db}_small_report.txt
 cat $totalreport
 
 
