@@ -20,6 +20,12 @@ trap "kill_child" TERM
 max_score=0
 best_speaker_name="unknown"
 
+lockfile .extract_speakers.lock
+echo 0 > .max_score
+echo unknown > .best_speaker_name
+rm -f .extract_speakers.lock
+
+
 ./video2trim.sh "$videofile"
 
 function speakerdb_vs_samples (){
@@ -53,21 +59,25 @@ function speakerdb_vs_samples (){
 		done
 		
 		total=$(( $similar + $different ))
+		lockfile .extract_speakers.lock
 		if (( $total != 0 ))
 		then
 			echo "statistics for speaker $speaker_v" >> $reportname
 			echo similarity = $((  (100 *  $similar  ) / $total  )) %  >> $reportname
 			cat $reportname
 	
-		        current_score=$((  (100 *  $similar  ) / $total  ))
+			current_score=$((  (100 *  $similar  ) / $total  ))
+			
+			max_score=$( cat .max_score )
 			if (( $max_score <= $current_score )) 	
 			then
-				max_score=$current_score
-				best_speaker_name=${speaker_db}	
-				echo "current best speaker name is $best_speaker_name"
+				echo $current_score > .max_score
+				echo ${speaker_db} > .best_speaker_name
 			fi	
 			echo -e "\t${speaker_db} \t $current_score%" >>$totalreport
 		fi
+		rm -f .extract_speakers.lock
+
 }
 
 directory=$(dirname "$1")
@@ -105,6 +115,12 @@ do
 	number_speakers=number_speakers+1
 	best_speaker_name="unknown"
 	max_score=0
+	
+	lockfile .extract_speakers.lock
+	echo 0 > .max_score
+	echo unknown > .best_speaker_name
+	rm -f .extract_speakers.lock
+
 	speaker_samples=$( ls $name/$speaker_v )
 
 	echo "$speaker_v:" >> $totalreport
@@ -156,7 +172,7 @@ do
 		done
 		sleep 3
 	done
-
+	best_speaker_name=$( cat .best_speaker_name )
 	echo -e "\tbest speaker: \t$best_speaker_name" >> $totalreport
 	#echo -e "$speaker_v $best_speaker_name" >> $reportcodename
 	echo -n "'$speaker_v':'$best_speaker_name'," >> $reportcodename
