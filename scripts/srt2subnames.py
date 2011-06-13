@@ -19,8 +19,6 @@ def replace_words(text, word_dic):
 
 
 # argv is your commandline arguments, argv[0] is your program name, so skip it
-#for n in sys.argv[1:]:
-#print out the filename we are currently processing
 original_subtitle = open(sys.argv[1], "r")
 result_extract_video = open(sys.argv[2], "r")
 
@@ -28,8 +26,13 @@ key_value = {}
 file_result_extract_video = result_extract_video.readlines()
 file_original_subtitle = original_subtitle.read()
 
-for line2 in file_result_extract_video:
-	key_value[str(line2.split()[0])+'\n'] = str(line2.split()[1])
+#first_line = file_result_extract_video[0]
+#file_result_extract_video[0]=first_line[:-1]
+
+key_value = eval(file_result_extract_video[0])
+#for line2 in file_result_extract_video:
+#	if len(line2) != 0:
+#		key_value[str(line2.split()[0])+'\n'] = str(line2.split()[1])
 
 str3 = replace_words(file_original_subtitle, key_value)
 
