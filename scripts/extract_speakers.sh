@@ -182,6 +182,7 @@ do
 done
 echo -e "}" >> $reportcodename
 python srt2subnames.py ${name}.srt ${_show}_small_report.txt
+#vlc --play-and-stop $videofile --sub-file ${name}.srt_new.srt
 cat $totalreport
 cat $reportcodename
 

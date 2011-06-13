@@ -26,16 +26,8 @@ key_value = {}
 file_result_extract_video = result_extract_video.readlines()
 file_original_subtitle = original_subtitle.read()
 
-#first_line = file_result_extract_video[0]
-#file_result_extract_video[0]=first_line[:-1]
-
 key_value = eval(file_result_extract_video[0])
-#for line2 in file_result_extract_video:
-#	if len(line2) != 0:
-#		key_value[str(line2.split()[0])+'\n'] = str(line2.split()[1])
-
 str3 = replace_words(file_original_subtitle, key_value)
-
 out_file = sys.argv[1]+"_new.srt"
 # create a output file
 fout = open(out_file, "w")
