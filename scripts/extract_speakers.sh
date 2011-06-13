@@ -63,13 +63,15 @@ function speakerdb_vs_samples (){
 		if (( $total != 0 ))
 		then
 			echo "statistics for speaker $speaker_v" >> $reportname
-			echo similarity = $((  (100 *  $similar  ) / $total  )) %  >> $reportname
+			sim = $((  (100 *  $similar  ) / $total  ))
+			echo similarity = $sim %  >> $reportname
+			
 			cat $reportname
 	
 			current_score=$((  (100 *  $similar  ) / $total  ))
 			
 			max_score=$( cat .max_score )
-			if (( $max_score <= $current_score )) 	
+			if (( $max_score < $current_score )) 	
 			then
 				echo $current_score > .max_score
 				echo ${speaker_db} > .best_speaker_name
@@ -108,11 +110,8 @@ echo "speakers in db = " $speakers_in_db
 declare -a bg_process
 
 
-number_speakers=0
-
 for speaker_v in $speakers_in_video
 do
-	number_speakers=number_speakers+1
 	best_speaker_name="unknown"
 	max_score=0
 	
