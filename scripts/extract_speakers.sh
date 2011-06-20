@@ -130,7 +130,7 @@ echo "speakers in db = " $speakers_in_db
 
 declare -a bg_process
 
-
+echo "*** Starting Speaker Recognition ***"
 for speaker_v in $speakers_in_video
 do
 	best_speaker_name="unknown"
@@ -210,9 +210,11 @@ total_seconds=$((end_time - $start_time ))
 h=$(( $total_seconds/3600 ))
 m=$(( $total_seconds/60 ))
 s=$(( $total_seconds%60 ))
+
+total_speakers=( $(echo $speakers_in_db) )
 echo
 echo "Performance Report:"
 echo  "  $video_duration"
 echo  "  $processors processors "
-echo  "  $(echo $speakers_in_db | wc -l) speakers in db "
+echo  "  ${#total_speakers[@]} speakers in db "
 printf "  time spent: %2d:%2d:%2d (%ds)  \n" $h $m $s ${total_seconds}
