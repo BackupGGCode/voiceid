@@ -22,7 +22,7 @@ for line in fileinput.input():
 FILE.close()	
 	#print line
 FILE = open(fileoutput,"r")
-for l in FILE:
-	print l
+#for l in FILE:
+#	print l
 
 FILE.close()

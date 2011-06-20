@@ -1,19 +1,41 @@
-#!/bin/bash
+#!/bin/bash 
+
+
+start_time=$(date +%s)
 
 processors=$(( $(grep -c ^processor /proc/cpuinfo  || sysctl  hw.ncpu | awk '{print $2}'  )  -1 ))
 #processors=15
 videofile=$1
 
+if [ -z "$videofile" ]
+then
+	echo "Error: parameter missing, file name required"
+	echo " example:"
+	echo "          ./extract_speakers.sh  myfilename.mp4"
+
+	exit 0
+fi 
+
+video_duration="Video $(ffprobe "$videofile" 2>&1 |grep Duration)"
 
 
 function kill_child(){
+#	echo *********** kill_child
+	all_jobs=$(jobs -p)
 
-	for job in $(jobs -p)
+	for j in $all_jobs
 	do 
-		kill -9 job
+		kill -9 $j 2>&1 > /dev/null
 	done
+	exit 0
 }
-trap "kill_child" TERM
+
+#trap "kill_child" SIGABRT
+#trap "kill_child" SIGKILL
+#trap "kill_child" SIGTERM
+trap "kill_child" SIGINT
+#trap -p
+
 
 
 
@@ -24,7 +46,6 @@ lockfile .extract_speakers.lock
 echo 0 > .max_score
 echo unknown > .best_speaker_name
 rm -f .extract_speakers.lock
-
 
 ./video2trim.sh "$videofile"
 
@@ -63,7 +84,7 @@ function speakerdb_vs_samples (){
 		if (( $total != 0 ))
 		then
 			echo "statistics for speaker $speaker_v" >> $reportname
-			sim = $((  (100 *  $similar  ) / $total  ))
+			sim=$((  (100 *  $similar  ) / $total  ))
 			echo similarity = $sim %  >> $reportname
 			
 			cat $reportname
@@ -183,6 +204,15 @@ echo -e "}" >> $reportcodename
 python srt2subnames.py ${name}.srt ${_show}_small_report.txt
 #vlc --play-and-stop $videofile --sub-file ${name}.srt_new.srt
 cat $totalreport
-cat $reportcodename
-
-
+#cat $reportcodename
+end_time=$(date +%s)
+total_seconds=$((end_time - $start_time ))
+h=$(( $total_seconds/3600 ))
+m=$(( $total_seconds/60 ))
+s=$(( $total_seconds%60 ))
+echo
+echo "Performance Report:"
+echo  "  $video_duration"
+echo  "  $processors processors "
+echo  "  $(echo $speakers_in_db | wc -l) speakers in db "
+printf "  time spent: %2d:%2d:%2d (%ds)  \n" $h $m $s ${total_seconds}
