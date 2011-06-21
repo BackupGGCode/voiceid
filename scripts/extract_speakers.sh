@@ -1,4 +1,4 @@
-#!/bin/bash 
+#!/bin/bash
 
 
 start_time=$(date +%s)
@@ -124,12 +124,22 @@ echo "$name" >$totalreport
 speakers_in_video=$(ls $name)
 echo "speakers in video = " $speakers_in_video
 
+speakers_in_db=""
 
-speakers_in_db=$(ls db)
+a_speakers_in_db=$(ls db)
+for s in $a_speakers_in_db
+do 
+	echo Testing db for speaker $s
+	if [ -f db/$s/*.wav ] && [ -f db/$s/speakers.txt ] && [ "$(cat db/$s/speakers.txt | grep "[^0-9]" > /dev/null;echo $? )" -eq 1 ]
+	then
+		speakers_in_db="$speakers_in_db $s"
+	fi
+done
+
 echo "speakers in db = " $speakers_in_db
 
 declare -a bg_process
-
+total_samples=0
 echo "*** Starting Speaker Recognition ***"
 for speaker_v in $speakers_in_video
 do
@@ -142,6 +152,8 @@ do
 	rm -f .extract_speakers.lock
 
 	speaker_samples=$( ls $name/$speaker_v )
+	n_s=( $speaker_samples )
+	total_samples=$(( $total_samples + ${#n_s[@]} ))
 
 	echo "$speaker_v:" >> $totalreport
 
@@ -210,6 +222,7 @@ total_seconds=$((end_time - $start_time ))
 h=$(( $total_seconds/3600 ))
 m=$(( $total_seconds/60 ))
 s=$(( $total_seconds%60 ))
+number_of_clusters=( $speakers_in_video )
 
 total_speakers=( $(echo $speakers_in_db) )
 echo
@@ -217,4 +230,7 @@ echo "Performance Report:"
 echo  "  $video_duration"
 echo  "  $processors processors "
 echo  "  ${#total_speakers[@]} speakers in db "
+echo  "  ${#number_of_clusters[@]} clusters "
+echo  "  $total_samples total samples "
+
 printf "  time spent: %2d:%2d:%2d (%ds)  \n" $h $m $s ${total_seconds}
