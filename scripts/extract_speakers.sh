@@ -129,7 +129,7 @@ speakers_in_db=""
 a_speakers_in_db=$(ls db)
 for s in $a_speakers_in_db
 do 
-	echo Testing db for speaker $s
+	echo Checking db for speaker $s
 	if [ -f db/$s/*.wav ] && [ -f db/$s/speakers.txt ] && [ "$(cat db/$s/speakers.txt | grep "[^0-9]" > /dev/null;echo $? )" -eq 1 ]
 	then
 		speakers_in_db="$speakers_in_db $s"
