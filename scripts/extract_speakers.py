@@ -15,7 +15,7 @@ def termHandler(a,b):
 signal.signal(signal.SIGINT, termHandler )
 
 def video2trim(videofile):
-	commandline = './video2trim.sh %s' %  videofile
+	commandline = "./video2trim.sh %s" %  videofile
 	args = shlex.split(commandline)
 	p = subprocess.call(args)
 
@@ -49,7 +49,18 @@ if __name__ == '__main__':
 	cpus = cpu_count()
 	print '%s processors' % cpus
 	start_time = time.time()
-	file_input = sys.argv[ 1 ] 
+	file_input = sys.argv[ 1: ] 
+	print file_input
+	if len( file_input ) > 1: #blanks in file name
+		print file_input
+		new_file_input = '_'.join(file_input).replace("'",'_').replace('-','_')
+		os.rename(' '.join(file_input),new_file_input)
+		file_input = new_file_input
+	else:
+		new_file_input = file_input[0].replace("'",'_').replace('-','_').replace(' ','_')
+		os.rename( file_input[0], new_file_input )
+	file_input = new_file_input
+
 	video2trim( file_input )
 	basename, extension = os.path.splitext( file_input )
 	
@@ -88,6 +99,11 @@ if __name__ == '__main__':
 		print "\t %s %s" % (cc , clusters[c][cc])
 	    print '\t ------------------------'
 	    print '\t best speaker: %s' % best
+	import wave
+	w = wave.open(basename+'.wav')
+	p = w.getparams()
+	sec=p[3]/p[2]
+	w.close()
 	total_time = time.time() - start_time
-	print "\nall done in %dsec (%s) with %s cpus" % (total_time,  time.strftime('%H:%M:%S', time.gmtime(total_time)), cpus )
+	print "\nwav duration: %s\nall done in %dsec (%s) with %s cpus" % ( time.strftime('%H:%M:%S',time.gmtime(sec)), total_time,  time.strftime('%H:%M:%S', time.gmtime(total_time)), cpus )
 
