@@ -30,7 +30,7 @@ def extract_clusters(filename):
 	f.close()
 
 def mfcc_vs_gmm(showname, gmm):
-	commandline =' java -Xmx2G -Xms2G -cp ./LIUM_SpkDiarization.jar  fr.lium.spkDiarization.programs.MScore --help   --sInputMask=%s.seg   --fInputMask=%s.mfcc  --sOutputMask=%s.ident.'+gmm+'.seg --sOutputFormat=seg,UTF8  --fInputDesc="audio16kHz2sphinx,1:3:2:0:0:0,13,1:0:300:4" --tInputMask='+gmm+' --sTop=5,ubm.gmm  --sSetLabel=add --sByCluster '+  showname 
+	commandline =' java -Xmx2G -Xms2G -cp ./LIUM_SpkDiarization.jar  fr.lium.spkDiarization.programs.MScore --help   --sInputMask=%s.seg   --fInputMask=%s.mfcc  --sOutputMask=%s.ident.'+gmm+'.seg --sOutputFormat=seg,UTF8  --fInputDesc="audio16kHz2sphinx,1:3:2:0:0:0,13,1:0:300:4" --tInputMask=./gmm_db/'+gmm+' --sTop=5,ubm.gmm  --sSetLabel=add --sByCluster '+  showname 
 	args = shlex.split(commandline)
 	p = subprocess.call(args)
 
@@ -48,8 +48,9 @@ def manage_ident(showname, gmm):
 if __name__ == '__main__':
 	cpus = cpu_count()
 	print '%s processors' % cpus
+	start_time = time.time()
 	file_input = sys.argv[ 1 ] 
-	#video2trim( file_input )
+	video2trim( file_input )
 	basename, extension = os.path.splitext( file_input )
 	
 	extract_clusters( "%s.seg" %  basename )
@@ -75,10 +76,18 @@ if __name__ == '__main__':
 	for f in os.listdir('./gmm_db'):
 		if f.endswith('.gmm'):
 			manage_ident( basename, f )
-	print clusters
+	print ""
 	for c in clusters:
 	    print c
+	    value = -1000
+	    best = 'unknown'
 	    for cc in clusters[c]:
+		if clusters[c][cc] > value:
+			value = clusters[c][cc]
+			best = cc
 		print "\t %s %s" % (cc , clusters[c][cc])
-
+	    print '\t ------------------------'
+	    print '\t best speaker: %s' % best
+	total_time = time.time() - start_time
+	print "\nall done in %dsec (%s) with %s cpus" % (total_time,  time.strftime('%H:%M:%S', time.gmtime(total_time)), cpus )
 
