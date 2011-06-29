@@ -27,6 +27,10 @@ else
 fi
 echo "*** Wav done ***"
 
+echo "*** Extracting features ***"
+./feat_sphinx.sh ${name}.wav ${name}.mfcc ${name}.uem.seg
+echo "*** Features done ***"
+
 echo "*** Starting Diarization ***"
 ./wav2label.sh ${name}.wav 
 ./label2srt.py ${name}.txt
