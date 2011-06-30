@@ -129,8 +129,6 @@ if __name__ == '__main__':
 	    mean = sum(array) / len(array)
 	    m_distance = abs(mean) - abs(array[0])
 	    print '\t best speaker: %s (distance from second %f - mean %f - distance from mean %f ) ' % (best , distance, mean, m_distance)
-	print "speakers"
-	print speakers
 	file_original_subtitle = open(basename+".srt")
         srt2subnames(file_original_subtitle.read(), basename, speakers)
 	import wave
