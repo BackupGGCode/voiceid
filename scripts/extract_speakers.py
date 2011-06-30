@@ -5,21 +5,41 @@ import os
 import shlex, subprocess
 import sys, signal
 import time
-
+import re
 p = None
 clusters = {}
+
 def termHandler(a,b):
 	print "termHandler"
 	p.kill()
 
 signal.signal(signal.SIGINT, termHandler )
 
+def replace_words(text, word_dic):
+    """
+    take a text and replace words that match a key in a dictionary with
+    the associated value, return the changed text
+    """
+    rc = re.compile('|'.join(map(re.escape, word_dic)))
+	
+    def translate(match):
+        return word_dic[match.group(0)]+'\n'
+    
+    return rc.sub(translate, text)
+
 def video2trim(videofile):
 	commandline = "./video2trim.sh %s" %  videofile
 	args = shlex.split(commandline)
 	p = subprocess.call(args)
 
-	
+def srt2subnames(original_subtitle, showname, key_value):
+	key_value=dict(map(lambda (key, value): (str(key)+"\n", value), key_value.items()))
+	str3 = replace_words(original_subtitle, key_value)
+	out_file = showname+"_new.srt"
+	# create a output file
+	fout = open(out_file, "w")
+	fout.write(str3)
+	fout.close()	
 
 def extract_clusters(filename):
 	f = open(filename,"r")
@@ -30,7 +50,7 @@ def extract_clusters(filename):
 	f.close()
 
 def mfcc_vs_gmm(showname, gmm):
-	commandline = 'java -Xmx2G -Xms2G -cp ./LIUM_SpkDiarization.jar  fr.lium.spkDiarization.programs.MScore --help   --sInputMask=%s.seg   --fInputMask=%s.mfcc  --sOutputMask=%s.ident.'+gmm+'.seg --sOutputFormat=seg,UTF8  --fInputDesc="audio16kHz2sphinx,1:3:2:0:0:0,13,1:0:300:4" --tInputMask=./gmm_db/'+gmm+' --sTop=8,ubm.gmm  --sSetLabel=add --sByCluster '+  showname 
+	commandline = 'java -Xmx2G -Xms2G -cp ./LIUM_SpkDiarization.jar  fr.lium.spkDiarization.programs.MScore --help   --sInputMask=%s.seg   --fInputMask=%s.mfcc  --sOutputMask=%s.ident.'+gmm+'.seg --sOutputFormat=seg,UTF8  --fInputDesc="audio16kHz2sphinx,1:3:2:0:0:0,13,1:0:300:4" --tInputMask=./gmm_db/'+gmm+' --sTop=5,ubm.gmm  --sSetLabel=add --sByCluster '+  showname 
 	args = shlex.split(commandline)
 	p = subprocess.call(args)
 
@@ -61,7 +81,7 @@ if __name__ == '__main__':
 		os.rename( file_input[0], new_file_input )
 	file_input = new_file_input
 
-#	video2trim( file_input )
+	video2trim( file_input )
 	basename, extension = os.path.splitext( file_input )
 	
 	extract_clusters( "%s.seg" %  basename )
@@ -88,6 +108,7 @@ if __name__ == '__main__':
 		if f.endswith('.gmm'):
 			manage_ident( basename, f )
 	print ""
+	speakers = {}
 	print clusters
 	for c in clusters:
 	    print c
@@ -97,7 +118,8 @@ if __name__ == '__main__':
 		if clusters[c][cc] > value:
 			value = clusters[c][cc]
 			best = cc
-		print "\t %s %s" % (cc , clusters[c][cc]) 
+			speakers[c] = cc
+		print "\t %s %s" % (cc , clusters[c][cc])
 	    print '\t ------------------------'
 	    array = clusters[c].values()
 	    array.sort()
@@ -106,6 +128,10 @@ if __name__ == '__main__':
 	    mean = sum(array) / len(array)
 	    m_distance = abs(mean) - abs(array[0])
 	    print '\t best speaker: %s (distance from second %f - mean %f - distance from mean %f ) ' % (best , distance, mean, m_distance)
+	print "speakers"
+	print speakers
+	file_original_subtitle = open(basename+".srt")
+        srt2subnames(file_original_subtitle.read(), basename, speakers)
 	import wave
 	w = wave.open(basename+'.wav')
 	p = w.getparams()
