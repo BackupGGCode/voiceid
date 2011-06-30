@@ -61,7 +61,7 @@ if __name__ == '__main__':
 		os.rename( file_input[0], new_file_input )
 	file_input = new_file_input
 
-	video2trim( file_input )
+#	video2trim( file_input )
 	basename, extension = os.path.splitext( file_input )
 	
 	extract_clusters( "%s.seg" %  basename )
@@ -88,17 +88,24 @@ if __name__ == '__main__':
 		if f.endswith('.gmm'):
 			manage_ident( basename, f )
 	print ""
+	print clusters
 	for c in clusters:
 	    print c
-	    value = -1000
+	    value = -33.0
 	    best = 'unknown'
 	    for cc in clusters[c]:
 		if clusters[c][cc] > value:
 			value = clusters[c][cc]
 			best = cc
-		print "\t %s %s" % (cc , clusters[c][cc])
+		print "\t %s %s" % (cc , clusters[c][cc]) 
 	    print '\t ------------------------'
-	    print '\t best speaker: %s' % best
+	    array = clusters[c].values()
+	    array.sort()
+	    array.reverse()
+	    distance = abs(array[1]) - abs(array[0])
+	    mean = sum(array) / len(array)
+	    m_distance = abs(mean) - abs(array[0])
+	    print '\t best speaker: %s (distance from second %f - mean %f - distance from mean %f ) ' % (best , distance, mean, m_distance)
 	import wave
 	w = wave.open(basename+'.wav')
 	p = w.getparams()
