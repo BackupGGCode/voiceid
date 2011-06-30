@@ -62,7 +62,11 @@ def manage_ident(showname, gmm):
 			i = l.index('score:'+speaker) + len('score:'+speaker+" = ")
 			ii = l.index(']',i) -1
 			value = l[i:ii]
-			clusters[ cluster ][ speaker ] = float(value)
+			if clusters[ cluster ].has_key( speaker ) == False:
+				clusters[ cluster ][ speaker ] = float(value)
+			else:
+				if clusters[ cluster ][ speaker ] < float(value):
+					clusters[ cluster ][ speaker ] = float(value)
 	f.close()
 
 if __name__ == '__main__':
