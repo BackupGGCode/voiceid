@@ -1,7 +1,7 @@
 #!/bin/bash -x
 
 #input wave file, %s will be substituted with $show
-LIUM=./LIUM_SpkDiarization-4.2.jar
+LIUM=./LIUM_SpkDiarization.jar
 show="$1"
 speaker="$2"
 

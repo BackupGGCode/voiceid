@@ -15,6 +15,8 @@ def termHandler(a,b):
 
 signal.signal(signal.SIGINT, termHandler )
 
+dev_null = open('/dev/null','w')
+
 def replace_words(text, word_dic):
     """
     take a text and replace words that match a key in a dictionary with
@@ -30,7 +32,7 @@ def replace_words(text, word_dic):
 def video2trim(videofile):
 	commandline = "./video2trim.sh %s" %  videofile
 	args = shlex.split(commandline)
-	p = subprocess.call(args)
+	p = subprocess.Popen(args).wait()
 
 def srt2subnames(original_subtitle, showname, key_value):
 	key_value=dict(map(lambda (key, value): (str(key)+"\n", value), key_value.items()))
@@ -52,7 +54,7 @@ def extract_clusters(filename):
 def mfcc_vs_gmm(showname, gmm):
 	commandline = 'java -Xmx2G -Xms2G -cp ./LIUM_SpkDiarization.jar  fr.lium.spkDiarization.programs.MScore --help   --sInputMask=%s.seg   --fInputMask=%s.mfcc  --sOutputMask=%s.ident.'+gmm+'.seg --sOutputFormat=seg,UTF8  --fInputDesc="audio16kHz2sphinx,1:3:2:0:0:0,13,1:0:300:4" --tInputMask=./gmm_db/'+gmm+' --sTop=8,ubm.gmm  --sSetLabel=add --sByCluster '+  showname 
 	args = shlex.split(commandline)
-	p = subprocess.call(args)
+	p = subprocess.Popen(args).wait()
 
 def manage_ident(showname, gmm):
 	f = open("%s.ident.%s.seg" % (showname,gmm ) ,"r")
@@ -132,7 +134,10 @@ if __name__ == '__main__':
 	    distance = abs(array[1]) - abs(array[0])
 	    mean = sum(array) / len(array)
 	    m_distance = abs(mean) - abs(array[0])
-	    print '\t best speaker: %s (distance from second %f - mean %f - distance from mean %f ) ' % (best , distance, mean, m_distance)
+            if distance < .1 :
+		    best = 'unknown'
+		    speakers[c] = best
+	    print '\t best speaker: %s (distance from 2nd %f - mean %f - distance from mean %f ) ' % (best , distance, mean, m_distance)
 	file_original_subtitle = open(basename+".srt")
         srt2subnames(file_original_subtitle.read(), basename, speakers)
 	import wave
