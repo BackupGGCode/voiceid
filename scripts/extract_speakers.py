@@ -17,6 +17,11 @@ signal.signal(signal.SIGINT, termHandler )
 
 dev_null = open('/dev/null','w')
 
+def humanize_time(secs):
+	mins, secs = divmod(secs, 60)
+	hours, mins = divmod(mins, 60)
+	return '%02d:%02d:%02d,%s' % (hours, mins, int(secs), str(("%0.3f" % secs ))[-3:] )
+
 def seg2trim(segfile):
 	basename, extension = os.path.splitext(segfile)
 	s = open(segfile,'r')
@@ -38,8 +43,37 @@ def seg2trim(segfile):
 			p = subprocess.Popen(args)
 			retval = p.wait()
 			if retval != 0:
-				raise Exception("Subprocess closed unexpectedlyi "+str(p) )
+				raise Exception("Subprocess closed unexpectedly "+str(p) )
 	s.close()
+
+def seg2srt(segfile):
+	def readl(s):
+		total = []
+		for line in s.readlines():
+			if not line.startswith(";;"):
+				arr=line.split()
+				total.append(arr)
+		s.close()
+		return total
+
+	def readtime(aline):
+		return int(aline[2])
+
+	basename, extension = os.path.splitext(segfile)	
+	s = open(segfile,'r')
+	lines=readl(s)
+	lines.sort(key=readtime, reverse=False)
+        fileoutput = basename+".srt"
+	FILE = open(fileoutput,"w")
+	row = 0
+	for line in lines:
+		row = row +1
+		FILE.write(str(row)+"\n")
+		FILE.write(humanize_time(float(line[2])) + " --> " + humanize_time(float(line[2])+float(line[3]))+"\n")
+		FILE.write(line[7]+"\n")
+		FILE.write(""+"\n")
+			
+	FILE.close()
 
 
 def replace_words(text, word_dic):

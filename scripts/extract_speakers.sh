@@ -209,6 +209,7 @@ do
 	#echo -e "$speaker_v $best_speaker_name" >> $reportcodename
 	echo -n "'$speaker_v':'$best_speaker_name'," >> $reportcodename
 	
+
 	printf "*********\n"
 	
 done
