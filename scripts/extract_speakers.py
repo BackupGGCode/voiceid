@@ -17,6 +17,31 @@ signal.signal(signal.SIGINT, termHandler )
 
 dev_null = open('/dev/null','w')
 
+def seg2trim(segfile):
+	basename, extension = os.path.splitext(segfile)
+	s = open(segfile,'r')
+	for line in s.readlines():
+		if not line.startswith(";;"):
+			arr = line.split()
+			clust = arr[7]
+			st = float(arr[2])/100
+			end = float(arr[3])/100
+			try:
+				os.makedirs("%s/%s" % (basename, clust) )
+			except os.error as e:
+				if e.errno == 17:
+					pass
+				else:
+					raise os.error
+			commandline = "sox %s.wav %s/%s/%s_%s.wav trim  %s %s" % ( basename, basename, clust, clust, st, st, end )
+			args = shlex.split(commandline)
+			p = subprocess.Popen(args)
+			retval = p.wait()
+			if retval != 0:
+				raise Exception("Subprocess closed unexpectedlyi "+str(p) )
+	s.close()
+
+
 def replace_words(text, word_dic):
     """
     take a text and replace words that match a key in a dictionary with
@@ -32,7 +57,11 @@ def replace_words(text, word_dic):
 def video2trim(videofile):
 	commandline = "./video2trim.sh %s" %  videofile
 	args = shlex.split(commandline)
-	p = subprocess.Popen(args).wait()
+	p = subprocess.Popen(args)
+	retval = p.wait()
+	if retval != 0:
+		raise Exception("Subprocess closed unexpectedlyi "+str(p) )
+
 
 def srt2subnames(original_subtitle, showname, key_value):
 	key_value=dict(map(lambda (key, value): (str(key)+"\n", value), key_value.items()))
@@ -52,9 +81,12 @@ def extract_clusters(filename):
 	f.close()
 
 def mfcc_vs_gmm(showname, gmm):
-	commandline = 'java -Xmx2G -Xms2G -cp ./LIUM_SpkDiarization.jar  fr.lium.spkDiarization.programs.MScore --help   --sInputMask=%s.seg   --fInputMask=%s.mfcc  --sOutputMask=%s.ident.'+gmm+'.seg --sOutputFormat=seg,UTF8  --fInputDesc="audio16kHz2sphinx,1:3:2:0:0:0,13,1:0:300:4" --tInputMask=./gmm_db/'+gmm+' --sTop=8,ubm.gmm  --sSetLabel=add --sByCluster '+  showname 
+	commandline = 'java -Xmx2G -Xms2G -cp ./LIUM_SpkDiarization.jar  fr.lium.spkDiarization.programs.MScore --sInputMask=%s.seg   --fInputMask=%s.mfcc  --sOutputMask=%s.ident.'+gmm+'.seg --sOutputFormat=seg,UTF8  --fInputDesc="audio16kHz2sphinx,1:3:2:0:0:0,13,1:0:300:4" --tInputMask=./gmm_db/'+gmm+' --sTop=8,ubm.gmm  --sSetLabel=add --sByCluster '+  showname 
 	args = shlex.split(commandline)
-	p = subprocess.Popen(args).wait()
+	p = subprocess.Popen(args)
+	retval = p.wait()
+	if retval != 0:
+		raise Exception("Subprocess closed unexpectedlyi "+str(p) )
 
 def manage_ident(showname, gmm):
 	f = open("%s.ident.%s.seg" % (showname,gmm ) ,"r")
@@ -70,6 +102,14 @@ def manage_ident(showname, gmm):
 				if clusters[ cluster ][ speaker ] < float(value):
 					clusters[ cluster ][ speaker ] = float(value)
 	f.close()
+
+def wave_duration(wavfile):
+	import wave
+	w = wave.open(wavfile)
+	p = w.getparams()
+	w.close()
+	return p[3]/p[2]
+
 
 if __name__ == '__main__':
 	cpus = cpu_count()
@@ -140,11 +180,7 @@ if __name__ == '__main__':
 	    print '\t best speaker: %s (distance from 2nd %f - mean %f - distance from mean %f ) ' % (best , distance, mean, m_distance)
 	file_original_subtitle = open(basename+".srt")
         srt2subnames(file_original_subtitle.read(), basename, speakers)
-	import wave
-	w = wave.open(basename+'.wav')
-	p = w.getparams()
-	sec=p[3]/p[2]
-	w.close()
+	sec = wave_duration(basename+'.wav')
 	total_time = time.time() - start_time
 	print "\nwav duration: %s\nall done in %dsec (%s) with %s cpus" % ( time.strftime('%H:%M:%S',time.gmtime(sec)), total_time,  time.strftime('%H:%M:%S', time.gmtime(total_time)), cpus )
 

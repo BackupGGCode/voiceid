@@ -1,4 +1,4 @@
-#!/bin/bash -x
+#!/bin/bash 
 
 #input wave file, %s will be substituted with $show
 LIUM=./LIUM_SpkDiarization.jar
