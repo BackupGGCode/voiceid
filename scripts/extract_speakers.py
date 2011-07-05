@@ -9,11 +9,13 @@ import re
 p = None
 clusters = {}
 
+"""
 def termHandler(a,b):
 	print "termHandler"
 	p.kill()
 
 signal.signal(signal.SIGINT, termHandler )
+"""
 
 dev_null = open('/dev/null','w')
 
@@ -21,6 +23,27 @@ def humanize_time(secs):
 	mins, secs = divmod(secs, 60)
 	hours, mins = divmod(mins, 60)
 	return '%02d:%02d:%02d,%s' % (hours, mins, int(secs), str(("%0.3f" % secs ))[-3:] )
+
+def video2wav(show):
+	def is_bad_wave(show):
+		import magic
+		ms = magic.open(magic.MAGIC_NONE)
+		ms.load()
+		info =  ms.file(show)
+		if info == "RIFF (little-endian) data, WAVE audio, Microsoft PCM, 16 bit, mono 16000 Hz":
+			return False
+		else:
+			return True
+
+	name, ext = os.path.splitext(show)
+	if ext != '.wav' or is_bad_wave(show):
+		pipeline = "gst-launch-0.10 filesrc location='"+show+"' ! decodebin ! audioresample ! 'audio/x-raw-int,rate=16000' ! audioconvert ! 'audio/x-raw-int,rate=16000,depth=16,signed=true,channels=1' ! wavenc ! filesink location="+name+".wav " 
+		args = shlex.split(pipeline)
+		p = subprocess.Popen(args, stdout=dev_null)
+		retval = p.wait()
+		if retval != 0: 
+			raise Exception("Subprocess closed unexpectedly "+str(p) )
+
 
 def seg2trim(segfile):
 	basename, extension = os.path.splitext(segfile)
@@ -89,13 +112,18 @@ def replace_words(text, word_dic):
     return rc.sub(translate, text)
 
 def video2trim(videofile):
-	commandline = "./video2trim.sh %s" %  videofile
+	video2wav(videofile)
+	show, ext = os.path.splitext(videofile)
+	seg2trim(show+'.seg')
+
+def extract_mfcc(inputfile):
+	show, ext = os.path.splitext(inputfile)
+	commandline = "sphinx_fe -verbose no -mswav yes -i %s.wav -o %s.mfcc" %  ( show, show )
 	args = shlex.split(commandline)
-	p = subprocess.Popen(args)
-	retval = p.wait()
+	p = subprocess.Popen(args, stdout=dev_null, stderr=dev_null) 
+        retval = p.wait()
 	if retval != 0:
 		raise Exception("Subprocess closed unexpectedlyi "+str(p) )
-
 
 def srt2subnames(original_subtitle, showname, key_value):
 	key_value=dict(map(lambda (key, value): (str(key)+"\n", value), key_value.items()))
@@ -163,6 +191,7 @@ if __name__ == '__main__':
 
 	video2trim( file_input )
 	basename, extension = os.path.splitext( file_input )
+	extract_mfcc( file_input )
 	
 	extract_clusters( "%s.seg" %  basename )
 	p = {}
