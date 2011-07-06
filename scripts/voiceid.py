@@ -11,6 +11,7 @@ verbose = False
 
 lium_jar='./LIUM_SpkDiarization.jar'
 db_dir = './gmm_db'
+keep_intermediate_files = False
 
 dev_null = open('/dev/null','w')
 if verbose:
@@ -22,6 +23,7 @@ def start_subprocess(commandline):
 	retval = p.wait()
 	if retval != 0: 
 		raise Exception("Subprocess closed unexpectedly "+str(p) )
+
 def ensure_file_exists(filename):
 	if not os.path.exists(filename):
 		raise Exception("File %s not correctly created"  % filename)
@@ -47,10 +49,12 @@ def video2wav(show):
 	name, ext = os.path.splitext(show)
 	if ext != '.wav' or is_bad_wave(show):
 		start_subprocess( "gst-launch-0.10 filesrc location='"+show+"' ! decodebin ! audioresample ! 'audio/x-raw-int,rate=16000' ! audioconvert ! 'audio/x-raw-int,rate=16000,depth=16,signed=true,channels=1' ! wavenc ! filesink location="+name+".wav " )
+	ensure_file_exists(name+'.wav')
 
 
 def diarization(showname):
 	start_subprocess( 'java -Xmx2024m -jar '+lium_jar+'   --fInputMask=%s.wav --sOutputMask=%s.seg --doCEClustering '+  showname )
+	ensure_file_exists(showname+'.seg')
 
 def seg2trim(segfile):
 	basename, extension = os.path.splitext(segfile)
@@ -70,6 +74,7 @@ def seg2trim(segfile):
 					raise os.error
 			commandline = "sox %s.wav %s/%s/%s_%s.wav trim  %s %s" % ( basename, basename, clust, clust, st, st, end )
 			start_subprocess(commandline)
+			ensure_file_exists( "%s/%s/%s_%s.wav" % (basename, clust, clust, st) )
 	s.close()
 
 def seg2srt(segfile):
@@ -100,6 +105,7 @@ def seg2srt(segfile):
 		FILE.write(""+"\n")
 			
 	FILE.close()
+	ensure_file_exists(basename+'.srt')
 
 def video2trim(videofile):
 	print "*** converting video to wav ***"
@@ -113,6 +119,7 @@ def video2trim(videofile):
 def extract_mfcc(show):
 	commandline = "sphinx_fe -verbose no -mswav yes -i %s.wav -o %s.mfcc" %  ( show, show )
 	start_subprocess(commandline)
+	ensure_file_exists(show+'.mfcc')
 
 def ident_seg(showname,name):
 	f = open(showname+'.seg','r')
@@ -131,14 +138,17 @@ def ident_seg(showname,name):
 			line.replace(c,name)
 		output.write(line+'\n')
 	output.close()
+	ensure_file_exists(showname+'.ident.seg')
 
 def train_init(show):
 	commandline = 'java -Xmx2024m -cp '+lium_jar+' fr.lium.spkDiarization.programs.MTrainInit --help --sInputMask=%s.ident.seg --fInputMask=%s.wav --fInputDesc="audio16kHz2sphinx,1:3:2:0:0:0,13,1:1:300:4"  --emInitMethod=copy --tInputMask=./ubm.gmm --tOutputMask=%s.init.gmm '+show
 	start_subprocess(commandline)
+	ensure_file_exists(showname+'.init.gmm')
 
 def train_map(show):
 	commandline = 'java -Xmx2024m -cp '+lium_jar+' fr.lium.spkDiarization.programs.MTrainMAP --help --sInputMask=%s.ident.seg --fInputMask=%s.mfcc --fInputDesc="audio16kHz2sphinx,1:3:2:0:0:0,13,1:1:300:4"  --tInputMask=%s.init.gmm --emCtrl=1,5,0.01 --varCtrl=0.01,10.0 --tOutputMask=%s.gmm ' + show 
 	start_subprocess(commandline)
+	ensure_file_exists(show+'.gmm')
 
 def srt2subnames(showname, key_value):
 	def replace_words(text, word_dic):
@@ -153,7 +163,7 @@ def srt2subnames(showname, key_value):
 	    
 	    return rc.sub(translate, text)
 
-	file_original_subtitle = open(showname+".srt") #FIXME: open file in function
+	file_original_subtitle = open(showname+".srt")
 	original_subtitle = file_original_subtitle.read()
 	file_original_subtitle.close()
 	key_value=dict(map(lambda (key, value): (str(key)+"\n", value), key_value.items()))
@@ -163,6 +173,7 @@ def srt2subnames(showname, key_value):
 	fout = open(out_file, "w")
 	fout.write(str3)
 	fout.close()	
+	ensure_file_exists(out_file)
 
 def extract_clusters(filename, clusters):
 	f = open(filename,"r")
@@ -175,6 +186,7 @@ def extract_clusters(filename, clusters):
 def mfcc_vs_gmm(showname, gmm):
 	commandline = 'java -Xmx2G -Xms2G -cp '+lium_jar+'  fr.lium.spkDiarization.programs.MScore --sInputMask=%s.seg   --fInputMask=%s.mfcc  --sOutputMask=%s.ident.'+gmm+'.seg --sOutputFormat=seg,UTF8  --fInputDesc="audio16kHz2sphinx,1:3:2:0:0:0,13,1:0:300:4" --tInputMask='+db_dir+'/'+gmm+' --sTop=8,ubm.gmm  --sSetLabel=add --sByCluster '+  showname 
 	start_subprocess(commandline)
+	ensure_file_exists(showname+'.ident.'+gmm+'.seg')
 
 
 def manage_ident(showname, gmm, clusters):
@@ -191,6 +203,8 @@ def manage_ident(showname, gmm, clusters):
 				if clusters[ cluster ][ speaker ] < float(value):
 					clusters[ cluster ][ speaker ] = float(value)
 	f.close()
+	if not keep_intermediate_files:
+		os.remove("%s.ident.%s.seg" % (showname,gmm ) )
 
 def wave_duration(wavfile):
 	import wave
@@ -251,7 +265,7 @@ if __name__ == '__main__':
 			p[f].start()
 	for proc in p:
 		if p[proc].is_alive():
-			print 'joining proc %s' % str(proc)
+			#print 'joining proc %s' % str(proc)
 			p[proc].join()	
 	
 	#print "Processes %s" % active_children()
