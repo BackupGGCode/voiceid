@@ -1,11 +1,13 @@
 #!/usr/bin/env python 
-
+from optparse import OptionParser
 from multiprocessing import Process, cpu_count, active_children
 import os
 import shlex, subprocess
 import sys, signal
 import time
 import re
+import string
+import tempfile
 p = None
 verbose = False
 
@@ -131,7 +133,7 @@ def ident_seg(showname,name):
 				prefix,c = k.split(':')
 				clusters.append(c)
 	f.close()
-	output = open(showname+'ident.seg', 'w')
+	output = open(showname+'.ident.seg', 'w')
 	clusters.reverse()
 	for line in lines:
 		for c in clusters:
@@ -143,7 +145,7 @@ def ident_seg(showname,name):
 def train_init(show):
 	commandline = 'java -Xmx2024m -cp '+lium_jar+' fr.lium.spkDiarization.programs.MTrainInit --help --sInputMask=%s.ident.seg --fInputMask=%s.wav --fInputDesc="audio16kHz2sphinx,1:3:2:0:0:0,13,1:1:300:4"  --emInitMethod=copy --tInputMask=./ubm.gmm --tOutputMask=%s.init.gmm '+show
 	start_subprocess(commandline)
-	ensure_file_exists(showname+'.init.gmm')
+	ensure_file_exists(show+'.init.gmm')
 
 def train_map(show):
 	commandline = 'java -Xmx2024m -cp '+lium_jar+' fr.lium.spkDiarization.programs.MTrainMAP --help --sInputMask=%s.ident.seg --fInputMask=%s.mfcc --fInputDesc="audio16kHz2sphinx,1:3:2:0:0:0,13,1:1:300:4"  --tInputMask=%s.init.gmm --emCtrl=1,5,0.01 --varCtrl=0.01,10.0 --tOutputMask=%s.gmm ' + show 
@@ -213,6 +215,15 @@ def wave_duration(wavfile):
 	w.close()
 	return par[3]/par[2]
 
+def merge_waves(input_waves,wavename):
+	if os.path.exists(wavename):
+		raise Exception("File gmm %s already exist!" % wavename)
+	waves = [w.replace(" ","\ ") for w in input_waves]
+	w=" ".join(waves)
+	commandline = "sox "+str(w)+" "+ str(wavename)
+	print commandline
+	start_subprocess(commandline)
+	
 def build_gmm(show,name):
 	
 	diarization(show)
@@ -227,22 +238,24 @@ def build_gmm(show,name):
 
 
 
-if __name__ == '__main__':
+
+def extract_speakers(file_input):
 	cpus = cpu_count()
 	clusters = {}
 	#print '%s processors' % cpus
 	start_time = time.time()
-	file_input = sys.argv[ 1: ] 
-	if len( file_input ) > 1: #blanks in file name
-		print file_input
-		new_file_input = '_'.join(file_input).replace("'",'_').replace('-','_')
-		os.rename(' '.join(file_input),new_file_input)
-		file_input = new_file_input
-	else:
-		new_file_input = file_input[0].replace("'",'_').replace('-','_').replace(' ','_')
-		os.rename( file_input[0], new_file_input )
-	file_input = new_file_input
-
+	#file_input = sys.argv[ 1: ] 
+	#print file_input.whitespace
+	spaces = 0
+	spaces=file_input.count(" ")
+	# if spaces > 0: #blanks in file name
+		# print file_input
+		# new_file_input = str(file_input)  
+		# new_file_input = new_file_input.replace("'",'_').replace('-','_').replace(' ','_')
+		# os.rename(file_input,new_file_input)
+		# ensure_file_exists(new_file_input)
+		# file_input=new_file_input
+		# 
 	video2trim( file_input )
 	basename, extension = os.path.splitext( file_input )
 	seg2srt(basename+'.seg')
@@ -301,3 +314,61 @@ if __name__ == '__main__':
 	total_time = time.time() - start_time
 	print "\nwav duration: %s\nall done in %dsec (%s) with %s cpus" % ( humanize_time(sec), total_time, humanize_time(total_time), cpus )
 
+
+def remove_blanks_callback(option, opt_str, value, parser):
+	"""Remove all white spaces in filename"""
+	file_input=str(parser.rargs[0])
+	new_file_input = file_input
+	new_file_input=new_file_input.replace("'",'_').replace('-','_').replace(' ','_')
+	os.rename(file_input,new_file_input)
+	ensure_file_exists(new_file_input)
+	file_input=new_file_input
+	if getattr(parser.values, option.dest):
+                args.extend(getattr(parser.values, option.dest))
+	setattr(parser.values, option.dest, file_input)           
+
+def multiargs_callback(option, opt_str, value, parser):
+	"""Create an array from multiple args"""
+        args=[]
+        for arg in parser.rargs:
+                if arg[0] != "-":
+                        args.append(arg)
+                else:
+                        del parser.rargs[:len(args)]
+                        break
+        if getattr(parser.values, option.dest):
+                args.extend(getattr(parser.values, option.dest))
+        setattr(parser.values, option.dest, args)
+
+if __name__ == '__main__':
+	usage = "usage: %prog [options] arg"
+	parser = OptionParser(usage)
+	parser.add_option("-v", "--verbose", dest="verbose", default=False)
+	parser.add_option("-i","--input",action="callback",callback=remove_blanks_callback, metavar="FILE", help="read input video or audio file",dest="file_input")
+	parser.add_option("-g","--gmm",action="callback", callback=multiargs_callback, dest="waves_for_gmm")
+	parser.add_option("-s","--speaker",dest="speaker_for_gmm")
+	
+	(options, args) = parser.parse_args()
+	if len(args) == 0:
+		parser.error("incorrect number of arguments")
+	if options.file_input:
+		extract_speakers(options.file_input)
+	elif options.waves_for_gmm and options.speaker_for_gmm:
+		show = None
+		waves = options.waves_for_gmm
+		speaker = options.speaker_for_gmm
+		w=None
+		if len(waves)>1:
+			merge_waves(waves[:-1],waves[-1])
+			w=waves[-1]
+		else:
+			w= waves[0]
+		basename, extension = os.path.splitext(w)
+		show=basename
+		build_gmm(show,speaker)
+    
+	
+	
+	
+	
+	
