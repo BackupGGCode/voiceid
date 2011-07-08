@@ -26,10 +26,10 @@ def start_subprocess(commandline):
 	p = subprocess.Popen(args, stdout=dev_null, stderr=dev_null)
 	retval = p.wait()
 	if retval != 0: 
-		raise Exception("Subprocess closed unexpectedly "+str(p) )
+		raise Exception("Subprocess %s closed unexpectedly [%s]" %  (str(p), commandline) )
 
 def ensure_file_exists(filename):
-	""" Ensure file exists and not empty """
+	""" Ensure file exists and is not empty, otherwise raise an Exception """
 	if not os.path.exists(filename):
 		raise Exception("File %s not correctly created"  % filename)
 	if not (os.path.getsize(filename) > 0):
@@ -49,7 +49,8 @@ def humanize_time(secs):
 	return '%02d:%02d:%02d,%s' % (hours, mins, int(secs), str(("%0.3f" % secs ))[-3:] )
 
 def video2wav(show):
-	""" Takes any kind of video or audio and convert it to a "RIFF (little-endian) data, WAVE audio, Microsoft PCM, 16 bit, mono 16000 Hz" wave file using gstreamer. If you call it passing a wave it checks if in good format, otherwise it converts the wave in the good format """
+	""" Takes any kind of video or audio and convert it to a "RIFF (little-endian) data, WAVE audio, Microsoft PCM, 16 bit, mono 16000 Hz" wave file using gstreamer. 
+	If you call it passing a wave it checks if in good format, otherwise it converts the wave in the good format """
 	def is_bad_wave(show):
 		import magic
 		ms = magic.open(magic.MAGIC_NONE)
@@ -72,7 +73,7 @@ def diarization(showname):
 	ensure_file_exists(showname+'.seg')
 
 def seg2trim(segfile):
-	""" Take a wave and splits it in small waves in this directory structure <file base name>/<cluster>/<cluster>_<start time>.wav """
+	""" Take a wave and splits it in small waves in a directory structure like this <file base name>/<cluster>/<cluster>_<start time>.wav """
 	basename, extension = os.path.splitext(segfile)
 	s = open(segfile,'r')
 	for line in s.readlines():
@@ -158,11 +159,13 @@ def ident_seg(showname,name):
 	ensure_file_exists(showname+'.ident.seg')
 
 def train_init(show):
+	""" Train the initial speaker gmm model """
 	commandline = 'java -Xmx2024m -cp '+lium_jar+' fr.lium.spkDiarization.programs.MTrainInit --help --sInputMask=%s.ident.seg --fInputMask=%s.wav --fInputDesc="audio16kHz2sphinx,1:3:2:0:0:0,13,1:1:300:4"  --emInitMethod=copy --tInputMask=./ubm.gmm --tOutputMask=%s.init.gmm '+show
 	start_subprocess(commandline)
 	ensure_file_exists(show+'.init.gmm')
 
 def train_map(show):
+	""" Train the speaker model using a MAP adaptation method """
 	commandline = 'java -Xmx2024m -cp '+lium_jar+' fr.lium.spkDiarization.programs.MTrainMAP --help --sInputMask=%s.ident.seg --fInputMask=%s.mfcc --fInputDesc="audio16kHz2sphinx,1:3:2:0:0:0,13,1:1:300:4"  --tInputMask=%s.init.gmm --emCtrl=1,5,0.01 --varCtrl=0.01,10.0 --tOutputMask=%s.gmm ' + show 
 	start_subprocess(commandline)
 	ensure_file_exists(show+'.gmm')
@@ -210,6 +213,7 @@ def mfcc_vs_gmm(showname, gmm):
 
 
 def manage_ident(showname, gmm, clusters):
+	""" Takes all the files created by the call of mfcc_vs_gmm() on the whole speakers db and put all the results in a bidimensional dictionary """
 	f = open("%s.ident.%s.seg" % (showname,gmm ) ,"r")
 	for l in f:
 		 if l.startswith(";;"):
@@ -227,6 +231,7 @@ def manage_ident(showname, gmm, clusters):
 		os.remove("%s.ident.%s.seg" % (showname,gmm ) )
 
 def wave_duration(wavfile):
+	""" Extract the duration of a wave file in sec """
 	import wave
 	w = wave.open(wavfile)
 	par = w.getparams()
@@ -259,6 +264,8 @@ def build_gmm(show,name):
 
 
 def extract_speakers(file_input):
+	""" Takes a file input and identifies the speakers in it according to a speakers database. 
+	If a speaker doesn't match any speaker in the database then sets it as unknown """
 	cpus = cpu_count()
 	clusters = {}
 	start_time = time.time()
@@ -342,7 +349,7 @@ def multiargs_callback(option, opt_str, value, parser):
         setattr(parser.values, option.dest, args)
 
 if __name__ == '__main__':
-	usage = "usage: %prog [options] arg"
+	usage = "usage: %prog [options] "
 	parser = OptionParser(usage)
 	#parser.add_option("-v", "--verbose", dest="verbose", default=False)
 	parser.add_option("-i", "--input", action="callback",callback=remove_blanks_callback, metavar="FILE", help="read input video or audio file", dest="file_input")
@@ -360,20 +367,15 @@ if __name__ == '__main__':
 		show = None
 		waves = options.waves_for_gmm
 		speaker = options.speaker_for_gmm
-		w=None
+		w = None
 		if len(waves)>1:
 			merge_waves(waves[:-1],waves[-1])
-			w=waves[-1]
+			w = waves[-1]
 		else:
-			w= waves[0]
+			w = waves[0]
 		basename, extension = os.path.splitext(w)
-		show=basename
-		build_gmm(show,speaker)
+		show = basename
+		build_gmm(show, speaker)
 		exit(0)
     
 	parser.print_help()
-	
-	
-	
-	
-	
