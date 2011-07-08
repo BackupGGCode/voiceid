@@ -349,16 +349,24 @@ def multiargs_callback(option, opt_str, value, parser):
         setattr(parser.values, option.dest, args)
 
 if __name__ == '__main__':
-	usage = "usage: %prog [options] arg"
+	usage = """%prog ARGS
+
+examples:
+    speaker identification
+        %prog [ -d GMM_DB ] [ -j JAR_PATH ] -i INPUT_FILE
+
+    speaker model creation
+        %prog [ -d GMM_DB ] [ -j JAR_PATH ] -s SPEAKER_ID -g INPUT_FILE
+        %prog [ -d GMM_DB ] [ -j JAR_PATH ] -s SPEAKER_ID -g WAVE WAVE ... WAVE  MERGED_WAVES """
+
 	parser = OptionParser(usage)
-	#parser.add_option("-v", "--verbose", dest="verbose", default=False)
-	parser.add_option("-i", "--input", action="callback",callback=remove_blanks_callback, metavar="FILE", help="read input video or audio file", dest="file_input")
-	parser.add_option("-g", "--gmm", action="callback", callback=multiargs_callback, dest="waves_for_gmm")
-	parser.add_option("-s", "--speaker", dest="speaker_for_gmm")
-	parser.add_option("-d","--db",type="string", dest="dir_gmm", metavar="PATH",default=os.path.expanduser("~/.gmm_db"),help="Change the path of the gmm db.")
-	parser.add_option("-j","--jar",type="string", dest="dir_jar", metavar="PATH",help="Change the path of the jar LIUM.")
+	parser.add_option("-v", "--verbose", dest="verbose", action="store_true", default=False, help="verbose mode")
+	parser.add_option("-i", "--identify", action="callback",callback=remove_blanks_callback, metavar="FILE", help="identify speakers in video or audio file", dest="file_input")
+	parser.add_option("-g", "--gmm", action="callback", callback=multiargs_callback, dest="waves_for_gmm", help="build speaker model ")
+	parser.add_option("-s", "--speaker", dest="speakerid", help="speaker identifier for model building")
+	parser.add_option("-d", "--db",type="string", dest="dir_gmm", metavar="PATH",default=os.path.expanduser("~/.gmm_db"),help="set the speakers models db path")
+	parser.add_option("-j", "--jar",type="string", dest="dir_jar", metavar="PATH",help="set the LIUM_SpkDiarization jar path")
 	(options, args) = parser.parse_args()
-	print len(args)
 	#if len(args) == 0:
 	#	parser.error("incorrect number of arguments")
 	#check_deps()
@@ -370,13 +378,13 @@ if __name__ == '__main__':
 		check_deps()
 		extract_speakers(options.file_input)
 		exit(0)
-	if options.waves_for_gmm and options.speaker_for_gmm:
+	if options.waves_for_gmm and options.speakerid:
 		if options.dir_gmm:
 			db_dir = options.dir_gmm
 		check_deps()
 		show = None
 		waves = options.waves_for_gmm
-		speaker = options.speaker_for_gmm
+		speaker = options.speakerid
 		w=None
 		if len(waves)>1:
 			merge_waves(waves[:-1],waves[-1])
