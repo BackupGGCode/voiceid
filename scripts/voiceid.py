@@ -8,14 +8,16 @@ import time
 import re
 import string
 import tempfile
-p = None
-verbose = False
 
-lium_jar='./LIUM_SpkDiarization.jar'
-db_dir = './gmm_db'
+verbose = False
+lium_jar = 'LIUM_SpkDiarization.jar'
+db_dir = 'gmm_db'
 keep_intermediate_files = False
 
-dev_null = open('/dev/null','w')
+if sys.platform == 'win32':
+	dev_null = open('nul','w')
+else:
+	dev_null = open('/dev/null','w')
 
 if verbose:
 	dev_null = None
@@ -37,13 +39,11 @@ def ensure_file_exists(filename):
 
 def  check_deps():
 	""" Check for dependency """
-	import magic
 	ensure_file_exists(lium_jar)
 	if not os.path.exists(db_dir):
 		raise Exception("No gmm db directory found in %s (take a look to the configuration, db_dir parameter)" % db_dir )
 	elif os.listdir(db_dir) == []:
 		raise Exception("Gmm db directory found in %s is empty" % db_dir )
-		
 
 def humanize_time(secs):
 	""" Convert seconds into time format """
@@ -54,18 +54,23 @@ def humanize_time(secs):
 def video2wav(show):
 	""" Takes any kind of video or audio and convert it to a "RIFF (little-endian) data, WAVE audio, Microsoft PCM, 16 bit, mono 16000 Hz" wave file using gstreamer. If you call it passing a wave it checks if in good format, otherwise it converts the wave in the good format """
 	def is_bad_wave(show):
-		import magic
-		ms = magic.open(magic.MAGIC_NONE)
-		ms.load()
-		info =  ms.file(show)
-		if info == "RIFF (little-endian) data, WAVE audio, Microsoft PCM, 16 bit, mono 16000 Hz":
+		import wave
+		par = None
+		try:
+			w = wave.open(show)
+			par = w.getparams()
+			w.close()
+		except Exception,e:
+			print e
+			return True
+		if par[:3] == (1,2,16000) and par[-1:] == ('not compressed',):
 			return False
 		else:
 			return True
 
 	name, ext = os.path.splitext(show)
 	if ext != '.wav' or is_bad_wave(show):
-		start_subprocess( "gst-launch-0.10 filesrc location='"+show+"' ! decodebin ! audioresample ! 'audio/x-raw-int,rate=16000' ! audioconvert ! 'audio/x-raw-int,rate=16000,depth=16,signed=true,channels=1' ! wavenc ! filesink location="+name+".wav " )
+		start_subprocess( "gst-launch filesrc location='"+show+"' ! decodebin ! audioresample ! 'audio/x-raw-int,rate=16000' ! audioconvert ! 'audio/x-raw-int,rate=16000,depth=16,signed=true,channels=1' ! wavenc ! filesink location="+name+".wav " )
 	ensure_file_exists(name+'.wav')
 
 
@@ -91,9 +96,10 @@ def seg2trim(segfile):
 					pass
 				else:
 					raise os.error
-			commandline = "sox %s.wav %s/%s/%s_%s.wav trim  %s %s" % ( basename, basename, clust, clust, st, st, end )
+			wave_path = os.path.join( basename, clust, "%s_%s.wav" % (clust, st) )
+			commandline = "sox %s.wav %s trim  %s %s" % ( basename, wave_path, st, end )
 			start_subprocess(commandline)
-			ensure_file_exists( "%s/%s/%s_%s.wav" % (basename, clust, clust, st) )
+			ensure_file_exists( wave_path )
 	s.close()
 
 def seg2srt(segfile):
@@ -161,17 +167,20 @@ def ident_seg(showname,name):
 	ensure_file_exists(showname+'.ident.seg')
 
 def train_init(show):
+	""" Train the initial speaker gmm model """
 	commandline = 'java -Xmx2024m -cp '+lium_jar+' fr.lium.spkDiarization.programs.MTrainInit --help --sInputMask=%s.ident.seg --fInputMask=%s.wav --fInputDesc="audio16kHz2sphinx,1:3:2:0:0:0,13,1:1:300:4"  --emInitMethod=copy --tInputMask=./ubm.gmm --tOutputMask=%s.init.gmm '+show
 	start_subprocess(commandline)
 	ensure_file_exists(show+'.init.gmm')
 
 def train_map(show):
+	""" Train the speaker model using a MAP adaptation method """
 	commandline = 'java -Xmx2024m -cp '+lium_jar+' fr.lium.spkDiarization.programs.MTrainMAP --help --sInputMask=%s.ident.seg --fInputMask=%s.mfcc --fInputDesc="audio16kHz2sphinx,1:3:2:0:0:0,13,1:1:300:4"  --tInputMask=%s.init.gmm --emCtrl=1,5,0.01 --varCtrl=0.01,10.0 --tOutputMask=%s.gmm ' + show 
 	start_subprocess(commandline)
 	ensure_file_exists(show+'.gmm')
 
 def srt2subnames(showname, key_value):
 	""" Substitute cluster names with real names in subtitles """
+
 	def replace_words(text, word_dic):
 	    """
 	    take a text and replace words that match a key in a dictionary with
@@ -213,6 +222,7 @@ def mfcc_vs_gmm(showname, gmm):
 
 
 def manage_ident(showname, gmm, clusters):
+	""" Takes all the files created by the call of mfcc_vs_gmm() on the whole speakers db and put all the results in a bidimensional dictionary """
 	f = open("%s.ident.%s.seg" % (showname,gmm ) ,"r")
 	for l in f:
 		 if l.startswith(";;"):
@@ -230,6 +240,7 @@ def manage_ident(showname, gmm, clusters):
 		os.remove("%s.ident.%s.seg" % (showname,gmm ) )
 
 def wave_duration(wavfile):
+	""" Extract the duration of a wave file in sec """
 	import wave
 	w = wave.open(wavfile)
 	par = w.getparams()
@@ -241,7 +252,7 @@ def merge_waves(input_waves,wavename):
 	if os.path.exists(wavename):
 		raise Exception("File gmm %s already exist!" % wavename)
 	waves = [w.replace(" ","\ ") for w in input_waves]
-	w=" ".join(waves)
+	w = " ".join(waves)
 	commandline = "sox "+str(w)+" "+ str(wavename)
 	start_subprocess(commandline)
 	
@@ -262,6 +273,8 @@ def build_gmm(show,name):
 
 
 def extract_speakers(file_input):
+	""" Takes a file input and identifies the speakers in it according to a speakers database. 
+        If a speaker doesn't match any speaker in the database then sets it as unknown """
 	cpus = cpu_count()
 	clusters = {}
 	start_time = time.time()
@@ -365,8 +378,8 @@ examples:
 	parser.add_option("-g", "--gmm", action="callback", callback=multiargs_callback, dest="waves_for_gmm", help="build speaker model ")
 	parser.add_option("-s", "--speaker", dest="speakerid", help="speaker identifier for model building")
 	parser.add_option("-d", "--db",type="string", dest="dir_gmm", metavar="PATH",help="set the speakers models db path")
-	parser.add_option("-j", "--jar",type="string", dest="dir_jar", metavar="PATH",help="set the LIUM_SpkDiarization jar path")
-	parser.add_option("-u","--user-interactive",dest="interactive",action="store_true", help="User interactive option.")
+	parser.add_option("-j", "--jar",type="string", dest="jar", metavar="PATH",help="set the LIUM_SpkDiarization jar path")
+	parser.add_option("-u", "--user-interactive", dest="interactive", action="store_true", help="User interactive option.")
 	
 	(options, args) = parser.parse_args()
 	#if len(args) == 0:
