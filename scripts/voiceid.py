@@ -364,24 +364,22 @@ examples:
 	parser.add_option("-i", "--identify", action="callback",callback=remove_blanks_callback, metavar="FILE", help="identify speakers in video or audio file", dest="file_input")
 	parser.add_option("-g", "--gmm", action="callback", callback=multiargs_callback, dest="waves_for_gmm", help="build speaker model ")
 	parser.add_option("-s", "--speaker", dest="speakerid", help="speaker identifier for model building")
-	parser.add_option("-d", "--db",type="string", dest="dir_gmm", metavar="PATH",default=os.path.expanduser("~/.gmm_db"),help="set the speakers models db path")
+	parser.add_option("-d", "--db",type="string", dest="dir_gmm", metavar="PATH",help="set the speakers models db path")
 	parser.add_option("-j", "--jar",type="string", dest="dir_jar", metavar="PATH",help="set the LIUM_SpkDiarization jar path")
+	parser.add_option("-u","--user-interactive",dest="interactive",action="store_true", help="User interactive option.")
+	
 	(options, args) = parser.parse_args()
 	#if len(args) == 0:
 	#	parser.error("incorrect number of arguments")
-	#check_deps()
+	if options.dir_gmm:
+		db_dir = options.dir_gmm
+	if options.jar:
+		lium_jar = options.jar	
+	check_deps()
 	if options.file_input:
-		if options.dir_gmm:
-			db_dir = options.dir_gmm
-		if options.dir_jar:
-			lium_jar = options.dir_jar	
-		check_deps()
 		extract_speakers(options.file_input)
 		exit(0)
 	if options.waves_for_gmm and options.speakerid:
-		if options.dir_gmm:
-			db_dir = options.dir_gmm
-		check_deps()
 		show = None
 		waves = options.waves_for_gmm
 		speaker = options.speakerid
@@ -395,6 +393,7 @@ examples:
 		show=basename
 		build_gmm(show,speaker)
 		exit(0)
+		
 	parser.print_help()
 	
 	
