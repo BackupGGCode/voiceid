@@ -7,17 +7,13 @@ import sys, signal
 import time
 import re
 import string
-import tempfile
 
 verbose = False
 lium_jar = 'LIUM_SpkDiarization.jar'
 db_dir = 'gmm_db'
 keep_intermediate_files = False
 
-if sys.platform == 'win32':
-	dev_null = open('nul','w')
-else:
-	dev_null = open('/dev/null','w')
+dev_null = open('/dev/null','w')
 
 if verbose:
 	dev_null = None
@@ -28,10 +24,10 @@ def start_subprocess(commandline):
 	p = subprocess.Popen(args, stdout=dev_null, stderr=dev_null)
 	retval = p.wait()
 	if retval != 0: 
-		raise Exception("Subprocess closed unexpectedly "+str(p) )
+		raise Exception("Subprocess %s closed unexpectedly [%s]" %  (str(p), commandline) )
 
 def ensure_file_exists(filename):
-	""" Ensure file exists and not empty """
+	""" Ensure file exists and is not empty, otherwise raise an Exception """
 	if not os.path.exists(filename):
 		raise Exception("File %s not correctly created"  % filename)
 	if not (os.path.getsize(filename) > 0):
@@ -408,8 +404,3 @@ examples:
 		exit(0)
 		
 	parser.print_help()
-	
-	
-	
-	
-	
