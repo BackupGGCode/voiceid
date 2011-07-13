@@ -21,7 +21,7 @@ if verbose:
 def start_subprocess(commandline):
 	""" Starts a subprocess using the given commandline and check for correct termination """
 	args = shlex.split(commandline)
-	p = subprocess.Popen(args, stdout=dev_null, stderr=dev_null)
+	p = subprocess.Popen(args, stdin=dev_null,stdout=dev_null, stderr=dev_null)
 	retval = p.wait()
 	if retval != 0: 
 		raise Exception("Subprocess %s closed unexpectedly [%s]" %  (str(p), commandline) )
@@ -72,7 +72,7 @@ def video2wav(show):
 
 def diarization(showname):
 	""" Takes a wave file in the correct format and build a segmentation file. The seg file shows how much speakers are in the audio and when they talk """
-	start_subprocess( 'java -Xmx2024m -jar '+lium_jar+'   --fInputMask=%s.wav --sOutputMask=%s.seg --doCEClustering ' +  showname )
+	start_subprocess( 'java -Xmx2024m -jar '+lium_jar+' --fInputMask=%s.wav --sOutputMask=%s.seg --doCEClustering ' +  showname )
 	ensure_file_exists(showname+'.seg')
 
 def seg2trim(segfile):
@@ -256,19 +256,18 @@ def build_gmm(show,name):
 	""" Build a gmm (Gaussian Mixture Model) file from a given wave """
 	
 	diarization(show)
-
+	
 	ident_seg(show,name)
-
+	
 	extract_mfcc(show)
-
+	
 	train_init(show)
-
+	
 	train_map(show)
 	
 
 
-
-def extract_speakers(file_input):
+def extract_speakers(file_input,interactive):
 	""" Takes a file input and identifies the speakers in it according to a speakers database. 
         If a speaker doesn't match any speaker in the database then sets it as unknown """
 	cpus = cpu_count()
@@ -318,16 +317,91 @@ def extract_speakers(file_input):
 	    distance = abs(array[1]) - abs(array[0])
 	    mean = sum(array) / len(array)
 	    m_distance = abs(mean) - abs(array[0])
-            if distance < .1 :
+            if distance < .1:
 		    best = 'unknown'
 		    speakers[c] = best
+	    
+	    if interactive == True and speakers[c] == "unknown":
+	    	    name_i = interactive_training(basename,c)
+		    best = name_i
+		    speakers[c] = best
+		    if speakers[c] != "unknown":
+		    	    videocluster = os.path.join(basename,c)
+		    	    listwaves = os.listdir(videocluster)
+		    	    listw=[os.path.join(videocluster, f) for f in listwaves]
+		    	    
+		    	    
+		    	    cont = 0
+		    	    gmm_name = speakers[c]+".gmm"
+		    	    if os.path.exists( os.path.join(db_dir,gmm_name)):
+		    	    	    while True:
+		    	    	    	    cont = cont +1
+		    	    	    	    gmm_name = speakers[c]+""+str(cont)+".gmm"
+		    	    	    	    if not os.path.exists( os.path.join(db_dir,gmm_name)):
+		    	    	    	    	    break
+		    	    
+		    	    basename_gmm, extension_gmm = os.path.splitext(gmm_name)
+		    	    
+		    	    show=basename_gmm+".wav"       
+		    	    
+		    	    merge_waves(listw,show)
+		    	    
+		    	    build_gmm(basename_gmm,speakers[c])
+		    	    
+		    	    ensure_file_exists(basename_gmm+".gmm")
+		    	    
+			    start_subprocess("mv "+basename_gmm+".gmm "+db_dir)
+		    	    
+		    	    if not keep_intermediate_files:
+		    	    	    os.remove("%s.wav" % basename_gmm )
+		    	    	    os.remove("%s.seg" % basename_gmm )
+		    	    	    os.remove("%s.mfcc" % basename_gmm )
+		    	    	    os.remove("%s.ident.seg" % basename_gmm )
+		    	    	    os.remove("%s.init.gmm" % basename_gmm )
+		    	    
+		    
 	    print '\t best speaker: %s (distance from 2nd %f - mean %f - distance from mean %f ) ' % (best , distance, mean, m_distance)
         srt2subnames(basename, speakers)
 	sec = wave_duration(basename+'.wav')
 	total_time = time.time() - start_time
 	print "\nwav duration: %s\nall done in %dsec (%s) with %s cpus" % ( humanize_time(sec), total_time, humanize_time(total_time), cpus )
 
-
+def interactive_training(videoname, cluster):
+	print """Menu
+	1) Listen
+	2) Skip\n"""
+	while True:
+		char = raw_input("Choice: ")
+		if char == "1":
+			videocluster = str(videoname+"/"+cluster)
+			listwaves = os.listdir(videocluster)
+			w = " ".join(listwaves)
+			commandline = "play "+videocluster+"/"+str(w)
+			print "Listen %s :" % cluster
+			args = shlex.split(commandline)
+			p = subprocess.Popen(args, stdin=dev_null, stdout=dev_null, stderr=dev_null)
+			
+			
+			while True:
+				name = raw_input("Type speaker name or leave blank for unknown speaker: ")
+		
+				while True:
+					if len(name) == 0:
+						name = "unknown"
+					ok = raw_input("Save as '"+name+"'? [y/n] ")
+					if ok in ('y', 'ye', 'yes'):
+						p.kill()
+						return name
+					if ok in ('n', 'no', 'nop', 'nope'):
+					        break
+					print "Yes or no, please!"
+				
+			p.kill()
+			break
+		if char == "2":
+			return "unknown"
+			
+			
 def remove_blanks_callback(option, opt_str, value, parser):
 	"""Remove all white spaces in filename and substitute with underscores"""
 	if len(parser.rargs) == 0:
@@ -375,7 +449,7 @@ examples:
 	parser.add_option("-s", "--speaker", dest="speakerid", help="speaker identifier for model building")
 	parser.add_option("-d", "--db",type="string", dest="dir_gmm", metavar="PATH",help="set the speakers models db path")
 	parser.add_option("-j", "--jar",type="string", dest="jar", metavar="PATH",help="set the LIUM_SpkDiarization jar path")
-	parser.add_option("-u", "--user-interactive", dest="interactive", action="store_true", help="User interactive option.")
+	parser.add_option("-u", "--user-interactive", dest="interactive", action="store_true", help="User interactive training")
 	
 	(options, args) = parser.parse_args()
 	#if len(args) == 0:
@@ -386,7 +460,7 @@ examples:
 		lium_jar = options.jar	
 	check_deps()
 	if options.file_input:
-		extract_speakers(options.file_input)
+		extract_speakers(options.file_input,options.interactive)
 		exit(0)
 	if options.waves_for_gmm and options.speakerid:
 		show = None
