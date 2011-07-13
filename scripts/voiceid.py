@@ -369,14 +369,17 @@ def extract_speakers(file_input,interactive):
 def interactive_training(videoname, cluster):
 	print """Menu
 	1) Listen
-	2) Skip\n"""
+	2) Skip
+	3) 
+	\n"""
 	while True:
 		char = raw_input("Choice: ")
 		if char == "1":
 			videocluster = str(videoname+"/"+cluster)
 			listwaves = os.listdir(videocluster)
-			w = " ".join(listwaves)
-			commandline = "play "+videocluster+"/"+str(w)
+			listw=[os.path.join(videocluster, f) for f in listwaves]
+			w = " ".join(listw)
+			commandline = "play "+str(w)
 			print "Listen %s :" % cluster
 			args = shlex.split(commandline)
 			p = subprocess.Popen(args, stdin=dev_null, stdout=dev_null, stderr=dev_null)
@@ -388,12 +391,17 @@ def interactive_training(videoname, cluster):
 				while True:
 					if len(name) == 0:
 						name = "unknown"
-					ok = raw_input("Save as '"+name+"'? [y/n] ")
+					ok = raw_input("Save as '"+name+"'? [y/n/r] ")
 					if ok in ('y', 'ye', 'yes'):
 						p.kill()
 						return name
 					if ok in ('n', 'no', 'nop', 'nope'):
 					        break
+					if ok in ('r',"replay"):
+						if p.poll() == None:
+							p.kill()
+						p = subprocess.Popen(args, stdin=dev_null, stdout=dev_null, stderr=dev_null)
+						break
 					print "Yes or no, please!"
 				
 			p.kill()
