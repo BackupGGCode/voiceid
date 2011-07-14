@@ -39,7 +39,8 @@ def  check_deps():
 	if not os.path.exists(db_dir):
 		raise Exception("No gmm db directory found in %s (take a look to the configuration, db_dir parameter)" % db_dir )
 	elif os.listdir(db_dir) == []:
-		raise Exception("Gmm db directory found in %s is empty" % db_dir )
+		print " Warning: Gmm db directory found in %s is empty" % db_dir 
+#		raise Exception("Gmm db directory found in %s is empty" % db_dir )
 
 def humanize_time(secs):
 	""" Convert seconds into time format """
@@ -50,6 +51,7 @@ def humanize_time(secs):
 def video2wav(show):
 	""" Takes any kind of video or audio and convert it to a "RIFF (little-endian) data, WAVE audio, Microsoft PCM, 16 bit, mono 16000 Hz" wave file using gstreamer. If you call it passing a wave it checks if in good format, otherwise it converts the wave in the good format """
 	def is_bad_wave(show):
+		""" Check if the wave is in correct format for LIUM required input file """
 		import wave
 		par = None
 		try:
@@ -157,7 +159,7 @@ def ident_seg(showname,name):
 	clusters.reverse()
 	for line in lines:
 		for c in clusters:
-			line.replace(c,name)
+			line = line.replace(c,name)
 		output.write(line+'\n')
 	output.close()
 	ensure_file_exists(showname+'.ident.seg')
@@ -253,7 +255,7 @@ def merge_waves(input_waves,wavename):
 	start_subprocess(commandline)
 	
 def build_gmm(show,name):
-	""" Build a gmm (Gaussian Mixture Model) file from a given wave """
+	""" Build a gmm (Gaussian Mixture Model) file from a given wave with a speaker identifier (name)  associated """
 	
 	diarization(show)
 	
@@ -314,9 +316,17 @@ def extract_speakers(file_input,interactive):
 	    array = clusters[c].values()
 	    array.sort()
 	    array.reverse()
-	    distance = abs(array[1]) - abs(array[0])
-	    mean = sum(array) / len(array)
-	    m_distance = abs(mean) - abs(array[0])
+	    try:
+		    distance = abs(array[1]) - abs(array[0])
+	    except:
+	            distance = 1000.0
+	    try:
+		    mean = sum(array) / len(array)
+		    m_distance = abs(mean) - abs(array[0])
+	    except:
+		    mean = 0
+		    m_distance = 0
+			
             if distance < .1:
 		    best = 'unknown'
 		    speakers[c] = best
@@ -367,6 +377,7 @@ def extract_speakers(file_input,interactive):
 	print "\nwav duration: %s\nall done in %dsec (%s) with %s cpus" % ( humanize_time(sec), total_time, humanize_time(total_time), cpus )
 
 def interactive_training(videoname, cluster):
+	""" A user interactive way to set the name to an unrecognized voice of a given cluster """
 	print """Menu
 	1) Listen
 	2) Skip
