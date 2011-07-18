@@ -7,6 +7,7 @@ import sys, signal
 import time
 import re
 import string
+import shutil
 
 verbose = False
 lium_jar = 'LIUM_SpkDiarization.jar'
@@ -120,8 +121,10 @@ def seg2srt(segfile):
 	row = 0
 	for line in lines:
 		row = row +1
+		st = float(line[2])/100
+		en = st+float(line[3])/100
 		srtfile.write(str(row)+"\n")
-		srtfile.write(humanize_time(float(line[2])) + " --> " + humanize_time(float(line[2])+float(line[3]))+"\n")
+		srtfile.write(humanize_time(st) + " --> " + humanize_time(en) +"\n")               
 		srtfile.write(line[7]+"\n")
 		srtfile.write(""+"\n")
 			
@@ -214,7 +217,7 @@ def extract_clusters(filename, clusters):
 
 def mfcc_vs_gmm(showname, gmm):
 	""" Match a mfcc file and a given gmm model file """
-	commandline = 'java -Xmx2G -Xms2G -cp '+lium_jar+'  fr.lium.spkDiarization.programs.MScore --sInputMask=%s.seg   --fInputMask=%s.mfcc  --sOutputMask=%s.ident.'+gmm+'.seg --sOutputFormat=seg,UTF8  --fInputDesc="audio16kHz2sphinx,1:3:2:0:0:0,13,1:0:300:4" --tInputMask='+db_dir+'/'+gmm+' --sTop=8,ubm.gmm  --sSetLabel=add --sByCluster '+  showname 
+	commandline = 'java -Xmx256M -Xms256M -cp '+lium_jar+'  fr.lium.spkDiarization.programs.MScore --sInputMask=%s.seg   --fInputMask=%s.mfcc  --sOutputMask=%s.ident.'+gmm+'.seg --sOutputFormat=seg,UTF8  --fInputDesc="audio16kHz2sphinx,1:3:2:0:0:0,13,1:0:300:4" --tInputMask='+db_dir+'/'+gmm+' --sTop=8,ubm.gmm  --sSetLabel=add --sByCluster '+  showname 
 	start_subprocess(commandline)
 	ensure_file_exists(showname+'.ident.'+gmm+'.seg')
 
@@ -355,12 +358,12 @@ def extract_speakers(file_input,interactive):
 		    	    show=basename_gmm+".wav"       
 		    	    
 		    	    merge_waves(listw,show)
-		    	    
+		    	    print "name speaker %s " % speakers[c]
 		    	    build_gmm(basename_gmm,speakers[c])
 		    	    
 		    	    ensure_file_exists(basename_gmm+".gmm")
 		    	    
-			    start_subprocess("mv "+basename_gmm+".gmm "+db_dir)
+		    	    shutil.move(basename_gmm+".gmm", db_dir)
 		    	    
 		    	    if not keep_intermediate_files:
 		    	    	    os.remove("%s.wav" % basename_gmm )
@@ -381,7 +384,6 @@ def interactive_training(videoname, cluster):
 	print """Menu
 	1) Listen
 	2) Skip
-	3) 
 	\n"""
 	while True:
 		char = raw_input("Choice: ")
