@@ -89,7 +89,8 @@ def seg2trim(segfile):
 			st = float(arr[2])/100
 			end = float(arr[3])/100
 			try:
-				os.makedirs("%s/%s" % (basename, clust) )
+				mydir = os.path.join(basename, clust)
+				os.makedirs( mydir )
 			except os.error as e:
 				if e.errno == 17:
 					pass
@@ -169,13 +170,13 @@ def ident_seg(showname,name):
 
 def train_init(show):
 	""" Train the initial speaker gmm model """
-	commandline = 'java -Xmx2024m -cp '+lium_jar+' fr.lium.spkDiarization.programs.MTrainInit --help --sInputMask=%s.ident.seg --fInputMask=%s.wav --fInputDesc="audio16kHz2sphinx,1:3:2:0:0:0,13,1:1:300:4"  --emInitMethod=copy --tInputMask=./ubm.gmm --tOutputMask=%s.init.gmm '+show
+	commandline = 'java -Xmx256m -cp '+lium_jar+' fr.lium.spkDiarization.programs.MTrainInit --help --sInputMask=%s.ident.seg --fInputMask=%s.wav --fInputDesc="audio16kHz2sphinx,1:3:2:0:0:0,13,1:1:300:4"  --emInitMethod=copy --tInputMask=./ubm.gmm --tOutputMask=%s.init.gmm '+show
 	start_subprocess(commandline)
 	ensure_file_exists(show+'.init.gmm')
 
 def train_map(show):
 	""" Train the speaker model using a MAP adaptation method """
-	commandline = 'java -Xmx2024m -cp '+lium_jar+' fr.lium.spkDiarization.programs.MTrainMAP --help --sInputMask=%s.ident.seg --fInputMask=%s.mfcc --fInputDesc="audio16kHz2sphinx,1:3:2:0:0:0,13,1:1:300:4"  --tInputMask=%s.init.gmm --emCtrl=1,5,0.01 --varCtrl=0.01,10.0 --tOutputMask=%s.gmm ' + show 
+	commandline = 'java -Xmx256m -cp '+lium_jar+' fr.lium.spkDiarization.programs.MTrainMAP --help --sInputMask=%s.ident.seg --fInputMask=%s.mfcc --fInputDesc="audio16kHz2sphinx,1:3:2:0:0:0,13,1:1:300:4"  --tInputMask=%s.init.gmm --emCtrl=1,5,0.01 --varCtrl=0.01,10.0 --tOutputMask=%s.gmm ' + show 
 	start_subprocess(commandline)
 	ensure_file_exists(show+'.gmm')
 
@@ -333,7 +334,7 @@ def extract_speakers(file_input,interactive):
             if distance < .1:
 		    best = 'unknown'
 		    speakers[c] = best
-	    
+	    proc = {}
 	    if interactive == True and speakers[c] == "unknown":
 	    	    name_i = interactive_training(basename,c)
 		    best = name_i
@@ -350,7 +351,8 @@ def extract_speakers(file_input,interactive):
 		    	    	    while True:
 		    	    	    	    cont = cont +1
 		    	    	    	    gmm_name = speakers[c]+""+str(cont)+".gmm"
-		    	    	    	    if not os.path.exists( os.path.join(db_dir,gmm_name)):
+		    	    	    	    wav_name = speakers[c]+""+str(cont)+".wav"
+		    	    	    	    if not os.path.exists( os.path.join(db_dir,gmm_name)) and not os.path.exists( wav_name ):
 		    	    	    	    	    break
 		    	    
 		    	    basename_gmm, extension_gmm = os.path.splitext(gmm_name)
@@ -359,24 +361,34 @@ def extract_speakers(file_input,interactive):
 		    	    
 		    	    merge_waves(listw,show)
 		    	    print "name speaker %s " % speakers[c]
-		    	    build_gmm(basename_gmm,speakers[c])
-		    	    
-		    	    ensure_file_exists(basename_gmm+".gmm")
-		    	    
-		    	    shutil.move(basename_gmm+".gmm", db_dir)
-		    	    
-		    	    if not keep_intermediate_files:
-		    	    	    os.remove("%s.wav" % basename_gmm )
-		    	    	    os.remove("%s.seg" % basename_gmm )
-		    	    	    os.remove("%s.mfcc" % basename_gmm )
-		    	    	    os.remove("%s.ident.seg" % basename_gmm )
-		    	    	    os.remove("%s.init.gmm" % basename_gmm )
-		    	    
+
+			    def build_gmm_wrapper(basename_gmm,speaker):
+				    build_gmm(basename_gmm,speaker)
+				    
+				    ensure_file_exists(basename_gmm+".gmm")
+				    shutil.move(basename_gmm+".gmm", db_dir)
+				    if not keep_intermediate_files:
+					    os.remove("%s.wav" % basename_gmm )
+					    os.remove("%s.seg" % basename_gmm )
+					    os.remove("%s.mfcc" % basename_gmm )
+					    os.remove("%s.ident.seg" % basename_gmm )
+					    os.remove("%s.init.gmm" % basename_gmm )
+				    
+				    
+			    proc[c] = Process( target=build_gmm_wrapper, args=(basename_gmm,speakers[c]) )
+			    proc[c].start()
+				    
 		    
 	    print '\t best speaker: %s (distance from 2nd %f - mean %f - distance from mean %f ) ' % (best , distance, mean, m_distance)
         srt2subnames(basename, speakers)
 	sec = wave_duration(basename+'.wav')
 	total_time = time.time() - start_time
+	if interactive:		
+		print "Waiting for working processes"
+		for p in proc:
+			if proc[p].is_alive(): 
+				proc[p].join()
+		
 	print "\nwav duration: %s\nall done in %dsec (%s) with %s cpus" % ( humanize_time(sec), total_time, humanize_time(total_time), cpus )
 
 def interactive_training(videoname, cluster):
