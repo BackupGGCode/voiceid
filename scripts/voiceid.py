@@ -19,6 +19,9 @@ dev_null = open('/dev/null','w')
 if verbose:
 	dev_null = None
 
+class AudioMedia():
+	pass
+
 def start_subprocess(commandline):
 	""" Starts a subprocess using the given commandline and check for correct termination """
 	args = shlex.split(commandline)
@@ -280,6 +283,7 @@ def extract_speakers(file_input,interactive):
 	clusters = {}
 	start_time = time.time()
 	video2trim( file_input )
+	diarization_time =  time.time() - start_time
 	basename, extension = os.path.splitext( file_input )
 	seg2srt(basename+'.seg')
 	extract_mfcc( basename )
@@ -289,7 +293,7 @@ def extract_speakers(file_input,interactive):
 	p = {}
 	files_in_db = [ f for f in os.listdir(db_dir) if f.endswith('.gmm') ]
 	for f in files_in_db:
-		if  len(active_children()) < (cpus-1) :
+		if  len(active_children()) < cpus :
 			p[f] = Process(target=mfcc_vs_gmm, args=( basename, f ) )
 			p[f].start()
 		else:
@@ -388,8 +392,8 @@ def extract_speakers(file_input,interactive):
 		for p in proc:
 			if proc[p].is_alive(): 
 				proc[p].join()
-		
-	print "\nwav duration: %s\nall done in %dsec (%s) with %s cpus" % ( humanize_time(sec), total_time, humanize_time(total_time), cpus )
+	
+	print "\nwav duration: %s\nall done in %dsec (%s) (diarization %dsec time:%s )  with %s cpus and %d voices in db (%f)  " % ( humanize_time(sec), total_time, humanize_time(total_time), diarization_time, humanize_time(diarization_time), cpus, len(files_in_db), float(total_time - diarization_time )/len(files_in_db) )
 
 def interactive_training(videoname, cluster):
 	""" A user interactive way to set the name to an unrecognized voice of a given cluster """
