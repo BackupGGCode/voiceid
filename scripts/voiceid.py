@@ -9,18 +9,17 @@ import re
 import string
 import shutil
 
+lium_jar = os.path.expanduser('~/.voiceid/lib/LIUM_SpkDiarization-4.7.jar')
+ubm_path  = os.path.expanduser('~/.voiceid/lib/ubm.gmm')
+db_dir = os.path.expanduser('~/.voiceid/gmm_db')
+
 verbose = False
-lium_jar = 'LIUM_SpkDiarization.jar'
-db_dir = 'gmm_db'
 keep_intermediate_files = False
 
-dev_null = open('/dev/null','w')
 
+dev_null = open('/dev/null','w')
 if verbose:
 	dev_null = None
-
-class AudioMedia():
-	pass
 
 def start_subprocess(commandline):
 	""" Starts a subprocess using the given commandline and check for correct termination """
@@ -40,10 +39,11 @@ def ensure_file_exists(filename):
 def  check_deps():
 	""" Check for dependency """
 	ensure_file_exists(lium_jar)
+	ensure_file_exists(ubm_path)
 	if not os.path.exists(db_dir):
 		raise Exception("No gmm db directory found in %s (take a look to the configuration, db_dir parameter)" % db_dir )
 	elif os.listdir(db_dir) == []:
-		print " Warning: Gmm db directory found in %s is empty" % db_dir 
+		print "WARNING: Gmm db directory found in %s is empty" % db_dir 
 #		raise Exception("Gmm db directory found in %s is empty" % db_dir )
 
 def humanize_time(secs):
@@ -173,7 +173,7 @@ def ident_seg(showname,name):
 
 def train_init(show):
 	""" Train the initial speaker gmm model """
-	commandline = 'java -Xmx256m -cp '+lium_jar+' fr.lium.spkDiarization.programs.MTrainInit --help --sInputMask=%s.ident.seg --fInputMask=%s.wav --fInputDesc="audio16kHz2sphinx,1:3:2:0:0:0,13,1:1:300:4"  --emInitMethod=copy --tInputMask=./ubm.gmm --tOutputMask=%s.init.gmm '+show
+	commandline = 'java -Xmx256m -cp '+lium_jar+' fr.lium.spkDiarization.programs.MTrainInit --help --sInputMask=%s.ident.seg --fInputMask=%s.wav --fInputDesc="audio16kHz2sphinx,1:3:2:0:0:0,13,1:1:300:4"  --emInitMethod=copy --tInputMask='+ubm_path+' --tOutputMask=%s.init.gmm '+show
 	start_subprocess(commandline)
 	ensure_file_exists(show+'.init.gmm')
 
@@ -203,7 +203,7 @@ def srt2subnames(showname, key_value):
 	file_original_subtitle.close()
 	key_value=dict(map(lambda (key, value): (str(key)+"\n", value), key_value.items()))
 	text = replace_words(original_subtitle, key_value)
-	out_file = showname+"_new.srt"
+	out_file = showname+".ident.srt"
 	# create a output file
 	fout = open(out_file, "w")
 	fout.write(text)
@@ -221,7 +221,7 @@ def extract_clusters(filename, clusters):
 
 def mfcc_vs_gmm(showname, gmm):
 	""" Match a mfcc file and a given gmm model file """
-	commandline = 'java -Xmx256M -Xms256M -cp '+lium_jar+'  fr.lium.spkDiarization.programs.MScore --sInputMask=%s.seg   --fInputMask=%s.mfcc  --sOutputMask=%s.ident.'+gmm+'.seg --sOutputFormat=seg,UTF8  --fInputDesc="audio16kHz2sphinx,1:3:2:0:0:0,13,1:0:300:4" --tInputMask='+db_dir+'/'+gmm+' --sTop=8,ubm.gmm  --sSetLabel=add --sByCluster '+  showname 
+	commandline = 'java -Xmx256M -Xms256M -cp '+lium_jar+'  fr.lium.spkDiarization.programs.MScore --sInputMask=%s.seg   --fInputMask=%s.mfcc  --sOutputMask=%s.ident.'+gmm+'.seg --sOutputFormat=seg,UTF8  --fInputDesc="audio16kHz2sphinx,1:3:2:0:0:0,13,1:0:300:4" --tInputMask='+db_dir+'/'+gmm+' --sTop=8,'+ubm_path+'  --sSetLabel=add --sByCluster '+  showname 
 	start_subprocess(commandline)
 	ensure_file_exists(showname+'.ident.'+gmm+'.seg')
 
@@ -487,10 +487,10 @@ examples:
 	parser.add_option("-d", "--db",type="string", dest="dir_gmm", metavar="PATH",help="set the speakers models db path")
 	parser.add_option("-j", "--jar",type="string", dest="jar", metavar="PATH",help="set the LIUM_SpkDiarization jar path")
 	parser.add_option("-u", "--user-interactive", dest="interactive", action="store_true", help="User interactive training")
+	parser.add_option("-k", "--keep-intermediatefiles", dest="keep_intermediate_files", action="store_true", help="keep all the intermediate files")
 	
 	(options, args) = parser.parse_args()
-	#if len(args) == 0:
-	#	parser.error("incorrect number of arguments")
+
 	if options.dir_gmm:
 		db_dir = options.dir_gmm
 	if options.jar:
