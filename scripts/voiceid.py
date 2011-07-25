@@ -26,15 +26,16 @@ if verbose:
 class Cluster:
 	""" A Cluster object, representing a computed cluster for a single speaker, with gender, a number of frames and environment """
 	def __init__(self, name, gender, frames ):
-		self.g = gender
-		self.f = frames
+		self.gender = gender
+		self.frames = frames
 		self.e = None
 		self.name = name
 		self.speaker = None
 		self.speakers = {}
+		self.wave = None
+		self.mfcc = None
 		self.segments = []
 		self.seg_header = None
-	
 	def add_speaker(self, name, value):
 		if self.speakers.has_key( name ) == False:
 			self.speakers[ name ] = float(value)
@@ -45,6 +46,9 @@ class Cluster:
 	def get_mean(self):
 		return sum(self.speakers.values()) / len(self.speakers) 
 		
+	def get_name(self):
+		return self.name
+	
 	def get_best_speaker(self):
 		max_val = -33.0		
 		self.value = max(self.speakers.values())
@@ -72,7 +76,7 @@ class Cluster:
 		f.write(self.seg_header)
 		line = self.segments[0]
 		line[2]=0
-		line[3]=self.f
+		line[3]=self.frames
 		f.write("%s %s %s %s %s %s %s %s\n" % tuple(line) )
 		f.close()
 		
@@ -289,16 +293,16 @@ def extract_clusters(filename, clusters):
 		 else:
 			line = l.split()
 			last_cluster.segments.append(line)
-			last_cluster.f += int(line[3])
-			last_cluster.g =  line[4]
+			last_cluster.frames += int(line[3])
+			last_cluster.gender =  line[4]
 			last_cluster.e =  line[5]
 	f.close()
 
-def mfcc_vs_gmm(showname, gmm):
+def mfcc_vs_gmm(showname, gmm, gender):
 	""" Match a mfcc file and a given gmm model file """
-	commandline = 'java -Xmx256M -Xms256M -cp '+lium_jar+'  fr.lium.spkDiarization.programs.MScore --sInputMask=%s.seg   --fInputMask=%s.mfcc  --sOutputMask=%s.ident.'+gmm+'.seg --sOutputFormat=seg,UTF8  --fInputDesc="audio16kHz2sphinx,1:3:2:0:0:0,13,1:0:300:4" --tInputMask='+db_dir+'/'+gmm+' --sTop=8,'+ubm_path+'  --sSetLabel=add --sByCluster '+  showname 
+	commandline = 'java -Xmx256M -Xms256M -cp '+lium_jar+'  fr.lium.spkDiarization.programs.MScore --sInputMask=%s.seg   --fInputMask=%s.mfcc  --sOutputMask=%s.ident.'+gender+'.'+gmm+'.seg --sOutputFormat=seg,UTF8  --fInputDesc="audio16kHz2sphinx,1:3:2:0:0:0,13,1:0:300:4" --tInputMask='+db_dir+'/'+gender+'/'+gmm+' --sTop=8,'+ubm_path+'  --sSetLabel=add --sByCluster '+  showname 
 	start_subprocess(commandline)
-	ensure_file_exists(showname+'.ident.'+gmm+'.seg')
+	ensure_file_exists(showname+'.ident.'+gender+'.'+gmm+'.seg')
 
 
 def manage_ident(showname, gmm, clusters):
@@ -332,8 +336,8 @@ def wave_duration(wavfile):
 
 def merge_waves(input_waves,wavename):
 	""" Takes a list of waves and append them all to a brend new destination wave """
-	if os.path.exists(wavename):
-		raise Exception("File gmm %s already exist!" % wavename)
+	#if os.path.exists(wavename):
+		#raise Exception("File gmm %s already exist!" % wavename)
 	waves = [w.replace(" ","\ ") for w in input_waves]
 	w = " ".join(waves)
 	commandline = "sox "+str(w)+" "+ str(wavename)
@@ -368,10 +372,56 @@ def extract_speakers(file_input,interactive):
 	
 	print "*** voice matching ***"
 	extract_clusters( "%s.seg" %  basename, clusters )
+	
+	print "*** build 1 wave 4 cluster ***"
+	for cluster in clusters:
+		name = cluster
+		videocluster =  os.path.join(basename,name)
+		listwaves = os.listdir(videocluster)
+		listw=[os.path.join(videocluster, f) for f in listwaves]
+		#w = " ".join(listw)
+		show = os.path.join(basename,name)
+		clusters[cluster].wave = os.path.join(basename,name+".wav")
+		merge_waves(listw,clusters[cluster].wave)
+		extract_mfcc(show)
+		clusters[cluster].generate_seg_file(show+".seg")
+		
 	"""Wave,seg(prendendo le info dal seg originale) e mfcc per ogni cluster"""
 	"""Dal seg prendo il genere"""
 	"""for mfcc for db_genere"""
+	
+	print "*** MScore ***"
 	p = {}
+	files_in_db = {}
+	files_in_db["M"] = [ f for f in os.listdir(os.path.join(db_dir,"M")) if f.endswith('.gmm') ]
+	files_in_db["F"] = [ f for f in os.listdir(os.path.join(db_dir,"F")) if f.endswith('.gmm') ]
+	files_in_db["U"] = [ f for f in os.listdir(os.path.join(db_dir,"U")) if f.endswith('.gmm') ]
+	for cluster in clusters:
+		files = files_in_db[clusters[cluster].gender]
+		showname = os.path.join(basename,cluster)
+		for f in files:
+			
+			if  len(active_children()) < cpus :
+				p[f+cluster] = Process(target=mfcc_vs_gmm, args=( showname, f, clusters[cluster].gender) )
+				p[f+cluster].start()
+			else:
+				while len(active_children()) >= cpus:
+					time.sleep(1)	
+				p[f+cluster] = Process(target=mfcc_vs_gmm, args=( showname, f, clusters[cluster].gender ) )
+				p[f+cluster].start()
+	for proc in p:
+		if p[proc].is_alive():
+			p[proc].join()	
+	
+	for cluster in clusters:
+		files = files_in_db[clusters[cluster].gender]
+		showname = os.path.join(basename,cluster)
+		for f in files:
+			manage_ident( showname,clusters[cluster].gender+"."+f , clusters)
+		
+		
+		#########################
+	"""
 	files_in_db = [ f for f in os.listdir(db_dir) if f.endswith('.gmm') ]
 	for f in files_in_db:
 		if  len(active_children()) < cpus :
@@ -388,6 +438,7 @@ def extract_speakers(file_input,interactive):
 	
 	for f in files_in_db:
 		manage_ident( basename, f , clusters)
+	"""
 	print ""
 	speakers = {}
 	for c in clusters:
@@ -586,3 +637,5 @@ examples:
 		exit(0)
 		
 	parser.print_help()
+
+
