@@ -21,6 +21,50 @@ dev_null = open('/dev/null','w')
 if verbose:
 	dev_null = None
 
+
+
+class Cluster:
+	
+	
+	def __init__(self, name, gender, frames ):
+		self.g = gender
+		self.f = frames
+		self.name = name
+		self.speaker = None
+		self.speakers = {}
+	
+	def add_speaker(self, name, value):
+		if self.speakers.has_key( name ) == False:
+			self.speakers[ name ] = float(value)
+		else:	
+			if self.speakers[ name ] < float(value):
+				self.speakers[ name ] = float(value)
+	
+	def get_mean(self):
+		return sum(self.speakers.values()) / len(self.speakers) 
+		
+	def get_best_speaker(self):
+		max_val = -33.0		
+		self.value = max(self.speakers.values())
+		self.speaker = 'unknown'
+		if self.value > max_val:
+			for s in self.speakers:
+				if self.speakers[s] == self.value:
+					self.speaker = s
+					break
+		if self.get_distance() < .1:
+			self.speaker = 'unknown'
+		return self.speaker
+		
+	def get_distance(self):
+		values = self.speakers.values()
+		values.sort(reverse=True)
+		return abs(values[1]) - abs(values[0])
+		
+	def get_m_distance(self):
+		value = max(self.speakers.values())
+		return abs( abs( value ) - abs( self.get_mean() ) )
+		
 def start_subprocess(commandline):
 	""" Starts a subprocess using the given commandline and check for correct termination """
 	args = shlex.split(commandline)
@@ -227,7 +271,7 @@ def extract_clusters(filename, clusters):
 	for l in f:
 		 if l.startswith(";;") :
 			ll = l.split()[1].split(':')[1]	
-			clusters[ll] = {}
+			clusters[ll] = Cluster(name=ll, gender='U', frames=0)
 	f.close()
 
 def mfcc_vs_gmm(showname, gmm):
@@ -246,11 +290,14 @@ def manage_ident(showname, gmm, clusters):
 			i = l.index('score:'+speaker) + len('score:'+speaker+" = ")
 			ii = l.index(']',i) -1
 			value = l[i:ii]
+			clusters[ cluster ].add_speaker( speaker, value )
+			"""
 			if clusters[ cluster ].has_key( speaker ) == False:
 				clusters[ cluster ][ speaker ] = float(value)
 			else:
 				if clusters[ cluster ][ speaker ] < float(value):
 					clusters[ cluster ][ speaker ] = float(value)
+			"""
 	f.close()
 	if not keep_intermediate_files:
 		os.remove("%s.ident.%s.seg" % (showname,gmm ) )
@@ -301,6 +348,9 @@ def extract_speakers(file_input,interactive):
 	
 	print "*** voice matching ***"
 	extract_clusters( "%s.seg" %  basename, clusters )
+	"""Wave,seg(prendendo le info dal seg originale) e mfcc per ogni cluster"""
+	"""Dal seg prendo il genere"""
+	"""for mfcc for db_genere"""
 	p = {}
 	files_in_db = [ f for f in os.listdir(db_dir) if f.endswith('.gmm') ]
 	for f in files_in_db:
@@ -322,33 +372,23 @@ def extract_speakers(file_input,interactive):
 	speakers = {}
 	for c in clusters:
 	    print c
-	    value = -33.0
-	    best = 'unknown'
-            speakers[c] = 'unknown'
-	    for cc in clusters[c]:
-		if clusters[c][cc] > value:
-			value = clusters[c][cc]
-			best = cc
-			speakers[c] = cc
-		print "\t %s %s" % (cc , clusters[c][cc])
+            speakers[c] = clusters[c].get_best_speaker()
+
+	    for speaker in clusters[c].speakers:
+		print "\t %s %s" % (speaker , clusters[ c ].speakers[ speaker ])
 	    print '\t ------------------------'
-	    array = clusters[c].values()
-	    array.sort()
-	    array.reverse()
 	    try:
-		    distance = abs(array[1]) - abs(array[0])
+		    distance = clusters[ c ].get_distance()
 	    except:
 	            distance = 1000.0
 	    try:
-		    mean = sum(array) / len(array)
-		    m_distance = abs(mean) - abs(array[0])
+		    mean = clusters[ c ].get_mean()
+		    m_distance = clusters[ c ].get_m_distance()
 	    except:
 		    mean = 0
 		    m_distance = 0
 			
-            if distance < .1:
-		    best = 'unknown'
-		    speakers[c] = best
+		    
 	    proc = {}
 	    if interactive == True and speakers[c] == "unknown":
 	    	    name_i = interactive_training(basename,c)
@@ -394,7 +434,7 @@ def extract_speakers(file_input,interactive):
 			    proc[c].start()
 				    
 		    
-	    print '\t best speaker: %s (distance from 2nd %f - mean %f - distance from mean %f ) ' % (best , distance, mean, m_distance)
+	    print '\t best speaker: %s (distance from 2nd %f - mean %f - distance from mean %f ) ' % (speakers[c] , distance, mean, m_distance)
         srt2subnames(basename, speakers)
 	sec = wave_duration(basename+'.wav')
 	total_time = time.time() - start_time
