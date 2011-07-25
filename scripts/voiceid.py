@@ -24,14 +24,16 @@ if verbose:
 
 
 class Cluster:
-	
-	
+	""" A Cluster object, representing a computed cluster for a single speaker, with gender, a number of frames and environment """
 	def __init__(self, name, gender, frames ):
 		self.g = gender
 		self.f = frames
+		self.e = None
 		self.name = name
 		self.speaker = None
 		self.speakers = {}
+		self.segments = []
+		self.seg_header = None
 	
 	def add_speaker(self, name, value):
 		if self.speakers.has_key( name ) == False:
@@ -64,6 +66,15 @@ class Cluster:
 	def get_m_distance(self):
 		value = max(self.speakers.values())
 		return abs( abs( value ) - abs( self.get_mean() ) )
+
+	def generate_seg_file(self, filename):
+		f = open(filename,'w')
+		f.write(self.seg_header)
+		line = self.segments[0]
+		line[2]=0
+		line[3]=self.f
+		f.write("%s %s %s %s %s %s %s %s\n" % tuple(line) )
+		f.close()
 		
 def start_subprocess(commandline):
 	""" Starts a subprocess using the given commandline and check for correct termination """
@@ -268,10 +279,19 @@ def srt2subnames(showname, key_value):
 def extract_clusters(filename, clusters):
 	""" Read clusters from segmentation file """
 	f = open(filename,"r")
+	last_cluster = None
 	for l in f:
 		 if l.startswith(";;") :
-			ll = l.split()[1].split(':')[1]	
-			clusters[ll] = Cluster(name=ll, gender='U', frames=0)
+			speaker_id = l.split()[1].split(':')[1]	
+			clusters[ speaker_id ] = Cluster(name=speaker_id, gender='U', frames=0)
+			last_cluster = clusters[ speaker_id ]
+			last_cluster.seg_header = l
+		 else:
+			line = l.split()
+			last_cluster.segments.append(line)
+			last_cluster.f += int(line[3])
+			last_cluster.g =  line[4]
+			last_cluster.e =  line[5]
 	f.close()
 
 def mfcc_vs_gmm(showname, gmm):
