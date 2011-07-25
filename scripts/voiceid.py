@@ -38,13 +38,24 @@ def ensure_file_exists(filename):
 
 def  check_deps():
 	""" Check for dependency """
-	ensure_file_exists(lium_jar)
-	ensure_file_exists(ubm_path)
-	if not os.path.exists(db_dir):
-		raise Exception("No gmm db directory found in %s (take a look to the configuration, db_dir parameter)" % db_dir )
-	elif os.listdir(db_dir) == []:
-		print "WARNING: Gmm db directory found in %s is empty" % db_dir 
-#		raise Exception("Gmm db directory found in %s is empty" % db_dir )
+        ensure_file_exists(lium_jar)
+
+        dir_m = os.path.join(db_dir,"M")
+        dir_f = os.path.join(db_dir,"F")
+        dir_u = os.path.join(db_dir,"U")
+        ensure_file_exists(ubm_path)
+        if not os.path.exists(db_dir):
+                raise Exception("No gmm db directory found in %s (take a look to the configuration, db_dir parameter)" % db_dir )
+        if os.listdir(db_dir) == []:
+                print "WARNING: Gmm db directory found in %s is empty" % db_dir
+#               raise Exception("Gmm db directory found in %s is empty" % db_dir )
+        if not os.path.exists(dir_m):
+                os.makedirs(dir_m)
+        if not os.path.exists(dir_f):
+                os.makedirs(dir_f)
+        if not os.path.exists(dir_u):
+                os.makedirs(dir_u)
+
 
 def humanize_time(secs):
 	""" Convert seconds into time format """
