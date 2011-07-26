@@ -419,32 +419,12 @@ def extract_speakers(file_input,interactive):
 		for f in files:
 			manage_ident( showname,clusters[cluster].gender+"."+f , clusters)
 		
-		
-		#########################
-	"""
-	files_in_db = [ f for f in os.listdir(db_dir) if f.endswith('.gmm') ]
-	for f in files_in_db:
-		if  len(active_children()) < cpus :
-			p[f] = Process(target=mfcc_vs_gmm, args=( basename, f ) )
-			p[f].start()
-		else:
-			while len(active_children()) >= cpus:
-				time.sleep(1)	
-			p[f] = Process(target=mfcc_vs_gmm, args=( basename, f ) )
-			p[f].start()
-	for proc in p:
-		if p[proc].is_alive():
-			p[proc].join()	
-	
-	for f in files_in_db:
-		manage_ident( basename, f , clusters)
-	"""
 	print ""
 	speakers = {}
 	for c in clusters:
 	    print c
             speakers[c] = clusters[c].get_best_speaker()
-
+	    gender = clusters[c].gender
 	    for speaker in clusters[c].speakers:
 		print "\t %s %s" % (speaker , clusters[ c ].speakers[ speaker ])
 	    print '\t ------------------------'
@@ -469,16 +449,16 @@ def extract_speakers(file_input,interactive):
 		    	    videocluster = os.path.join(basename,c)
 		    	    listwaves = os.listdir(videocluster)
 		    	    listw=[os.path.join(videocluster, f) for f in listwaves]
-		    	    
+		    	    folder_db_dir = os.path.join(db_dir,gender)
 		    	    
 		    	    cont = 0
 		    	    gmm_name = speakers[c]+".gmm"
-		    	    if os.path.exists( os.path.join(db_dir,gmm_name)):
+		    	    if os.path.exists( os.path.join(folder_db_dir,gmm_name)):
 		    	    	    while True:
 		    	    	    	    cont = cont +1
 		    	    	    	    gmm_name = speakers[c]+""+str(cont)+".gmm"
 		    	    	    	    wav_name = speakers[c]+""+str(cont)+".wav"
-		    	    	    	    if not os.path.exists( os.path.join(db_dir,gmm_name)) and not os.path.exists( wav_name ):
+		    	    	    	    if not os.path.exists( os.path.join(folder_db_dir,gmm_name)) and not os.path.exists( wav_name ):
 		    	    	    	    	    break
 		    	    
 		    	    basename_gmm, extension_gmm = os.path.splitext(gmm_name)
@@ -492,7 +472,7 @@ def extract_speakers(file_input,interactive):
 				    build_gmm(basename_gmm,speaker)
 				    
 				    ensure_file_exists(basename_gmm+".gmm")
-				    shutil.move(basename_gmm+".gmm", db_dir)
+				    shutil.move(basename_gmm+".gmm", os.path.join(folder_db_dir))
 				    if not keep_intermediate_files:
 					    os.remove("%s.wav" % basename_gmm )
 					    os.remove("%s.seg" % basename_gmm )
@@ -517,12 +497,13 @@ def extract_speakers(file_input,interactive):
 	
 	print "\nwav duration: %s\nall done in %dsec (%s) (diarization %dsec time:%s )  with %s cpus and %d voices in db (%f)  " % ( humanize_time(sec), total_time, humanize_time(total_time), diarization_time, humanize_time(diarization_time), cpus, len(files_in_db), float(total_time - diarization_time )/len(files_in_db) )
 
-def interactive_training(videoname, cluster):
+def interactive_training(videoname,cluster):
 	""" A user interactive way to set the name to an unrecognized voice of a given cluster """
 	print """Menu
 	1) Listen
 	2) Skip
 	\n"""
+	
 	while True:
 		char = raw_input("Choice: ")
 		if char == "1":
@@ -554,7 +535,7 @@ def interactive_training(videoname, cluster):
 						p = subprocess.Popen(args, stdin=dev_null, stdout=dev_null, stderr=dev_null)
 						break
 					print "Yes or no, please!"
-				
+
 			p.kill()
 			break
 		if char == "2":
