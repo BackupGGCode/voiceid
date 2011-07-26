@@ -74,11 +74,29 @@ class Cluster:
 	def generate_seg_file(self, filename):
 		f = open(filename,'w')
 		f.write(self.seg_header)
-		line = self.segments[0]
-		line[2]=0
-		line[3]=self.frames
-		f.write("%s %s %s %s %s %s %s %s\n" % tuple(line) )
+		start_time = 0
+		for line in self.segments:
+			line[2]=start_time
+			start_time+=int(line[3])
+			f.write("%s %s %s %s %s %s %s %s\n" % tuple(line) )
 		f.close()
+
+	def build_and_store_gmm(self, show):
+		oldshow = self.wave[:-4]
+		
+		shutil.copy(oldshow+'.wav', show+'.wav')
+		shutil.copy(oldshow+'.mfcc', show+'.mfcc')
+		shutil.copy(oldshow+'.seg', show+'.seg')
+
+		ident_seg(show, self.speaker)
+
+		train_init(show)
+
+		train_map(show)
+	    	ensure_file_exists(show+".gmm")
+		shutil.move(show+'.gmm', os.path.join(db_dir,self.gender) )
+		
+
 		
 def start_subprocess(commandline):
 	""" Starts a subprocess using the given commandline and check for correct termination """
@@ -445,6 +463,7 @@ def extract_speakers(file_input,interactive):
 	    	    name_i = interactive_training(basename,c)
 		    best = name_i
 		    speakers[c] = best
+		    clusters[c].speaker = best
 		    if speakers[c] != "unknown":
 		    	    videocluster = os.path.join(basename,c)
 		    	    listwaves = os.listdir(videocluster)
@@ -468,11 +487,9 @@ def extract_speakers(file_input,interactive):
 		    	    merge_waves(listw,show)
 		    	    print "name speaker %s " % speakers[c]
 
-			    def build_gmm_wrapper(basename_gmm,speaker):
-				    build_gmm(basename_gmm,speaker)
+			    def build_gmm_wrapper(basename_gmm,cluster):
+				    clusters[cluster].build_and_store_gmm(basename_gmm)
 				    
-				    ensure_file_exists(basename_gmm+".gmm")
-				    shutil.move(basename_gmm+".gmm", os.path.join(folder_db_dir))
 				    if not keep_intermediate_files:
 					    os.remove("%s.wav" % basename_gmm )
 					    os.remove("%s.seg" % basename_gmm )
@@ -481,7 +498,7 @@ def extract_speakers(file_input,interactive):
 					    os.remove("%s.init.gmm" % basename_gmm )
 				    
 				    
-			    proc[c] = Process( target=build_gmm_wrapper, args=(basename_gmm,speakers[c]) )
+			    proc[c] = Process( target=build_gmm_wrapper, args=(basename_gmm,c) )
 			    proc[c].start()
 				    
 		    
