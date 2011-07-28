@@ -8,6 +8,7 @@ import time
 import re
 import string
 import shutil
+import struct
 
 lium_jar = os.path.expanduser('~/.voiceid/lib/LIUM_SpkDiarization-4.7.jar')
 ubm_path  = os.path.expanduser('~/.voiceid/lib/ubm.gmm')
@@ -20,7 +21,6 @@ keep_intermediate_files = False
 dev_null = open('/dev/null','w')
 if verbose:
 	dev_null = None
-
 
 
 class Cluster:
@@ -36,6 +36,7 @@ class Cluster:
 		self.mfcc = None
 		self.segments = []
 		self.seg_header = None
+
 	def add_speaker(self, name, value):
 		if self.speakers.has_key( name ) == False:
 			self.speakers[ name ] = float(value)
@@ -51,7 +52,10 @@ class Cluster:
 	
 	def get_best_speaker(self):
 		max_val = -33.0		
-		self.value = max(self.speakers.values())
+		try:
+			self.value = max(self.speakers.values())
+		except:
+			self.value = -100
 		self.speaker = 'unknown'
 		if self.value > max_val:
 			for s in self.speakers:
@@ -65,7 +69,10 @@ class Cluster:
 	def get_distance(self):
 		values = self.speakers.values()
 		values.sort(reverse=True)
-		return abs(values[1]) - abs(values[0])
+		try:
+			return abs(values[1]) - abs(values[0])
+		except:
+			return 1000.0
 		
 	def get_m_distance(self):
 		value = max(self.speakers.values())
@@ -74,13 +81,13 @@ class Cluster:
 	def generate_seg_file(self, filename):
 		f = open(filename,'w')
 		f.write(self.seg_header)
-		start_time = 0
-		for line in self.segments:
-			line[2]=start_time
-			start_time+=int(line[3])
-			f.write("%s %s %s %s %s %s %s %s\n" % tuple(line) )
+		line = self.segments[0]
+		line[0]=self.wave[:-4]
+		line[2]=0
+		line[3]=self.frames
+		f.write("%s %s %s %s %s %s %s %s\n" % tuple(line) )
 		f.close()
-
+					
 	def build_and_store_gmm(self, show):
 		oldshow = self.wave[:-4]
 		
@@ -91,16 +98,23 @@ class Cluster:
 		ident_seg(show, self.speaker)
 
 		train_init(show)
-
+		try:
+			ensure_file_exists(show+'.mfcc')
+		except:
+			extract_mfcc(show)
 		train_map(show)
 	    	ensure_file_exists(show+".gmm")
-		shutil.move(show+'.gmm', os.path.join(db_dir,self.gender) )
+		original_gmm = os.path.join(db_dir,self.gender,self.speaker+'.gmm')
+		merge([original_gmm,show+'.gmm'],original_gmm)
+		if not keep_intermediate_files:
+			shutil.remove(show+'.gmm')
 		
 
 		
 def start_subprocess(commandline):
 	""" Starts a subprocess using the given commandline and check for correct termination """
 	args = shlex.split(commandline)
+	#print commandline
 	p = subprocess.Popen(args, stdin=dev_null,stdout=dev_null, stderr=dev_null)
 	retval = p.wait()
 	if retval != 0: 
@@ -169,6 +183,41 @@ def diarization(showname):
 	start_subprocess( 'java -Xmx2024m -jar '+lium_jar+' --fInputMask=%s.wav --sOutputMask=%s.seg --doCEClustering ' +  showname )
 	ensure_file_exists(showname+'.seg')
 
+
+def merge_gmms(input_files,output_file):                                                                
+	"""
+        first_file = open(input_files[0])                                                              
+        first_kind = first_file.read(8)                                                                
+        first_file.close()
+        """ 
+        num_gmm = 0                                                                                    
+        
+        gmms = '' 
+                                                                                                       
+        for f in input_files:                                                                          
+                current_f = open(f,'r')                                                                
+                                                                                                       
+                kind = current_f.read(8)
+                if kind != 'GMMVECT_' :
+                        raise Exception('different kinds of models!')                                  
+        
+                num = struct.unpack('>i', current_f.read(4) )                                          
+                num_gmm += int(num[0])
+                                                                                                       
+                all_other = current_f.read()
+                gmms += all_other
+                current_f.close() 
+                
+                                                                                                       
+        num_gmm_string = struct.pack('>i', num_gmm)                                                    
+                                                                                                       
+        new_gmm = open(output_file,'w')
+        new_gmm.write( "GMMVECT_" )                                                                    
+        new_gmm.write(num_gmm_string)                                                                  
+        new_gmm.write(gmms)
+        new_gmm.close() 
+
+
 def seg2trim(segfile):
 	""" Take a wave and splits it in small waves in this directory structure <file base name>/<cluster>/<cluster>_<start time>.wav """
 	basename, extension = os.path.splitext(segfile)
@@ -187,7 +236,7 @@ def seg2trim(segfile):
 					pass
 				else:
 					raise os.error
-			wave_path = os.path.join( basename, clust, "%s_%s.wav" % (clust, st) )
+			wave_path = os.path.join( basename, clust, "%s_%07d.%07d.wav" % (clust, int(st), int(end) ) )
 			commandline = "sox %s.wav %s trim  %s %s" % ( basename, wave_path, st, end )
 			start_subprocess(commandline)
 			ensure_file_exists( wave_path )
@@ -240,6 +289,10 @@ def extract_mfcc(show):
 	ensure_file_exists(show+'.mfcc')
 
 def ident_seg(showname,name):
+	ident_seg_rename(showname,name,showname+'.ident')
+
+
+def ident_seg_rename(showname,name,outputname):
 	""" Takes a seg file and substitute the clusters with a given name or identifier """
 	f = open(showname+'.seg','r')
 	clusters=[]
@@ -250,14 +303,14 @@ def ident_seg(showname,name):
 				prefix,c = k.split(':')
 				clusters.append(c)
 	f.close()
-	output = open(showname+'.ident.seg', 'w')
+	output = open(outputname+'.seg', 'w')
 	clusters.reverse()
 	for line in lines:
 		for c in clusters:
 			line = line.replace(c,name)
 		output.write(line+'\n')
 	output.close()
-	ensure_file_exists(showname+'.ident.seg')
+	ensure_file_exists(outputname+'.seg')	
 
 def train_init(show):
 	""" Train the initial speaker gmm model """
@@ -397,7 +450,6 @@ def extract_speakers(file_input,interactive):
 		videocluster =  os.path.join(basename,name)
 		listwaves = os.listdir(videocluster)
 		listw=[os.path.join(videocluster, f) for f in listwaves]
-		#w = " ".join(listw)
 		show = os.path.join(basename,name)
 		clusters[cluster].wave = os.path.join(basename,name+".wav")
 		merge_waves(listw,clusters[cluster].wave)
@@ -424,10 +476,12 @@ def extract_speakers(file_input,interactive):
 				p[f+cluster].start()
 			else:
 				while len(active_children()) >= cpus:
+					#print active_children()
 					time.sleep(1)	
 				p[f+cluster] = Process(target=mfcc_vs_gmm, args=( showname, f, clusters[cluster].gender ) )
 				p[f+cluster].start()
 	for proc in p:
+		#print active_children()
 		if p[proc].is_alive():
 			p[proc].join()	
 	
@@ -512,7 +566,7 @@ def extract_speakers(file_input,interactive):
 			if proc[p].is_alive(): 
 				proc[p].join()
 	
-	print "\nwav duration: %s\nall done in %dsec (%s) (diarization %dsec time:%s )  with %s cpus and %d voices in db (%f)  " % ( humanize_time(sec), total_time, humanize_time(total_time), diarization_time, humanize_time(diarization_time), cpus, len(files_in_db), float(total_time - diarization_time )/len(files_in_db) )
+	print "\nwav duration: %s\nall done in %dsec (%s) (diarization %dsec time:%s )  with %s cpus and %d voices in db (%f)  " % ( humanize_time(sec), total_time, humanize_time(total_time), diarization_time, humanize_time(diarization_time), cpus, len(files_in_db['F'])+len(files_in_db['M'])+len(files_in_db['U']), float(total_time - diarization_time )/len(files_in_db) )
 
 def interactive_training(videoname,cluster):
 	""" A user interactive way to set the name to an unrecognized voice of a given cluster """
