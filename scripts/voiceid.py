@@ -79,10 +79,14 @@ class Cluster:
 		return abs( abs( value ) - abs( self.get_mean() ) )
 
 	def generate_seg_file(self, filename):
+		self.generate_a_seg_file(filename,self.wave[:-4])
+
+	def generate_a_seg_file(self, filename, show):
+		
 		f = open(filename,'w')
 		f.write(self.seg_header)
 		line = self.segments[0]
-		line[0]=self.wave[:-4]
+		line[0]=show
 		line[2]=0
 		line[3]=self.frames
 		f.write("%s %s %s %s %s %s %s %s\n" % tuple(line) )
@@ -93,7 +97,7 @@ class Cluster:
 		
 		shutil.copy(oldshow+'.wav', show+'.wav')
 		shutil.copy(oldshow+'.mfcc', show+'.mfcc')
-		shutil.copy(oldshow+'.seg', show+'.seg')
+		self.generate_a_seg_file(show+'.seg',show)
 
 		ident_seg(show, self.speaker)
 
@@ -105,9 +109,9 @@ class Cluster:
 		train_map(show)
 	    	ensure_file_exists(show+".gmm")
 		original_gmm = os.path.join(db_dir,self.gender,self.speaker+'.gmm')
-		merge([original_gmm,show+'.gmm'],original_gmm)
+		merge_gmms([original_gmm,show+'.gmm'],original_gmm)
 		if not keep_intermediate_files:
-			shutil.remove(show+'.gmm')
+			os.remove(show+'.gmm')
 		
 
 		
@@ -185,17 +189,15 @@ def diarization(showname):
 
 
 def merge_gmms(input_files,output_file):                                                                
-	"""
-        first_file = open(input_files[0])                                                              
-        first_kind = first_file.read(8)                                                                
-        first_file.close()
-        """ 
         num_gmm = 0                                                                                    
         
         gmms = '' 
                                                                                                        
         for f in input_files:                                                                          
-                current_f = open(f,'r')                                                                
+		try:
+			current_f = open(f,'r')
+		except:
+			continue
                                                                                                        
                 kind = current_f.read(8)
                 if kind != 'GMMVECT_' :
