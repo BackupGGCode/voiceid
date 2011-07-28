@@ -88,13 +88,12 @@ class Cluster:
 		line = self.segments[0]
 		line[0]=show
 		line[2]=0
-		line[3]=self.frames
+		line[3]=self.frames-1
 		f.write("%s %s %s %s %s %s %s %s\n" % tuple(line) )
 		f.close()
 					
 	def build_and_store_gmm(self, show):
 		oldshow = self.wave[:-4]
-		
 		shutil.copy(oldshow+'.wav', show+'.wav')
 		shutil.copy(oldshow+'.mfcc', show+'.mfcc')
 		self.generate_a_seg_file(show+'.seg',show)
@@ -519,7 +518,6 @@ def extract_speakers(file_input,interactive):
 	    	    name_i = interactive_training(basename,c)
 		    best = name_i
 		    speakers[c] = best
-		    clusters[c].speaker = best
 		    if speakers[c] != "unknown":
 		    	    videocluster = os.path.join(basename,c)
 		    	    listwaves = os.listdir(videocluster)
@@ -543,9 +541,11 @@ def extract_speakers(file_input,interactive):
 		    	    merge_waves(listw,show)
 		    	    print "name speaker %s " % speakers[c]
 
-			    def build_gmm_wrapper(basename_gmm,cluster):
-				    clusters[cluster].build_and_store_gmm(basename_gmm)
+			    def build_gmm_wrapper(basename_gmm,speaker):
+				    build_gmm(basename_gmm,speaker)
 				    
+				    ensure_file_exists(basename_gmm+".gmm")
+				    shutil.move(basename_gmm+".gmm", os.path.join(folder_db_dir))
 				    if not keep_intermediate_files:
 					    os.remove("%s.wav" % basename_gmm )
 					    os.remove("%s.seg" % basename_gmm )
@@ -554,7 +554,7 @@ def extract_speakers(file_input,interactive):
 					    os.remove("%s.init.gmm" % basename_gmm )
 				    
 				    
-			    proc[c] = Process( target=build_gmm_wrapper, args=(basename_gmm,c) )
+			    proc[c] = Process( target=build_gmm_wrapper, args=(basename_gmm,speakers[c]) )
 			    proc[c].start()
 				    
 		    
