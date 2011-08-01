@@ -22,8 +22,8 @@ def get_speaker(input_file):
     num_gmm = struct.unpack('>i', num_gmm_string )
 
     if num_gmm != (1,):
-        print str(num_gmm) + " gmms"
-        raise Exception('Loop needed for gmms')
+       print str(num_gmm) + " gmms"
+       raise Exception('Loop needed for gmms')
 
 
     gmm_1 = gmm.read(8)
@@ -34,7 +34,6 @@ def get_speaker(input_file):
     name = gmm.read(str_len[0])
 
   
-    print name
     return name
     #all_other = gmm.read()
 
@@ -47,12 +46,24 @@ if __name__ == '__main__':
             s = get_speaker(f)
 	    if not speakers.has_key(s):
 		speakers[s] = []
-	    speakers[s].append(f)
+	    if str(f) == str(s+".gmm"):
+		shutil.move(f,s+"_____.gmm")
+		speakers[s].append(s+"_____.gmm")
+	    else:
+		speakers[s].append(f)
     	
     print speakers
 
 	
     for sp in speakers:  
-	out = sp+"__t.gmm"
-        merge_gmms(speakers[sp],out)    
+	out = sp+".gmm"
+	if len(speakers[sp]) == 1:
+		os.rename(speakers[sp][0],sp+".gmm")		
+        else:		
+	        merge_gmms(speakers[sp],out)    
+		for s in speakers[sp]:
+			os.remove(s)	
+	
+
+
 
