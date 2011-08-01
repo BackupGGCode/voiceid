@@ -514,11 +514,11 @@ def extract_speakers(file_input,interactive):
 			
 		    
 	    proc = {}
-	    if interactive == True and speakers[c] == "unknown":
-	    	    name_i = interactive_training(basename,c)
-		    best = name_i
+	    if interactive == True:
+	    	    best = interactive_training(basename,c,speakers[c])
+		    old_s = speakers[c]
 		    speakers[c] = best
-		    if speakers[c] != "unknown":
+		    if speakers[c] != "unknown" and  old_s!=speakers[c]:
 		    	    videocluster = os.path.join(basename,c)
 		    	    listwaves = os.listdir(videocluster)
 		    	    listw=[os.path.join(videocluster, f) for f in listwaves]
@@ -570,12 +570,19 @@ def extract_speakers(file_input,interactive):
 	
 	print "\nwav duration: %s\nall done in %dsec (%s) (diarization %dsec time:%s )  with %s cpus and %d voices in db (%f)  " % ( humanize_time(sec), total_time, humanize_time(total_time), diarization_time, humanize_time(diarization_time), cpus, len(files_in_db['F'])+len(files_in_db['M'])+len(files_in_db['U']), float(total_time - diarization_time )/len(files_in_db) )
 
-def interactive_training(videoname,cluster):
+def interactive_training(videoname,cluster,speaker):
 	""" A user interactive way to set the name to an unrecognized voice of a given cluster """
-	print """Menu
-	1) Listen
-	2) Skip
-	\n"""
+	info = None
+	if speaker=="unknown":
+		info = """The system has not identified this speaker! If you want listen e rename it, press 1 else press 2.
+		Menu
+		1) Listen
+		2) Skip
+		\n"""
+	else:
+		info = "The system has identified this speaker as '"+speaker+"'! If you want listen e rename it, press 1 else press 2. \n\n1) Listen \n2) Skip\n"
+
+	print info
 	
 	while True:
 		char = raw_input("Choice: ")
@@ -585,14 +592,14 @@ def interactive_training(videoname,cluster):
 			listw=[os.path.join(videocluster, f) for f in listwaves]
 			w = " ".join(listw)
 			commandline = "play "+str(w)
-			print "Listen %s :" % cluster
+			print "Listen %s!" % cluster
 			args = shlex.split(commandline)
 			p = subprocess.Popen(args, stdin=dev_null, stdout=dev_null, stderr=dev_null)
 			
 			
 			while True:
 				name = raw_input("Type speaker name or leave blank for unknown speaker: ")
-		
+				
 				while True:
 					if len(name) == 0:
 						name = "unknown"
@@ -612,7 +619,7 @@ def interactive_training(videoname,cluster):
 			p.kill()
 			break
 		if char == "2":
-			return "unknown"
+			return speaker
 			
 			
 def remove_blanks_callback(option, opt_str, value, parser):
