@@ -26,6 +26,7 @@ if verbose:
 class Cluster:
 	""" A Cluster object, representing a computed cluster for a single speaker, with gender, a number of frames and environment """
 	def __init__(self, name, gender, frames ):
+		""" Constructor of a Cluster object"""
 		self.gender = gender
 		self.frames = frames
 		self.e = None
@@ -38,6 +39,7 @@ class Cluster:
 		self.seg_header = None
 
 	def add_speaker(self, name, value):
+		"""Add a speaker with a computed score for the cluster, if a better value is already present the new value will be ignored."""
 		if self.speakers.has_key( name ) == False:
 			self.speakers[ name ] = float(value)
 		else:	
@@ -45,12 +47,15 @@ class Cluster:
 				self.speakers[ name ] = float(value)
 	
 	def get_mean(self):
+		"""Get the mean of all the scores of all the tested speakers for the cluster"""
 		return sum(self.speakers.values()) / len(self.speakers) 
 		
 	def get_name(self):
+		"""Get the cluster name assigned by the diarization process"""
 		return self.name
 	
 	def get_best_speaker(self):
+		"""Get the best speaker for the cluster according to the scores. If the speaker's score is lower than a fixed threshold or is too close to the second best matching voice, then it is set as "unknown" """
 		max_val = -33.0		
 		try:
 			self.value = max(self.speakers.values())
@@ -67,6 +72,7 @@ class Cluster:
 		return self.speaker
 		
 	def get_distance(self):
+		"""Get the distance between the best speaker score and the closest speaker score"""
 		values = self.speakers.values()
 		values.sort(reverse=True)
 		try:
@@ -75,14 +81,16 @@ class Cluster:
 			return 1000.0
 		
 	def get_m_distance(self):
+		"""Get the distance between the best speaker score and the mean of all the speakers' scores""" 
 		value = max(self.speakers.values())
 		return abs( abs( value ) - abs( self.get_mean() ) )
 
 	def generate_seg_file(self, filename):
+		"""Generate a segmentation file for the cluster"""
 		self.generate_a_seg_file(filename,self.wave[:-4])
 
 	def generate_a_seg_file(self, filename, show):
-		
+		"""Generate a segmentation file for the given showname"""
 		f = open(filename,'w')
 		f.write(self.seg_header)
 		line = self.segments[0]
@@ -93,6 +101,7 @@ class Cluster:
 		f.close()
 					
 	def build_and_store_gmm(self, show):
+		"""Build a speaker model for the cluster and store in the main speakers db"""
 		oldshow = self.wave[:-4]
 		shutil.copy(oldshow+'.wav', show+'.wav')
 		shutil.copy(oldshow+'.mfcc', show+'.mfcc')
@@ -187,36 +196,133 @@ def diarization(showname):
 	ensure_file_exists(showname+'.seg')
 
 
-def merge_gmms(input_files,output_file):                                                                
-        num_gmm = 0                                                                                    
-        
-        gmms = '' 
-                                                                                                       
-        for f in input_files:                                                                          
+def merge_gmms(input_files,output_file):                                                             
+	"""Merge two or more gmm files to a single gmm file with more voice models."""
+	num_gmm = 0 
+	gmms = '' 
+
+	for f in input_files:                                                                          
 		try:
 			current_f = open(f,'r')
 		except:
 			continue
-                                                                                                       
-                kind = current_f.read(8)
-                if kind != 'GMMVECT_' :
-                        raise Exception('different kinds of models!')                                  
-        
-                num = struct.unpack('>i', current_f.read(4) )                                          
-                num_gmm += int(num[0])
-                                                                                                       
-                all_other = current_f.read()
-                gmms += all_other
-                current_f.close() 
-                
-                                                                                                       
-        num_gmm_string = struct.pack('>i', num_gmm)                                                    
-                                                                                                       
-        new_gmm = open(output_file,'w')
-        new_gmm.write( "GMMVECT_" )                                                                    
-        new_gmm.write(num_gmm_string)                                                                  
-        new_gmm.write(gmms)
-        new_gmm.close() 
+												       
+		kind = current_f.read(8)
+		if kind != 'GMMVECT_' :
+			raise Exception('different kinds of models!')                                  
+
+		num = struct.unpack('>i', current_f.read(4) )                                          
+		num_gmm += int(num[0])
+												       
+		all_other = current_f.read()
+		gmms += all_other
+		current_f.close() 
+		
+												       
+	num_gmm_string = struct.pack('>i', num_gmm)                                                    
+												       
+	new_gmm = open(output_file,'w')
+	new_gmm.write( "GMMVECT_" )                                                                    
+	new_gmm.write(num_gmm_string)                                                                  
+	new_gmm.write(gmms)
+	new_gmm.close() 
+
+def split_gmm(input_file,output_dir):
+        """Splits a gmm file into gmm files with a single voice model"""
+	def read_gaussian(f):
+		g_key = f.read(8)     #read string of 8bytes kind
+		if g_key != 'GAUSS___':
+			raise Exception("Error: the gaussian is not of GAUSS___ key  (%s)" % g_key)
+		g_id = f.read(4)
+		g_length = f.read(4)     #readint 4bytes representing the name length
+		g_name = f.read( int( struct.unpack('>i',   g_length )[0] )  )
+		g_gender = f.read(1)
+		g_kind = f.read(4)
+		g_dim = f.read(4)
+		g_count = f.read(4)
+		g_weight = f.read(8)
+		
+		dimension = int( struct.unpack('>i',   g_dim )[0] ) 
+
+		g_header = g_key + g_id + g_length + g_name + g_gender + g_kind + g_dim + g_count + g_weight
+		
+		data = ''
+		datasize = 0
+		if g_kind == FULL:
+			for j in range(dimension) :
+				datasize += 1
+				t = j
+				while t < dimension :
+					datasize += 1
+					t+=1
+		else:
+			for j in range(dimension) :
+				datasize += 1
+				t = j
+				while t < j+1 :
+					datasize += 1
+					t+=1
+
+		return g_header + f.read(datasize * 8)
+
+	def read_gaussian_container(f):
+
+                #gaussian container
+                ck = f.read(8)    #read string of 8bytes
+                if ck != "GAUSSVEC":
+                        raise Exception("Error: the gaussian container is not of GAUSSVEC kind %s" % ck)
+                cs = f.read(4)    #readint 4bytes representing the size of the gaussian container
+		stuff = ck + cs 
+                for index in range( int( struct.unpack( '>i', cs )[0] ) ):
+			stuff += read_gaussian(f)
+		return stuff
+
+	def read_gmm(f):
+		myfile = {}
+                #single gmm
+
+                k = f.read(8)     #read string of 8bytes kind
+                if k != "GMM_____":
+                        raise Exception("Error: Gmm section doesn't match GMM_____ kind")
+                h = f.read(4)     #readint 4bytes representing the hash (backward compatibility)
+                l = f.read(4)     #readint 4bytes representing the name length
+                name = f.read( int( struct.unpack('>i',   l )[0] )  )
+                                  #read string of l bytes
+                myfile['name'] = name
+                g = f.read(1)     #read a char representing the gender
+                gk = f.read(4)    #readint 4bytes representing the gaussian kind
+                dim = f.read(4)   #readint 4bytes representing the dimension
+                c = f.read(4)     #readint 4bytes representing the number of components
+                gvect_header =  k + h + l + name + g + gk + dim + c
+		myfile['header'] = gvect_header
+		myfile['content'] = read_gaussian_container(f)
+		return myfile
+
+	
+	
+        f = open(input_file,'r')
+        key = f.read(8)
+        if key != 'GMMVECT_':  #gmm container
+                raise Exception('Error: Not a GMMVECT_ file!')
+	size = f.read(4)
+        num = int(struct.unpack( '>i', size )[0]) #number of gmms
+	main_header = key + struct.pack( '>i', 1 )
+        FULL = 0
+        files = []
+        for n in range(num):
+		files.append( read_gmm( f ) )
+
+	f.close()
+
+	file_basename = input_file[:-4]
+
+	index = 0
+	for f in files:
+		newname = "%s%04d.gmm" % ( file_basename, index )
+		fd = open( newname, 'w' )
+		fd.write( main_header + f['header'] + f['content'] )
+		fd.close()
+		index += 1
 
 
 def seg2trim(segfile):
@@ -290,6 +396,7 @@ def extract_mfcc(show):
 	ensure_file_exists(show+'.mfcc')
 
 def ident_seg(showname,name):
+	""" Substitute cluster names with speaker names ang generate a "<showname>.ident.seg" file """
 	ident_seg_rename(showname,name,showname+'.ident')
 
 
