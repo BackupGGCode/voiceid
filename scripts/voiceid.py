@@ -12,6 +12,7 @@ import struct
 
 lium_jar = os.path.expanduser('~/.voiceid/lib/LIUM_SpkDiarization-4.7.jar')
 ubm_path  = os.path.expanduser('~/.voiceid/lib/ubm.gmm')
+test_path  = os.path.expanduser('~/.voiceid/test')
 db_dir = os.path.expanduser('~/.voiceid/gmm_db')
 
 verbose = False
@@ -477,12 +478,27 @@ def extract_clusters(filename, clusters):
 			last_cluster.e =  line[5]
 	f.close()
 
-def mfcc_vs_gmm(showname, gmm, gender):
+def mfcc_vs_gmm(showname, gmm, gender,custom_db_dir=None):
 	""" Match a mfcc file and a given gmm model file """
-	commandline = 'java -Xmx256M -Xms256M -cp '+lium_jar+'  fr.lium.spkDiarization.programs.MScore --sInputMask=%s.seg   --fInputMask=%s.mfcc  --sOutputMask=%s.ident.'+gender+'.'+gmm+'.seg --sOutputFormat=seg,UTF8  --fInputDesc="audio16kHz2sphinx,1:3:2:0:0:0,13,1:0:300:4" --tInputMask='+db_dir+'/'+gender+'/'+gmm+' --sTop=8,'+ubm_path+'  --sSetLabel=add --sByCluster '+  showname 
+	database = db_dir
+	if custom_db_dir != None:
+		database = custom_db_dir
+	commandline = 'java -Xmx256M -Xms256M -cp '+lium_jar+'  fr.lium.spkDiarization.programs.MScore --sInputMask=%s.seg   --fInputMask=%s.mfcc  --sOutputMask=%s.ident.'+gender+'.'+gmm+'.seg --sOutputFormat=seg,UTF8  --fInputDesc="audio16kHz2sphinx,1:3:2:0:0:0,13,1:0:300:4" --tInputMask='+database+'/'+gender+'/'+gmm+' --sTop=8,'+ubm_path+'  --sSetLabel=add --sByCluster '+  showname 
 	start_subprocess(commandline)
 	ensure_file_exists(showname+'.ident.'+gender+'.'+gmm+'.seg')
 
+def threshold_tuning():
+	showname = os.path.join(test_path,'mr_arkadin')
+	gmm = "mrarkadin.gmm"
+	gender = 'M'
+	video2trim(showname+'.wav')
+	extract_mfcc(showname)
+	mfcc_vs_gmm(showname, gmm, gender,custom_db_dir=test_path)
+	clusters = {}
+	extract_clusters(showname+'.seg',clusters)
+	manage_ident(showname,gender+'.'+gmm,clusters)
+	return clusters['S0'].speakers['mrarkadin']
+	
 
 def manage_ident(showname, gmm, clusters):
 	""" Takes all the files created by the call of mfcc_vs_gmm() on the whole speakers db and put all the results in a bidimensional dictionary """
@@ -552,7 +568,7 @@ def extract_speakers(file_input,interactive):
 	print "*** voice matching ***"
 	extract_clusters( "%s.seg" %  basename, clusters )
 	
-	print "*** build 1 wave 4 cluster ***"
+	#print "*** build 1 wave 4 cluster ***"
 	for cluster in clusters:
 		name = cluster
 		videocluster =  os.path.join(basename,name)
@@ -568,7 +584,7 @@ def extract_speakers(file_input,interactive):
 	"""Dal seg prendo il genere"""
 	"""for mfcc for db_genere"""
 	
-	print "*** MScore ***"
+	#print "*** MScore ***"
 	p = {}
 	files_in_db = {}
 	files_in_db["M"] = [ f for f in os.listdir(os.path.join(db_dir,"M")) if f.endswith('.gmm') ]
@@ -625,6 +641,7 @@ def extract_speakers(file_input,interactive):
 	    	    best = interactive_training(basename,c,speakers[c])
 		    old_s = speakers[c]
 		    speakers[c] = best
+		    clusters[c].speaker = best
 		    if speakers[c] != "unknown" and  old_s!=speakers[c]:
 		    	    videocluster = os.path.join(basename,c)
 		    	    listwaves = os.listdir(videocluster)
@@ -648,11 +665,8 @@ def extract_speakers(file_input,interactive):
 		    	    merge_waves(listw,show)
 		    	    print "name speaker %s " % speakers[c]
 
-			    def build_gmm_wrapper(basename_gmm,speaker):
-				    build_gmm(basename_gmm,speaker)
-				    
-				    ensure_file_exists(basename_gmm+".gmm")
-				    shutil.move(basename_gmm+".gmm", os.path.join(folder_db_dir))
+			    def build_gmm_wrapper(basename_gmm,cluster):
+			            clusters[cluster].build_and_store_gmm(basename_gmm)
 				    if not keep_intermediate_files:
 					    os.remove("%s.wav" % basename_gmm )
 					    os.remove("%s.seg" % basename_gmm )
@@ -661,7 +675,7 @@ def extract_speakers(file_input,interactive):
 					    os.remove("%s.init.gmm" % basename_gmm )
 				    
 				    
-			    proc[c] = Process( target=build_gmm_wrapper, args=(basename_gmm,speakers[c]) )
+			    proc[c] = Process( target=build_gmm_wrapper, args=(basename_gmm,c) )
 			    proc[c].start()
 				    
 		    
