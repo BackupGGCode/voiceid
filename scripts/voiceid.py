@@ -38,7 +38,7 @@ class Cluster:
 		self.mfcc = None
 		self.segments = []
 		self.seg_header = None
-
+        
 	def add_speaker(self, name, value):
 		"""Add a speaker with a computed score for the cluster, if a better value is already present the new value will be ignored."""
 		if self.speakers.has_key( name ) == False:
@@ -46,7 +46,12 @@ class Cluster:
 		else:	
 			if self.speakers[ name ] < float(value):
 				self.speakers[ name ] = float(value)
-	
+
+	def get_speaker(self):
+          if self.speaker == None:
+              self.speaker = self.get_best_speaker()
+          return self.speaker
+
 	def get_mean(self):
 		"""Get the mean of all the scores of all the tested speakers for the cluster"""
 		return sum(self.speakers.values()) / len(self.speakers) 
@@ -121,7 +126,17 @@ class Cluster:
 		merge_gmms([original_gmm,show+'.gmm'],original_gmm)
 		if not keep_intermediate_files:
 			os.remove(show+'.gmm')
-		
+
+class ClusterManager():
+    
+    def __init__(self):
+        self.clusters = []
+    
+    def toXMP(self):
+        pass
+    
+    def toJSON(self):
+        pass
 
 		
 def start_subprocess(commandline):
@@ -166,6 +181,9 @@ def humanize_time(secs):
 	mins, secs = divmod(secs, 60)
 	hours, mins = divmod(mins, 60)
 	return '%02d:%02d:%02d,%s' % (hours, mins, int(secs), str(("%0.3f" % secs ))[-3:] )
+
+
+
 
 def video2wav(show):
 	""" Takes any kind of video or audio and convert it to a "RIFF (little-endian) data, WAVE audio, Microsoft PCM, 16 bit, mono 16000 Hz" wave file using gstreamer. If you call it passing a wave it checks if in good format, otherwise it converts the wave in the good format """
@@ -267,7 +285,6 @@ def split_gmm(input_file,output_dir):
 		return g_header + f.read(datasize * 8)
 
 	def read_gaussian_container(f):
-
                 #gaussian container
                 ck = f.read(8)    #read string of 8bytes
                 if ck != "GAUSSVEC":
@@ -488,17 +505,19 @@ def mfcc_vs_gmm(showname, gmm, gender,custom_db_dir=None):
 	ensure_file_exists(showname+'.ident.'+gender+'.'+gmm+'.seg')
 
 def threshold_tuning():
-	showname = os.path.join(test_path,'mr_arkadin')
-	gmm = "mrarkadin.gmm"
-	gender = 'M'
-	video2trim(showname+'.wav')
-	extract_mfcc(showname)
-	mfcc_vs_gmm(showname, gmm, gender,custom_db_dir=test_path)
-	clusters = {}
-	extract_clusters(showname+'.seg',clusters)
-	manage_ident(showname,gender+'.'+gmm,clusters)
-	return clusters['S0'].speakers['mrarkadin']
-	
+    """Get a score to tune up the threshold to define when a speaker is unknown"""
+    showname = os.path.join(test_path,'mr_arkadin')
+    gmm = "mrarkadin.gmm"
+    gender = 'M'
+    ensure_file_exists(showname+'.wav')
+    ensure_file_exists( os.path.join(test_path,gender,gmm ) )
+    video2trim(showname+'.wav')
+    extract_mfcc(showname)
+    mfcc_vs_gmm(showname, gmm, gender,custom_db_dir=test_path)
+    clusters = {}
+    extract_clusters(showname+'.seg',clusters)
+    manage_ident(showname,gender+'.'+gmm,clusters)
+    return clusters['S0'].speakers['mrarkadin']
 
 def manage_ident(showname, gmm, clusters):
 	""" Takes all the files created by the call of mfcc_vs_gmm() on the whole speakers db and put all the results in a bidimensional dictionary """
@@ -695,13 +714,13 @@ def interactive_training(videoname,cluster,speaker):
 	""" A user interactive way to set the name to an unrecognized voice of a given cluster """
 	info = None
 	if speaker=="unknown":
-		info = """The system has not identified this speaker! If you want listen e rename it, press 1 else press 2.
+		info = """The system has not identified this speaker! If you want listen and rename it, press 1 else press 2.
 		Menu
 		1) Listen
 		2) Skip
 		\n"""
 	else:
-		info = "The system has identified this speaker as '"+speaker+"'! If you want listen e rename it, press 1 else press 2. \n\n1) Listen \n2) Skip\n"
+		info = "The system has identified this speaker as '"+speaker+"'! If you want listen and rename it, press 1 else press 2. \n\n1) Listen \n2) Skip\n"
 
 	print info
 	
@@ -750,7 +769,13 @@ def remove_blanks_callback(option, opt_str, value, parser):
 	file_input=str(parser.rargs[0])
 	new_file_input = file_input
 	new_file_input=new_file_input.replace("'",'_').replace('-','_').replace(' ','_')
-	os.rename(file_input,new_file_input)
+	try:
+		shutil.copy(file_input,new_file_input)
+	except shutil.Error, e:
+		if  str(e) == "`%s` and `%s` are the same file" % (file_input,new_file_input):
+			pass
+		else:
+			raise e
 	ensure_file_exists(new_file_input)
 	file_input=new_file_input
 	if getattr(parser.values, option.dest):
