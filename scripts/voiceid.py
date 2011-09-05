@@ -48,9 +48,9 @@ class Cluster:
                 self.speakers[ name ] = float(value)
 
     def get_speaker(self):
-      if self.speaker == None:
-          self.speaker = self.get_best_speaker()
-      return self.speaker
+        if self.speaker == None:
+            self.speaker = self.get_best_speaker()
+        return self.speaker
 
     def get_mean(self):
         """Get the mean of all the scores of all the tested speakers for the cluster"""
@@ -482,17 +482,17 @@ def extract_clusters(filename, clusters):
     f = open(filename,"r")
     last_cluster = None
     for l in f:
-         if l.startswith(";;") :
-            speaker_id = l.split()[1].split(':')[1]
-            clusters[ speaker_id ] = Cluster(name=speaker_id, gender='U', frames=0)
-            last_cluster = clusters[ speaker_id ]
-            last_cluster.seg_header = l
-         else:
-            line = l.split()
-            last_cluster.segments.append(line)
-            last_cluster.frames += int(line[3])
-            last_cluster.gender =  line[4]
-            last_cluster.e =  line[5]
+        if l.startswith(";;") :
+           speaker_id = l.split()[1].split(':')[1]
+           clusters[ speaker_id ] = Cluster(name=speaker_id, gender='U', frames=0)
+           last_cluster = clusters[ speaker_id ]
+           last_cluster.seg_header = l
+        else:
+           line = l.split()
+           last_cluster.segments.append(line)
+           last_cluster.frames += int(line[3])
+           last_cluster.gender =  line[4]
+           last_cluster.e =  line[5]
     f.close()
 
 def mfcc_vs_gmm(showname, gmm, gender,custom_db_dir=None):
@@ -524,19 +524,19 @@ def manage_ident(showname, gmm, clusters):
     """ Takes all the files created by the call of mfcc_vs_gmm() on the whole speakers db and put all the results in a bidimensional dictionary """
     f = open("%s.ident.%s.seg" % (showname,gmm ) ,"r")
     for l in f:
-         if l.startswith(";;"):
-            cluster, speaker = l.split()[ 1 ].split(':')[ 1 ].split('_')
-            i = l.index('score:'+speaker) + len('score:'+speaker+" = ")
-            ii = l.index(']',i) -1
-            value = l[i:ii]
-            clusters[ cluster ].add_speaker( speaker, value )
-            """
-            if clusters[ cluster ].has_key( speaker ) == False:
-                clusters[ cluster ][ speaker ] = float(value)
-            else:
-                if clusters[ cluster ][ speaker ] < float(value):
-                    clusters[ cluster ][ speaker ] = float(value)
-            """
+        if l.startswith(";;"):
+           cluster, speaker = l.split()[ 1 ].split(':')[ 1 ].split('_')
+           i = l.index('score:'+speaker) + len('score:'+speaker+" = ")
+           ii = l.index(']',i) -1
+           value = l[i:ii]
+           clusters[ cluster ].add_speaker( speaker, value )
+           """
+           if clusters[ cluster ].has_key( speaker ) == False:
+               clusters[ cluster ][ speaker ] = float(value)
+           else:
+               if clusters[ cluster ][ speaker ] < float(value):
+                   clusters[ cluster ][ speaker ] = float(value)
+           """
     f.close()
     if not keep_intermediate_files:
         os.remove("%s.ident.%s.seg" % (showname,gmm ) )
