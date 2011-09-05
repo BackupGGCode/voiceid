@@ -33,7 +33,7 @@ def get_gender(input_file):
 
 
     gender = gmm.read(1)
-    print gender
+    #print gender
     return gender
     #all_other = gmm.read()
 
