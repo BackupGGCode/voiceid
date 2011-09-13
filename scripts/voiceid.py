@@ -48,7 +48,7 @@ class Cluster:
         self.seg_header = None
 
     def add_speaker(self, name, value):
-        """Add a speaker with a computed score for the cluster, if a better value is already present the new value will be ignored."""
+        """ Add a speaker with a computed score for the cluster, if a better value is already present the new value will be ignored."""
         if self.speakers.has_key( name ) == False:
             self.speakers[ name ] = float(value)
         else:
@@ -56,20 +56,21 @@ class Cluster:
                 self.speakers[ name ] = float(value)
 
     def get_speaker(self):
+        """ Sets the right speaker for the cluster if not set and returns its name """
         if self.speaker == None:
             self.speaker = self.get_best_speaker()
         return self.speaker
 
     def get_mean(self):
-        """Get the mean of all the scores of all the tested speakers for the cluster"""
+        """ Get the mean of all the scores of all the tested speakers for the cluster"""
         return sum(self.speakers.values()) / len(self.speakers) 
 
     def get_name(self):
-        """Get the cluster name assigned by the diarization process"""
+        """ Get the cluster name assigned by the diarization process"""
         return self.name
 
     def get_best_speaker(self):
-        """Get the best speaker for the cluster according to the scores. If the speaker's score is lower than a fixed threshold or is too close to the second best matching voice, then it is set as "unknown" """
+        """ Get the best speaker for the cluster according to the scores. If the speaker's score is lower than a fixed threshold or is too close to the second best matching voice, then it is set as "unknown" """
         max_val = -33.0
         try:
             self.value = max(self.speakers.values())
@@ -86,7 +87,7 @@ class Cluster:
         return self.speaker
 
     def get_distance(self):
-        """Get the distance between the best speaker score and the closest speaker score"""
+        """ Get the distance between the best speaker score and the closest speaker score"""
         values = self.speakers.values()
         values.sort(reverse=True)
         try:
@@ -95,16 +96,16 @@ class Cluster:
             return 1000.0
 
     def get_m_distance(self):
-        """Get the distance between the best speaker score and the mean of all the speakers' scores""" 
+        """ Get the distance between the best speaker score and the mean of all the speakers' scores""" 
         value = max(self.speakers.values())
         return abs( abs( value ) - abs( self.get_mean() ) )
 
     def generate_seg_file(self, filename):
-        """Generate a segmentation file for the cluster"""
+        """ Generate a segmentation file for the cluster"""
         self.generate_a_seg_file(filename,self.wave[:-4])
 
     def generate_a_seg_file(self, filename, show):
-        """Generate a segmentation file for the given showname"""
+        """ Generate a segmentation file for the given showname"""
         f = open(filename,'w')
         f.write(self.seg_header)
         line = self.segments[0][:]
@@ -115,7 +116,7 @@ class Cluster:
         f.close()
 
     def build_and_store_gmm(self, show):
-        """Build a speaker model for the cluster and store in the main speakers db"""
+        """ Build a speaker model for the cluster and store in the main speakers db"""
         oldshow = self.wave[:-4]
         shutil.copy(oldshow+'.wav', show+'.wav')
         shutil.copy(oldshow+'.mfcc', show+'.mfcc')
@@ -135,7 +136,8 @@ class Cluster:
         if not keep_intermediate_files:
             os.remove(show+'.gmm')
             
-    def to_JSON(self):
+    def to_dict(self):
+        """ A dictionary representation of a Cluster """
         speaker = self.get_best_speaker()
         segs = []
         for s in self.segments:
@@ -147,10 +149,10 @@ class Cluster:
         return segs
 
 class ClusterManager():
-    """A collection of clusters"""
+    """ A collection of clusters"""
 
     def __init__(self, clusters={}, filename = ''):
-        """Initializations"""
+        """ Initializations"""
         self.clusters = clusters
         self.filename = ''
         self.basename = ''
@@ -159,41 +161,51 @@ class ClusterManager():
             self.set_filename(filename)
     
     def __iter__(self):
-        """Just iterate over the cluster dictionary"""
+        """ Just iterate over the cluster dictionary"""
         return self.clusters.__iter__()
     
     def set_filename(self,filename):
+        """ Set the filename of the current working file"""
         self.filename = filename
         self.basename, self.extension = os.path.splitext(self.filename)
         
     def get_file_basename(self):
+        """ Get the basename of the current working file"""
         return self.basename[:]
     
     def get_file_extension(self):
+        """ Get the extension of the current working file"""
         return self.extension[:]
         
     def get_cluster(self,identifier):
-        """Get a the cluster by a given identifier"""
+        """ Get a the cluster by a given identifier"""
         return self.clusters[identifier]
     
     def add_update_cluster(self, identifier, cluster):
-        """Add a cluster or update an existing cluster"""
+        """ Add a cluster or update an existing cluster"""
         self.clusters[identifier] = cluster
         
     def remove_cluster(self,identifier):
-        """Remove the cluster from the cluster manager"""
+        """ Remove the cluster from the cluster manager"""
         del self.clusters[identifier]
         
     def get_time_slices(self):
-        """Returns the time slices with all the information about start time, duration, speaker name or "unknown", gender and sound quality (studio/phone)"""
+        """ Returns the time slices with all the information about start time, duration, speaker name or "unknown", gender and sound quality (studio/phone)"""
         tot = []
         for c in self.clusters:
-            tot.extend(self.get_cluster(c).to_JSON()[:])
+            tot.extend(self.get_cluster(c).to_dict()[:])
         tot.sort()
         return tot
 
-    def to_XMP(self):
-        """Returns the Adobe XMP representation of the information about who is speaking and when. The tags used are Tracks and Markers, the ones used by Adobe Premiere for speech-to-text information.
+    def get_speakers_map(self):
+        """ A dictionary map between speaker label and speaker name"""
+        speakers = {}
+        for c in self:
+            speakers[c] = cmanager.get_cluster(c).get_best_speaker()
+        return speakers
+
+    def to_XMP_string(self):
+        """ Returns the Adobe XMP representation of the information about who is speaking and when. The tags used are Tracks and Markers, the ones used by Adobe Premiere for speech-to-text information.
         ...
         <xmpDM:Tracks>
             <rdf:Bag>
@@ -249,13 +261,14 @@ class ClusterManager():
             </xmpDM:Tracks>
         </rdf:Description>
     </rdf:RDF>
-</x:xmpmeta>"""
+</x:xmpmeta>
+"""
         #TODO: extract previous XMP information from the media and merge with speaker information
         return initial_tags+inner_string+final_tags            
 
     
     def to_dict(self):
-        """Returns a JSON representation for the clustering information. The JSON model used is like:
+        """ Returns a JSON representation for the clustering information. The JSON model used is like:
         <code>
 {
     "duration": 15,
@@ -309,10 +322,12 @@ class ClusterManager():
         return dict
 
     def write_output(self,format):
+        """ Write to file (basename.extension, for example: myfile.srt) the output of   """
         
         if format == 'srt':
-            seg2srt(self.get_file_basename()+'.seg')        
-            srt2subnames(self.get_file_basename(), speakers) # build subtitles - the main output at this time
+            seg2srt(self.get_file_basename()+'.seg')
+            srt2subnames(self.get_file_basename(), self.get_speakers_map()) # build subtitles - the main output at this time
+            shutil.move(self.get_file_basename()+'.ident.srt', self.get_file_basename()+'.srt')
             
         if format == 'json':
             file = open(self.get_file_basename()+'.json','w')
@@ -321,7 +336,7 @@ class ClusterManager():
         
         if format == 'xmp':
             file = open(self.get_file_basename()+'.xmp','w')
-            file.write(str(self.to_XMP()))
+            file.write(str(self.to_XMP_string()))
             file.close()
 
 
@@ -332,7 +347,7 @@ lium_jar = os.path.expanduser('~/.voiceid/lib/LIUM_SpkDiarization-4.7.jar')  # h
 ubm_path  = os.path.expanduser('~/.voiceid/lib/ubm.gmm')
 test_path  = os.path.expanduser('~/.voiceid/test')
 db_dir = os.path.expanduser('~/.voiceid/gmm_db')
-output_format = 'srt'
+output_format = 'srt' #default output format
 quiet_mode = False
 
 verbose = False
@@ -349,7 +364,7 @@ cmanager = ClusterManager()
 #  utils
 #################################
 def start_subprocess(commandline):
-    """ Starts a subprocess using the given commandline and check for correct termination """
+    """ Starts a subprocess using the given commandline and checks for correct termination """
     args = shlex.split(commandline)
     #print commandline
     p = subprocess.Popen(args, stdin=dev_null,stdout=dev_null, stderr=dev_null)
@@ -439,7 +454,7 @@ def video2wav(show):
 # gmm files management
 ######################################
 def merge_gmms(input_files,output_file):
-    """Merge two or more gmm files to a single gmm file with more voice models."""
+    """ Merge two or more gmm files to a single gmm file with more voice models."""
     num_gmm = 0
     gmms = ''
 
@@ -468,7 +483,7 @@ def merge_gmms(input_files,output_file):
     new_gmm.close()
 
 def split_gmm(input_file, output_dir=None):
-    """Splits a gmm file into gmm files with a single voice model"""
+    """ Splits a gmm file into gmm files with a single voice model"""
     def read_gaussian(f):
         g_key = f.read(8)     #read string of 8bytes kind
         if g_key != 'GAUSS___':
@@ -776,7 +791,7 @@ def mfcc_vs_gmm(showname, gmm, gender,custom_db_dir=None):
     ensure_file_exists(showname + '.ident.' + gender + '.' + gmm_name + '.seg')
 
 def threshold_tuning():
-    """Get a score to tune up the threshold to define when a speaker is unknown"""
+    """ Get a score to tune up the threshold to define when a speaker is unknown"""
     showname = os.path.join(test_path,'mr_arkadin')
     gmm = "mrarkadin.gmm"
     gender = 'M'
@@ -793,7 +808,7 @@ def threshold_tuning():
 ###############################################
 #   main functions
 ###############################################
-def extract_speakers(file_input,interactive):
+def extract_speakers(file_input,interactive=False,quiet=False):
     """ Takes a file input and identifies the speakers in it according to a speakers database. 
     If a speaker doesn't match any speaker in the database then sets it as unknown """
     cpus = cpu_count()
@@ -805,7 +820,7 @@ def extract_speakers(file_input,interactive):
     basename = cmanager.get_file_basename()
     extract_mfcc( basename )
 
-    if not quiet_mode: print "*** voice matching ***"
+    if not quiet: print "*** voice matching ***"
     extract_clusters( "%s.seg" %  basename, cmanager.clusters )
     
 #    cmanager.clusters = clusters
@@ -856,18 +871,18 @@ def extract_speakers(file_input,interactive):
         for f in files:
             manage_ident( showname,cmanager.get_cluster(cluster).gender+"."+f , cmanager.clusters)
 
-    if not quiet_mode: print ""
+    if not quiet: print ""
     speakers = {}
     for c in cmanager:
-        if not quiet_mode: 
+        if not quiet: 
             print "**********************************"
             print "speaker ", c
         speakers[c] = cmanager.get_cluster(c).get_best_speaker()
         gender = cmanager.get_cluster(c).gender
         if not interactive: 
             for speaker in cmanager.get_cluster(c).speakers:
-                if not quiet_mode: print "\t %s %s" % (speaker , cmanager.get_cluster(c).speakers[ speaker ])
-            if not quiet_mode: print '\t ------------------------'
+                if not quiet: print "\t %s %s" % (speaker , cmanager.get_cluster(c).speakers[ speaker ])
+            if not quiet: print '\t ------------------------'
         try:
             distance = cmanager.get_cluster(c).get_distance()
         except:
@@ -899,7 +914,7 @@ def extract_speakers(file_input,interactive):
                     listgmms = os.listdir(folder_tmp)
                     showname = os.path.join(basename, c)
                     value_old_s = cmanager.get_cluster(c).value
-                    if not quiet_mode: print "value old %s" %value_old_s
+                    if not quiet: print "value old %s" %value_old_s
                     if len(listgmms) != 1:
                         for gmm in listgmms:
                             mfcc_vs_gmm(showname, os.path.join(old_s+"_tmp_gmms",gmm), gender)
@@ -910,7 +925,7 @@ def extract_speakers(file_input,interactive):
                                     i = l.index('score:' + speaker) + len('score:' + speaker + " = ")
                                     ii = l.index(']', i) - 1
                                     value_tmp = l[i:ii]
-                                    if not quiet_mode: print "value tmp %s" %float(value_tmp)
+                                    if not quiet: print "value tmp %s" %float(value_tmp)
                                     if float(value_tmp) == value_old_s:
                                         os.remove(os.path.join(folder_tmp, gmm))
                         merge_gmms(listgmms, os.path.join(folder_db_dir,old_s+".gmm"))
@@ -932,7 +947,7 @@ def extract_speakers(file_input,interactive):
                 #show=wav_name
                 #basename_wave =
                 merge_waves(listw,wav_name)
-                if not quiet_mode: print "name speaker %s " % speakers[c]
+                if not quiet: print "name speaker %s " % speakers[c]
 
                 def build_gmm_wrapper(basename_file, cluster):
                     cmanager.get_cluster(cluster).build_and_store_gmm(basename_file)
@@ -945,9 +960,8 @@ def extract_speakers(file_input,interactive):
                 proc[c] = Process( target=build_gmm_wrapper, args=(basename_file,c) )
                 proc[c].start()
         if not interactive:
-            if not quiet_mode: print '\t best speaker: %s (distance from 2nd %f - mean %f - distance from mean %f ) ' % (speakers[c] , distance, mean, m_distance)    
+            if not quiet: print '\t best speaker: %s (distance from 2nd %f - mean %f - distance from mean %f ) ' % (speakers[c] , distance, mean, m_distance)    
     
-
     sec = wave_duration(basename+'.wav')
     total_time = time.time() - start_time
     if interactive:
@@ -956,7 +970,7 @@ def extract_speakers(file_input,interactive):
             if proc[p].is_alive():
                 proc[p].join()
     if not interactive:
-        if not quiet_mode: print "\nwav duration: %s\nall done in %dsec (%s) (diarization %dsec time:%s )  with %s cpus and %d voices in db (%f)  " % ( humanize_time(sec), total_time, humanize_time(total_time), diarization_time, humanize_time(diarization_time), cpus, len(files_in_db['F'])+len(files_in_db['M'])+len(files_in_db['U']), float(total_time - diarization_time )/len(files_in_db) )
+        if not quiet: print "\nwav duration: %s\nall done in %dsec (%s) (diarization %dsec time:%s )  with %s cpus and %d voices in db (%f)  " % ( humanize_time(sec), total_time, humanize_time(total_time), diarization_time, humanize_time(diarization_time), cpus, len(files_in_db['F'])+len(files_in_db['M'])+len(files_in_db['U']), float(total_time - diarization_time )/len(files_in_db) )
 
 def interactive_training(videoname,cluster,speaker):
     """ A user interactive way to set the name to an unrecognized voice of a given cluster """
@@ -1013,7 +1027,7 @@ def interactive_training(videoname,cluster,speaker):
 # argument parsing facilities
 ##################################
 def remove_blanks_callback(option, opt_str, value, parser):
-    """Remove all white spaces in filename and substitute with underscores"""
+    """ Remove all white spaces in filename and substitute with underscores"""
     if len(parser.rargs) == 0:
         parser.error("incorrect number of arguments")
     file_input=str(parser.rargs[0])
@@ -1033,7 +1047,7 @@ def remove_blanks_callback(option, opt_str, value, parser):
     setattr(parser.values, option.dest, file_input)
 
 def multiargs_callback(option, opt_str, value, parser):
-    """Create an array from multiple args"""
+    """ Create an array from multiple args"""
     if len(parser.rargs) == 0:
         parser.error("incorrect number of arguments")
     args=[]
@@ -1092,12 +1106,14 @@ examples:
     if options.jar:
         lium_jar = options.jar
     if options.ubm:
-        ubm_path = options.ubm        
+        ubm_path = options.ubm      
+          
     check_deps()
     if options.file_input:
-        extract_speakers(options.file_input,options.interactive)        
+        extract_speakers(options.file_input,options.interactive,quiet_mode)        
         cmanager.write_output(output_format)
         exit(0)
+        
     if options.waves_for_gmm and options.speakerid:
         show = None
         waves = options.waves_for_gmm
