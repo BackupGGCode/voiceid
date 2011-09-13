@@ -107,7 +107,7 @@ class Cluster:
         """Generate a segmentation file for the given showname"""
         f = open(filename,'w')
         f.write(self.seg_header)
-        line = self.segments[0]
+        line = self.segments[0][:]
         line[0]=show
         line[2]=0
         line[3]=self.frames-1
@@ -134,34 +134,196 @@ class Cluster:
         merge_gmms([original_gmm,show+'.gmm'],original_gmm)
         if not keep_intermediate_files:
             os.remove(show+'.gmm')
+            
+    def to_JSON(self):
+        speaker = self.get_best_speaker()
+        segs = []
+        for s in self.segments:
+            t = s[2:]
+            t[-1] = speaker
+            t[0] = int(t[0])
+            t[1] = int(t[1]) 
+            segs.append(t)
+        return segs
 
 class ClusterManager():
     """A collection of clusters"""
 
-    def __init__(self, clusters={}):
+    def __init__(self, clusters={}, filename = ''):
+        """Initializations"""
         self.clusters = clusters
+        self.filename = ''
+        self.basename = ''
+        self.extension = ''
+        if filename != '':
+            self.set_filename(filename)
     
     def __iter__(self):
         """Just iterate over the cluster dictionary"""
         return self.clusters.__iter__()
+    
+    def set_filename(self,filename):
+        self.filename = filename
+        self.basename, self.extension = os.path.splitext(self.filename)
+        
+    def get_file_basename(self):
+        return self.basename[:]
+    
+    def get_file_extension(self):
+        return self.extension[:]
         
     def get_cluster(self,identifier):
         """Get a the cluster by a given identifier"""
         return self.clusters[identifier]
     
     def add_update_cluster(self, identifier, cluster):
+        """Add a cluster or update an existing cluster"""
         self.clusters[identifier] = cluster
         
     def remove_cluster(self,identifier):
+        """Remove the cluster from the cluster manager"""
         del self.clusters[identifier]
+        
+    def get_time_slices(self):
+        """Returns the time slices with all the information about start time, duration, speaker name or "unknown", gender and sound quality (studio/phone)"""
+        tot = []
+        for c in self.clusters:
+            tot.extend(self.get_cluster(c).to_JSON()[:])
+        tot.sort()
+        return tot
 
     def to_XMP(self):
-        #TODO: write all the info in XMP format
-        pass
+        """Returns the Adobe XMP representation of the information about who is speaking and when. The tags used are Tracks and Markers, the ones used by Adobe Premiere for speech-to-text information.
+        ...
+        <xmpDM:Tracks>
+            <rdf:Bag>
+                <rdf:li>
+                    <rdf:Description
+                     xmpDM:trackName="Speaker identification">
+                        <xmpDM:markers>
+                            <rdf:Seq>
+                                <rdf:li
+                                 xmpDM:startTime="310"
+                                 xmpDM:duration="140"
+                                 xmpDM:speaker="Speaker0"
+                                 />
+                                <rdf:li
+                                 xmpDM:startTime="450"
+                                 xmpDM:duration="60"
+                                 xmpDM:speaker="Speaker0"
+                                 />
+                            </rdf:Seq>
+                        </xmpDM:markers>
+                    </rdf:Description>
+                </rdf:li>
+            </rdf:Bag>
+        </xmpDM:Tracks>
+        ...
+        """
+        initial_tags = """<?xml version="1.0"?>
+<x:xmpmeta xmlns:x="adobe:ns:meta/" x:xmptk="XMP Core 4.4.0">
+    <rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
+        <rdf:Description  xmlns:xmpDM="http://ns.adobe.com/xmp/1.0/DynamicMedia/">
+            <xmpDM:Tracks>
+                <rdf:Bag>
+                    <rdf:li>
+                        <rdf:Description
+                         xmpDM:trackName="Speaker identification">
+                            <xmpDM:markers>
+                                <rdf:Seq>"""
+        inner_string = '' 
+        for s in self.get_time_slices():
+            inner_string +="""    
+                                    <rdf:li
+                                     xmpDM:startTime="%s"
+                                     xmpDM:duration="%s"
+                                     xmpDM:speaker="%s"
+                                     /> """ % (s[0], s[1], s[-1] )
+        
+        final_tags = """
+                                </rdf:Seq>
+                            </xmpDM:markers>
+                        </rdf:Description>
+                    </rdf:li>
+                </rdf:Bag>
+            </xmpDM:Tracks>
+        </rdf:Description>
+    </rdf:RDF>
+</x:xmpmeta>"""
+        #TODO: extract previous XMP information from the media and merge with speaker information
+        return initial_tags+inner_string+final_tags            
 
-    def to_JSON(self):
-        #TODO: write all the info in a custom JSON format
-        pass
+    
+    def to_dict(self):
+        """Returns a JSON representation for the clustering information. The JSON model used is like:
+        <code>
+{
+    "duration": 15,
+    "url": "url1",
+    "selections": [{
+        "annotations": [{
+            "author": "User",
+            "description": "my description",
+            "keyword": "mykeyword",
+            "lang": "EN"
+        }, {
+            "author": "User",
+            "description": "la mia descrizione",
+            "keyword": "parola chiave",
+            "lang": "IT"
+        }],
+        "resolution": "0x0",
+        "selW": 20,
+        "selH": 15,
+        "selY": 10,
+        "selX": 10,
+        "startTime" : 0,
+        "endTime" : 10
+        
+    }]
+}
+        </code>
+        
+        """
+        dict = {"duration":0,
+                "url":'',
+                "selections": []
+                }
+        
+        for s in self.get_time_slices():
+            dict['selections'].append({        
+                                     "resolution": "0x0",
+                                     "selW": 0,
+                                     "selH": 0,
+                                     "selY": 0,
+                                     "selX": 0,                   
+                                     "startTime" : float(s[0])/1000,
+                                     "endTime" : float(s[0]+s[1])/1000,
+                                     "annotations": [{'author': '',
+                                                      'description': '',
+                                                      'keyword' : s[-1],
+                                                      'lang' : 'EN'
+                                                      }]
+                                     })
+        #TODO: define a way to fill missing fields
+        return dict
+
+    def write_output(self,format):
+        
+        if format == 'srt':
+            seg2srt(self.get_file_basename()+'.seg')        
+            srt2subnames(self.get_file_basename(), speakers) # build subtitles - the main output at this time
+            
+        if format == 'json':
+            file = open(self.get_file_basename()+'.json','w')
+            file.write(str(self.to_dict()))
+            file.close()
+        
+        if format == 'xmp':
+            file = open(self.get_file_basename()+'.xmp','w')
+            file.write(str(self.to_XMP()))
+            file.close()
+
 
 #############################################
 # initializations and global variables
@@ -170,6 +332,8 @@ lium_jar = os.path.expanduser('~/.voiceid/lib/LIUM_SpkDiarization-4.7.jar')  # h
 ubm_path  = os.path.expanduser('~/.voiceid/lib/ubm.gmm')
 test_path  = os.path.expanduser('~/.voiceid/test')
 db_dir = os.path.expanduser('~/.voiceid/gmm_db')
+output_format = 'srt'
+quiet_mode = False
 
 verbose = False
 keep_intermediate_files = False
@@ -528,7 +692,7 @@ def extract_clusters(filename, clusters):
     f = open(filename,"r")
     last_cluster = None
     for l in f:
-        if l.startswith(";;") :
+        if l.startswith(";;"):
            speaker_id = l.split()[1].split(':')[1]
            clusters[ speaker_id ] = Cluster(name=speaker_id, gender='U', frames=0)
            last_cluster = clusters[ speaker_id ]
@@ -571,12 +735,12 @@ def srt2subnames(showname, key_value):
 
 def video2trim(videofile):
     """ Takes a video or audio file and converts it into smaller waves according to the diarization process """
-    print "*** converting video to wav ***"
+    if not quiet_mode: print "*** converting video to wav ***"
     video2wav(videofile)
     show, ext = os.path.splitext(videofile)
-    print "*** diarization ***"
+    if not quiet_mode: print "*** diarization ***"
     diarization(show)
-    print "*** trim ***"
+    if not quiet_mode: print "*** trim ***"
     seg2trim(show+'.seg')
 
 
@@ -637,15 +801,14 @@ def extract_speakers(file_input,interactive):
     start_time = time.time()
     video2trim( file_input )
     diarization_time = time.time() - start_time
-    basename, extension = os.path.splitext( file_input )
-    seg2srt(basename+'.seg')
+    cmanager.set_filename(file_input)
+    basename = cmanager.get_file_basename()
     extract_mfcc( basename )
 
-    print "*** voice matching ***"
-    extract_clusters( "%s.seg" %  basename, clusters )
+    if not quiet_mode: print "*** voice matching ***"
+    extract_clusters( "%s.seg" %  basename, cmanager.clusters )
     
-    cmanager.clusters = clusters
-
+#    cmanager.clusters = clusters
     #print "*** build 1 wave 4 cluster ***"
     for cluster in cmanager:
         name = cluster
@@ -693,17 +856,18 @@ def extract_speakers(file_input,interactive):
         for f in files:
             manage_ident( showname,cmanager.get_cluster(cluster).gender+"."+f , cmanager.clusters)
 
-    print ""
+    if not quiet_mode: print ""
     speakers = {}
     for c in cmanager:
-        print "**********************************"
-        print "speaker ", c
+        if not quiet_mode: 
+            print "**********************************"
+            print "speaker ", c
         speakers[c] = cmanager.get_cluster(c).get_best_speaker()
         gender = cmanager.get_cluster(c).gender
         if not interactive: 
             for speaker in cmanager.get_cluster(c).speakers:
-                print "\t %s %s" % (speaker , cmanager.get_cluster(c).speakers[ speaker ])
-            print '\t ------------------------'
+                if not quiet_mode: print "\t %s %s" % (speaker , cmanager.get_cluster(c).speakers[ speaker ])
+            if not quiet_mode: print '\t ------------------------'
         try:
             distance = cmanager.get_cluster(c).get_distance()
         except:
@@ -735,7 +899,7 @@ def extract_speakers(file_input,interactive):
                     listgmms = os.listdir(folder_tmp)
                     showname = os.path.join(basename, c)
                     value_old_s = cmanager.get_cluster(c).value
-                    print "value old %s" %value_old_s
+                    if not quiet_mode: print "value old %s" %value_old_s
                     if len(listgmms) != 1:
                         for gmm in listgmms:
                             mfcc_vs_gmm(showname, os.path.join(old_s+"_tmp_gmms",gmm), gender)
@@ -746,7 +910,7 @@ def extract_speakers(file_input,interactive):
                                     i = l.index('score:' + speaker) + len('score:' + speaker + " = ")
                                     ii = l.index(']', i) - 1
                                     value_tmp = l[i:ii]
-                                    print "value tmp %s" %float(value_tmp)
+                                    if not quiet_mode: print "value tmp %s" %float(value_tmp)
                                     if float(value_tmp) == value_old_s:
                                         os.remove(os.path.join(folder_tmp, gmm))
                         merge_gmms(listgmms, os.path.join(folder_db_dir,old_s+".gmm"))
@@ -768,7 +932,7 @@ def extract_speakers(file_input,interactive):
                 #show=wav_name
                 #basename_wave =
                 merge_waves(listw,wav_name)
-                print "name speaker %s " % speakers[c]
+                if not quiet_mode: print "name speaker %s " % speakers[c]
 
                 def build_gmm_wrapper(basename_file, cluster):
                     cmanager.get_cluster(cluster).build_and_store_gmm(basename_file)
@@ -781,9 +945,9 @@ def extract_speakers(file_input,interactive):
                 proc[c] = Process( target=build_gmm_wrapper, args=(basename_file,c) )
                 proc[c].start()
         if not interactive:
-            print '\t best speaker: %s (distance from 2nd %f - mean %f - distance from mean %f ) ' % (speakers[c] , distance, mean, m_distance)    
-            
-    srt2subnames(basename, speakers) # build subtitles - the main output at this time 
+            if not quiet_mode: print '\t best speaker: %s (distance from 2nd %f - mean %f - distance from mean %f ) ' % (speakers[c] , distance, mean, m_distance)    
+    
+
     sec = wave_duration(basename+'.wav')
     total_time = time.time() - start_time
     if interactive:
@@ -792,7 +956,7 @@ def extract_speakers(file_input,interactive):
             if proc[p].is_alive():
                 proc[p].join()
     if not interactive:
-        print "\nwav duration: %s\nall done in %dsec (%s) (diarization %dsec time:%s )  with %s cpus and %d voices in db (%f)  " % ( humanize_time(sec), total_time, humanize_time(total_time), diarization_time, humanize_time(diarization_time), cpus, len(files_in_db['F'])+len(files_in_db['M'])+len(files_in_db['U']), float(total_time - diarization_time )/len(files_in_db) )
+        if not quiet_mode: print "\nwav duration: %s\nall done in %dsec (%s) (diarization %dsec time:%s )  with %s cpus and %d voices in db (%f)  " % ( humanize_time(sec), total_time, humanize_time(total_time), diarization_time, humanize_time(diarization_time), cpus, len(files_in_db['F'])+len(files_in_db['M'])+len(files_in_db['U']), float(total_time - diarization_time )/len(files_in_db) )
 
 def interactive_training(videoname,cluster,speaker):
     """ A user interactive way to set the name to an unrecognized voice of a given cluster """
@@ -843,6 +1007,7 @@ def interactive_training(videoname,cluster,speaker):
         if char == "":
             return speaker
         print "Type 1, 2 or enter to skip, please"
+    
         
 ##################################
 # argument parsing facilities
@@ -891,6 +1056,9 @@ if __name__ == '__main__':
 examples:
     speaker identification
         %prog [ -d GMM_DB ] [ -j JAR_PATH ] [ -b UBM_PATH ] -i INPUT_FILE
+    
+        user interactive mode
+        %prog [ -d GMM_DB ] [ -j JAR_PATH ] [ -b UBM_PATH ] -i INPUT_FILE -u    
 
     speaker model creation
         %prog [ -d GMM_DB ] [ -j JAR_PATH ] [ -b UBM_PATH ] -s SPEAKER_ID -g INPUT_FILE
@@ -898,26 +1066,37 @@ examples:
 
     parser = OptionParser(usage)
     parser.add_option("-v", "--verbose", dest="verbose", action="store_true", default=False, help="verbose mode")
-    parser.add_option("-i", "--identify", action="callback",callback=remove_blanks_callback, metavar="FILE", help="identify speakers in video or audio file", dest="file_input")
+    parser.add_option("-q", "--quiet", dest="quiet_mode", action="store_true", default=False, help="suppress prints")
+    parser.add_option("-k", "--keep-intermediatefiles", dest="keep_intermediate_files", action="store_true", help="keep all the intermediate files")
+    parser.add_option("-i", "--identify", action="callback",callback=remove_blanks_callback, dest="file_input", metavar="FILE", help="identify speakers in video or audio file")
     parser.add_option("-g", "--gmm", action="callback", callback=multiargs_callback, dest="waves_for_gmm", help="build speaker model ")
     parser.add_option("-s", "--speaker", dest="speakerid", help="speaker identifier for model building")
     parser.add_option("-d", "--db",type="string", dest="dir_gmm", metavar="PATH",help="set the speakers models db path (default: %s)" % db_dir )
     parser.add_option("-j", "--jar",type="string", dest="jar", metavar="PATH",help="set the LIUM_SpkDiarization jar path (default: %s)" % lium_jar )
     parser.add_option("-b", "--ubm",type="string", dest="ubm", metavar="PATH",help="set the gmm UBM model path (default: %s)" % ubm_path)
     parser.add_option("-u", "--user-interactive", dest="interactive", action="store_true", help="User interactive training")
-    parser.add_option("-k", "--keep-intermediatefiles", dest="keep_intermediate_files", action="store_true", help="keep all the intermediate files")
+    parser.add_option("-f", "--output-format", dest="output_format",action="store", type="string", help="output file format [ srt | json | xmp ] (default srt)")
 
     (options, args) = parser.parse_args()
 
+    if options.quiet_mode:
+        quiet_mode = options.quiet_mode
     if options.dir_gmm:
         db_dir = options.dir_gmm
+    if options.output_format:
+        if options.output_format not in ('srt','json','xmp'):
+            print 'output format (%s) wrong or not available' % options.output_format
+            parser.print_help()
+            exit(0)
+        output_format = options.output_format
     if options.jar:
         lium_jar = options.jar
     if options.ubm:
         ubm_path = options.ubm        
     check_deps()
     if options.file_input:
-        extract_speakers(options.file_input,options.interactive)
+        extract_speakers(options.file_input,options.interactive)        
+        cmanager.write_output(output_format)
         exit(0)
     if options.waves_for_gmm and options.speakerid:
         show = None
