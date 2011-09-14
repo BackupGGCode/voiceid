@@ -156,7 +156,9 @@ class ClusterManager():
         self.clusters = clusters
         self.filename = ''
         self.basename = ''
-        self.extension = ''
+        self.extension = ''       
+        self.time = 0
+        self.interactive = False 
         if filename != '':
             self.set_filename(filename)
     
@@ -168,6 +170,10 @@ class ClusterManager():
         """ Set the filename of the current working file"""
         self.filename = filename
         self.basename, self.extension = os.path.splitext(self.filename)
+        
+    def get_filename(self):
+        """ Get the name of the current working file"""
+        return self.filename
         
     def get_file_basename(self):
         """ Get the basename of the current working file"""
@@ -298,8 +304,9 @@ class ClusterManager():
         </code>
         
         """
-        dict = {"duration":0,
-                "url":'',
+        
+        dict = {"duration":self.time,
+                "url": self.filename,
                 "selections": []
                 }
         
@@ -321,6 +328,18 @@ class ClusterManager():
         #TODO: define a way to fill missing fields
         return dict
 
+    def write_json(self,dict=None):
+        """ Write to file the json dict representation of the Clusters"""
+        if not dict:
+            dict = self.to_dict()
+        prefix = ''
+        if self.interactive:
+            prefix = '.interactive'
+        
+        file = open(self.get_file_basename()+prefix+'.json','w')
+        file.write(str(dict))
+        file.close()
+
     def write_output(self,format):
         """ Write to file (basename.extension, for example: myfile.srt) the output of   """
         
@@ -330,9 +349,7 @@ class ClusterManager():
             shutil.move(self.get_file_basename()+'.ident.srt', self.get_file_basename()+'.srt')
             
         if format == 'json':
-            file = open(self.get_file_basename()+'.json','w')
-            file.write(str(self.to_dict()))
-            file.close()
+            self.write_json()
         
         if format == 'xmp':
             file = open(self.get_file_basename()+'.xmp','w')
@@ -897,6 +914,7 @@ def extract_speakers(file_input,interactive=False,quiet=False):
 
         proc = {}
         if interactive == True:
+            cmanager.interactive = True
             best = interactive_training(basename,c,speakers[c])
             old_s = speakers[c]
             speakers[c] = best
@@ -964,6 +982,7 @@ def extract_speakers(file_input,interactive=False,quiet=False):
     
     sec = wave_duration(basename+'.wav')
     total_time = time.time() - start_time
+    cmanager.time = total_time
     if interactive:
         print "Waiting for working processes"
         for p in proc:
@@ -1093,6 +1112,8 @@ examples:
 
     (options, args) = parser.parse_args()
 
+    if options.keep_intermediate_files:
+        keep_intermediate_files = options.keep_intermediate_files
     if options.quiet_mode:
         quiet_mode = options.quiet_mode
     if options.dir_gmm:
@@ -1112,6 +1133,13 @@ examples:
     if options.file_input:
         extract_speakers(options.file_input,options.interactive,quiet_mode)        
         cmanager.write_output(output_format)
+        if not keep_intermediate_files:
+            os.remove(cmanager.get_file_basename()+'.seg')            
+            os.remove(cmanager.get_file_basename()+'.mfcc')
+            w = cmanager.get_file_basename()+'.wav'
+            if cmanager.get_filename() != w:
+                os.remove(w)
+            shutil.rmtree(cmanager.get_file_basename())
         exit(0)
         
     if options.waves_for_gmm and options.speakerid:
