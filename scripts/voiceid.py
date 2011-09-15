@@ -147,11 +147,16 @@ class Cluster:
             t[1] = int(t[1]) 
             segs.append(t)
         return segs
+    
+    def print_segments(self):
+        """ Print cluster timing """
+        for s in self.segments:
+            print "%s to %s" %( humanize_time(float(s[2])/1000) , humanize_time((float(s[2])+float(s[3]))/1000) )
 
 class ClusterManager():
     """ A collection of clusters"""
 
-    def __init__(self, clusters={}, filename = ''):
+    def __init__(self, clusters={}, filename = '', dict=False):
         """ Initializations"""
         self.clusters = clusters
         self.filename = ''
@@ -161,6 +166,15 @@ class ClusterManager():
         self.interactive = False 
         if filename != '':
             self.set_filename(filename)
+            
+        if dict:
+            try:
+                self.time = dict['duration']
+                self.set_filename(dict['url'])
+                sel = dict['selections']
+                 
+            except:
+                raise Exeption('problems in ClusterManager initialization')
     
     def __iter__(self):
         """ Just iterate over the cluster dictionary"""
@@ -396,7 +410,7 @@ def ensure_file_exists(filename):
     if not (os.path.getsize(filename) > 0):
         raise Exception("File %s empty"  % filename)
 
-def  check_deps():
+def check_deps():
     """ Check for dependency """
     ensure_file_exists(lium_jar)
 
@@ -894,6 +908,7 @@ def extract_speakers(file_input,interactive=False,quiet=False):
         if not quiet: 
             print "**********************************"
             print "speaker ", c
+            if interactive: cmanager.get_cluster(c).print_segments()
         speakers[c] = cmanager.get_cluster(c).get_best_speaker()
         gender = cmanager.get_cluster(c).gender
         if not interactive: 
