@@ -151,7 +151,7 @@ class Cluster:
     def print_segments(self):
         """ Print cluster timing """
         for s in self.segments:
-            print "%s to %s" %( humanize_time(float(s[2])/1000) , humanize_time((float(s[2])+float(s[3]))/1000) )
+            print "%s to %s" %( humanize_time(float(s[2])/100) , humanize_time((float(s[2])+float(s[3]))/100) )
 
 class ClusterManager():
     """ A collection of clusters"""
