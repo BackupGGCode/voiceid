@@ -512,7 +512,32 @@ def merge_gmms(input_files,output_file):
     new_gmm.write(num_gmm_string)
     new_gmm.write(gmms)
     new_gmm.close()
+    
+def get_gender(input_file):
+    """ Return gender for a gmm file """
+    gmm = open(input_file,'r')
 
+    kind = gmm.read(8)
+
+    num_gmm_string = gmm.read(4)
+    num_gmm = struct.unpack('>i', num_gmm_string )
+
+    if num_gmm != (1,):
+        print str(num_gmm) + " gmms"
+        raise Exception('Loop needed for gmms')
+
+
+    gmm_1 = gmm.read(8)
+
+    nothing =  gmm.read(4)
+
+    str_len = struct.unpack('>i', gmm.read(4) )
+    name = gmm.read(str_len[0])
+
+
+    gender = gmm.read(1)
+    return gender
+    
 def split_gmm(input_file, output_dir=None):
     """ Splits a gmm file into gmm files with a single voice model"""
     def read_gaussian(f):
@@ -602,6 +627,7 @@ def split_gmm(input_file, output_dir=None):
 
     index = 0
     basedir,filename = os.path.split(file_basename)
+    print output_dir
     if output_dir != None:
         basedir = output_dir
         for f in files:
@@ -610,6 +636,46 @@ def split_gmm(input_file, output_dir=None):
         fd.write( main_header + f['header'] + f['content'] )
         fd.close()
         index += 1
+        
+
+def rename_gmm(input_file,new_name_gmm_file):
+    """ Rename a gmm with a new speaker identifier (name)  associated""" 
+    
+    gmm = open(input_file,'r')
+    new_gmm = open(input_file+'.new','w')
+
+    kind = gmm.read(8)
+    new_gmm.write(kind)
+
+    num_gmm_string = gmm.read(4) 
+    num_gmm = struct.unpack('>i', num_gmm_string )
+
+    if num_gmm != (1,):
+        print str(num_gmm) + " gmms"
+        raise Exception('Loop needed for gmms')
+
+    new_gmm.write(num_gmm_string)
+
+    gmm_1 = gmm.read(8)
+    new_gmm.write(gmm_1)
+
+    nothing =  gmm.read(4) 
+    new_gmm.write(nothing)
+
+    str_len = struct.unpack('>i', gmm.read(4) )
+    name = gmm.read(str_len[0])
+    print new_name_gmm_file
+    new_len = struct.pack('>i', len(new_name_gmm_file) )
+
+    new_gmm.write(new_len)
+    new_gmm.write(new_name_gmm_file)
+
+    all_other = gmm.read()
+
+    new_gmm.write(all_other)
+    gmm.close()
+    new_gmm.close()
+    
 
 def build_gmm(show,name):
     """ Build a gmm (Gaussian Mixture Model) file from a given wave with a speaker identifier (name)  associated """
@@ -964,7 +1030,6 @@ def extract_speakers(file_input,interactive=False,quiet=False):
                         merge_gmms(listgmms, os.path.join(folder_db_dir,old_s+".gmm"))
                     else:
                         os.remove(os.path.join(folder_db_dir,old_s+".gmm"))
-    
                     shutil.rmtree(folder_tmp)
                 cont = 0
                 gmm_name = speakers[c]+".gmm"
