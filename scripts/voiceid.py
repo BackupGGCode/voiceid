@@ -49,11 +49,12 @@ class Cluster:
 
     def add_speaker(self, name, value):
         """ Add a speaker with a computed score for the cluster, if a better value is already present the new value will be ignored."""
+        v = float(value)
         if self.speakers.has_key( name ) == False:
-            self.speakers[ name ] = float(value)
+            self.speakers[ name ] = v
         else:
-            if self.speakers[ name ] < float(value):
-                self.speakers[ name ] = float(value)
+            if self.speakers[ name ] < v:
+                self.speakers[ name ] = v
 
     def get_speaker(self):
         """ Sets the right speaker for the cluster if not set and returns its name """
@@ -102,9 +103,9 @@ class Cluster:
 
     def generate_seg_file(self, filename):
         """ Generate a segmentation file for the cluster"""
-        self.generate_a_seg_file(filename,self.wave[:-4])
+        self._generate_a_seg_file(filename,self.wave[:-4])
 
-    def generate_a_seg_file(self, filename, show):
+    def _generate_a_seg_file(self, filename, show):
         """ Generate a segmentation file for the given showname"""
         f = open(filename,'w')
         f.write(self.seg_header)
@@ -120,7 +121,7 @@ class Cluster:
         oldshow = self.wave[:-4]
         shutil.copy(oldshow+'.wav', show+'.wav')
         shutil.copy(oldshow+'.mfcc', show+'.mfcc')
-        self.generate_a_seg_file(show+'.seg',show)
+        self._generate_a_seg_file(show+'.seg',show)
 
         ident_seg(show, self.speaker)
 
@@ -138,13 +139,14 @@ class Cluster:
             
     def to_dict(self):
         """ A dictionary representation of a Cluster """
-        speaker = self.get_best_speaker()
+        speaker = self.get_speaker()
         segs = []
         for s in self.segments:
             t = s[2:]
             t[-1] = speaker
             t[0] = int(t[0])
-            t[1] = int(t[1]) 
+            t[1] = int(t[1])
+            t.append(self.get_name()) 
             segs.append(t)
         return segs
     
@@ -158,62 +160,85 @@ class ClusterManager():
 
     def __init__(self, clusters={}, filename = '', dict=False):
         """ Initializations"""
-        self.clusters = clusters
-        self.filename = ''
-        self.basename = ''
-        self.extension = ''       
-        self.time = 0
-        self.interactive = False 
+        self.__clusters = clusters
+        self._filename = ''
+        self._basename = ''
+        self.__ext = ''       
+        self.__time = 0
+        self.__interactive = False 
         if filename != '':
             self.set_filename(filename)
             
         if dict:
             try:
-                self.time = dict['duration']
+                self.__time = dict['duration']
                 self.set_filename(dict['url'])
                 sel = dict['selections']
                  
             except:
                 raise Exeption('problems in ClusterManager initialization')
+            
+    def __getitem__(self,key):
+        return self.__clusters[key]
     
     def __iter__(self):
         """ Just iterate over the cluster dictionary"""
-        return self.clusters.__iter__()
+        return self.__clusters.__iter__()
+
+    #setters and getters
+    def get_interactive(self):
+        return self.__interactive
+
+    def set_interactive(self, value):
+        self.__interactive = value
+
+    def get_clusters(self):
+        return self.__clusters
+
+    def set_clusters(self, value):
+        self.__clusters = value
+
+
+    def get_time(self):
+        return self.__time
+
+    def set_time(self, value):
+        self.__time = value
     
     def set_filename(self,filename):
         """ Set the filename of the current working file"""
-        self.filename = filename
-        self.basename, self.extension = os.path.splitext(self.filename)
+        self._filename = filename
+        self._basename, self.__ext = os.path.splitext(self._filename)
         
     def get_filename(self):
         """ Get the name of the current working file"""
-        return self.filename
+        return self._filename
         
     def get_file_basename(self):
         """ Get the basename of the current working file"""
-        return self.basename[:]
+        return self._basename[:]
     
     def get_file_extension(self):
         """ Get the extension of the current working file"""
-        return self.extension[:]
+        return self.__ext[:]
         
     def get_cluster(self,identifier):
         """ Get a the cluster by a given identifier"""
-        return self.clusters[identifier]
+        return self.__clusters[identifier]
     
     def add_update_cluster(self, identifier, cluster):
         """ Add a cluster or update an existing cluster"""
-        self.clusters[identifier] = cluster
+        self.__clusters[identifier] = cluster
         
     def remove_cluster(self,identifier):
         """ Remove the cluster from the cluster manager"""
-        del self.clusters[identifier]
+        del self.__clusters[identifier]
         
     def get_time_slices(self):
         """ Returns the time slices with all the information about start time, duration, speaker name or "unknown", gender and sound quality (studio/phone)"""
         tot = []
-        for c in self.clusters:
-            tot.extend(self.get_cluster(c).to_dict()[:])
+        for c in self.__clusters:
+            tot.extend(self[c].to_dict()[:])
         tot.sort()
         return tot
 
@@ -288,22 +313,29 @@ class ClusterManager():
 
     
     def to_dict(self):
-        """ Returns a JSON representation for the clustering information. The JSON model used is like:
-        <code>
+        """ Returns a JSON representation for the clustering information. The JSON model used is like:"""
+        """<code>
 {
     "duration": 15,
     "url": "url1",
     "selections": [{
         "annotations": [{
-            "author": "User",
-            "description": "my description",
-            "keyword": "mykeyword",
+            "author": "",
+            "description": "speaker",
+            "keyword": "john",
             "lang": "EN"
-        }, {
-            "author": "User",
-            "description": "la mia descrizione",
-            "keyword": "parola chiave",
-            "lang": "IT"
+        },
+        {
+            "author": "",
+            "description": "speakerLabel",
+            "keyword": "S0",
+            "lang": "EN"
+        }
+        , {
+            "author": "",
+            "description": "gender",
+            "keyword": "F",
+            "lang": "EN"        
         }],
         "resolution": "0x0",
         "selW": 20,
@@ -319,25 +351,18 @@ class ClusterManager():
         
         """
         
-        dict = {"duration":self.time,
-                "url": self.filename,
+        dict = {"duration":self.__time,
+                "url": self._filename,
                 "selections": []
                 }
         
         for s in self.get_time_slices():
             dict['selections'].append({        
-                                     "resolution": "0x0",
-                                     "selW": 0,
-                                     "selH": 0,
-                                     "selY": 0,
-                                     "selX": 0,                   
                                      "startTime" : float(s[0])/1000,
                                      "endTime" : float(s[0]+s[1])/1000,
-                                     "annotations": [{'author': '',
-                                                      'description': '',
-                                                      'keyword' : s[-1],
-                                                      'lang' : 'EN'
-                                                      }]
+                                     'speaker': s[-2],
+                                     'speakerLabel': s[-1],
+                                     'gender': s[2]
                                      })
         #TODO: define a way to fill missing fields
         return dict
@@ -347,7 +372,7 @@ class ClusterManager():
         if not dict:
             dict = self.to_dict()
         prefix = ''
-        if self.interactive:
+        if self.__interactive:
             prefix = '.interactive'
         
         file = open(self.get_file_basename()+prefix+'.json','w')
@@ -369,6 +394,9 @@ class ClusterManager():
             file = open(self.get_file_basename()+'.xmp','w')
             file.write(str(self.to_XMP_string()))
             file.close()
+    time = property(get_time, set_time, None, "time's docstring")
+    clusters = property(get_clusters, set_clusters, None, None)
+    interactive = property(get_interactive, set_interactive, None, None)
 
 
 #############################################
@@ -793,14 +821,14 @@ def manage_ident(showname, gmm, clusters):
                clusters[ cluster ][ speaker ] = float(value)
            else:
                if clusters[ cluster ][ speaker ] < float(value):
-                   clusters[ cluster ][ speaker ] = float(value)
+                   _clusters[ cluster ][ speaker ] = float(value)
            """
     f.close()
     if not keep_intermediate_files:
         os.remove("%s.ident.%s.seg" % (showname,gmm ) )
 
 def extract_clusters(filename, clusters):
-    """ Read clusters from segmentation file """
+    """ Read _clusters from segmentation file """
     f = open(filename,"r")
     last_cluster = None
     for l in f:
@@ -918,9 +946,9 @@ def extract_speakers(file_input,interactive=False,quiet=False):
     extract_mfcc( basename )
 
     if not quiet: print "*** voice matching ***"
-    extract_clusters( "%s.seg" %  basename, cmanager.clusters )
+    extract_clusters( "%s.seg" %  basename, cmanager.get_clusters() )
     
-#    cmanager.clusters = clusters
+#    cmanager.__clusters = __clusters
     #print "*** build 1 wave 4 cluster ***"
     for cluster in cmanager:
         name = cluster
@@ -963,10 +991,10 @@ def extract_speakers(file_input,interactive=False,quiet=False):
             p[proc].join()
 
     for cluster in cmanager:
-        files = files_in_db[cmanager.get_cluster(cluster).gender]
+        files = files_in_db[cmanager[cluster].gender]
         showname = os.path.join(basename,cluster)
         for f in files:
-            manage_ident( showname,cmanager.get_cluster(cluster).gender+"."+f , cmanager.clusters)
+            manage_ident( showname,cmanager[cluster].gender+"."+f , cmanager.get_clusters())
 
     if not quiet: print ""
     speakers = {}
@@ -974,20 +1002,20 @@ def extract_speakers(file_input,interactive=False,quiet=False):
         if not quiet: 
             print "**********************************"
             print "speaker ", c
-            if interactive: cmanager.get_cluster(c).print_segments()
-        speakers[c] = cmanager.get_cluster(c).get_best_speaker()
-        gender = cmanager.get_cluster(c).gender
+            if interactive: cmanager[c].print_segments()
+        speakers[c] = cmanager[c].get_best_speaker()
+        gender = cmanager[c].gender
         if not interactive: 
-            for speaker in cmanager.get_cluster(c).speakers:
-                if not quiet: print "\t %s %s" % (speaker , cmanager.get_cluster(c).speakers[ speaker ])
+            for speaker in cmanager[c].speakers:
+                if not quiet: print "\t %s %s" % (speaker , cmanager[c].speakers[ speaker ])
             if not quiet: print '\t ------------------------'
         try:
-            distance = cmanager.get_cluster(c).get_distance()
+            distance = cmanager[c].get_distance()
         except:
             distance = 1000.0
         try:
-            mean = cmanager.get_cluster(c).get_mean()
-            m_distance = cmanager.get_cluster(c).get_m_distance()
+            mean = cmanager[c].get_mean()
+            m_distance = cmanager[c].get_m_distance()
         except:
             mean = 0
             m_distance = 0
@@ -995,11 +1023,11 @@ def extract_speakers(file_input,interactive=False,quiet=False):
 
         proc = {}
         if interactive == True:
-            cmanager.interactive = True
+            cmanager.set_interactive( True )
             best = interactive_training(basename,c,speakers[c])
             old_s = speakers[c]
             speakers[c] = best
-            cmanager.get_cluster(c).speaker = best
+            cmanager[c].speaker = best
             if speakers[c] != "unknown" and  old_s!=speakers[c]:
                 videocluster = os.path.join(basename,c) #cluster directory
                 listwaves = os.listdir(videocluster) #all cluster's waves
@@ -1012,7 +1040,7 @@ def extract_speakers(file_input,interactive=False,quiet=False):
                     split_gmm(os.path.join(folder_db_dir,old_s+".gmm"),folder_tmp)
                     listgmms = os.listdir(folder_tmp)
                     showname = os.path.join(basename, c)
-                    value_old_s = cmanager.get_cluster(c).value
+                    value_old_s = cmanager[c].value
                     if not quiet: print "value old %s" %value_old_s
                     if len(listgmms) != 1:
                         for gmm in listgmms:
@@ -1048,7 +1076,7 @@ def extract_speakers(file_input,interactive=False,quiet=False):
                 if not quiet: print "name speaker %s " % speakers[c]
 
                 def build_gmm_wrapper(basename_file, cluster):
-                    cmanager.get_cluster(cluster).build_and_store_gmm(basename_file)
+                    cmanager[cluster].build_and_store_gmm(basename_file)
                     if not keep_intermediate_files:
                         os.remove("%s.wav" % basename_file )
                         os.remove("%s.seg" % basename_file )
@@ -1062,7 +1090,7 @@ def extract_speakers(file_input,interactive=False,quiet=False):
     
     sec = wave_duration(basename+'.wav')
     total_time = time.time() - start_time
-    cmanager.time = total_time
+    cmanager.set_time( total_time )
     if interactive:
         print "Waiting for working processes"
         for p in proc:
@@ -1229,9 +1257,9 @@ examples:
         w=None
         if len(waves)>1:
             merge_waves(waves[:-1],waves[-1])
-            w=waves[-1]
+            w = waves[-1]
         else:
-            w= waves[0]
+            w = waves[0]
         basename, extension = os.path.splitext(w)
         show=basename
         build_gmm(show,speaker)
