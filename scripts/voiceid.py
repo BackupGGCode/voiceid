@@ -61,6 +61,9 @@ class Cluster:
         if self.speaker == None:
             self.speaker = self.get_best_speaker()
         return self.speaker
+    
+    def set_speaker(self,speaker):
+        self.speaker = speaker
 
     def get_mean(self):
         """ Get the mean of all the scores of all the tested speakers for the cluster"""
@@ -313,43 +316,44 @@ class ClusterManager():
 
     
     def to_dict(self):
-        """ Returns a JSON representation for the clustering information. The JSON model used is like:"""
-        """<code>
-{
-    "duration": 15,
-    "url": "url1",
-    "selections": [{
-        "annotations": [{
-            "author": "",
-            "description": "speaker",
-            "keyword": "john",
-            "lang": "EN"
-        },
-        {
-            "author": "",
-            "description": "speakerLabel",
-            "keyword": "S0",
-            "lang": "EN"
-        }
-        , {
-            "author": "",
-            "description": "gender",
-            "keyword": "F",
-            "lang": "EN"        
-        }],
-        "resolution": "0x0",
-        "selW": 20,
-        "selH": 15,
-        "selY": 10,
-        "selX": 10,
-        "startTime" : 0,
-        "endTime" : 10
-        
-    }]
-}
-        </code>
-        
-        """
+        """ Returns a JSON representation for the clustering information."""
+#        """ The JSON model used is like:
+#        <code>
+#{
+#    "duration": 15,
+#    "url": "url1",
+#    "selections": [{
+#        "annotations": [{
+#            "author": "",
+#            "description": "speaker",
+#            "keyword": "john",
+#            "lang": "EN"
+#        },
+#        {
+#            "author": "",
+#            "description": "speakerLabel",
+#            "keyword": "S0",
+#            "lang": "EN"
+#        }
+#        , {
+#            "author": "",
+#            "description": "gender",
+#            "keyword": "F",
+#            "lang": "EN"        
+#        }],
+#        "resolution": "0x0",
+#        "selW": 20,
+#        "selH": 15,
+#        "selY": 10,
+#        "selX": 10,
+#        "startTime" : 0,
+#        "endTime" : 10
+#        
+#    }]
+#}
+#        </code>
+#        
+#        """
         
         dict = {"duration":self.__time,
                 "url": self._filename,
@@ -364,7 +368,7 @@ class ClusterManager():
                                      'speakerLabel': s[-1],
                                      'gender': s[2]
                                      })
-        #TODO: define a way to fill missing fields
+            
         return dict
 
     def write_json(self,dict=None):
@@ -1024,11 +1028,11 @@ def extract_speakers(file_input,interactive=False,quiet=False):
         proc = {}
         if interactive == True:
             cmanager.set_interactive( True )
-            best = interactive_training(basename,c,speakers[c])
+            best = interactive_training(basename, c, speakers[c])
             old_s = speakers[c]
             speakers[c] = best
-            cmanager[c].speaker = best
-            if speakers[c] != "unknown" and  old_s!=speakers[c]:
+            cmanager[c].set_speaker(best)
+            if speakers[c] != "unknown" and old_s != speakers[c]:
                 videocluster = os.path.join(basename,c) #cluster directory
                 listwaves = os.listdir(videocluster) #all cluster's waves
                 listw = [os.path.join(videocluster, f) for f in listwaves] #all cluster's waves with absolute path
