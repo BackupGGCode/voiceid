@@ -23,10 +23,8 @@ from optparse import OptionParser
 from multiprocessing import Process, cpu_count, active_children
 import os
 import shlex, subprocess
-import sys, signal
 import time
 import re
-import string
 import shutil
 import struct
 
@@ -34,27 +32,108 @@ import struct
 #   classes
 #-------------------------------------
 class VoiceDB:
-    """ Now just the db path"""
-    def __init__(self,path):
-        self.__path = path
+    """ A class that represent a voice db"""
+    def __init__(self, path):
+        self._path = path
+        self._genders = ['M','F','U']
+        self._read_db()
 
     def get_path(self):
-        return self.__path    
+        """ Get the base path of the voice db"""
+        return self._path
+    
+    def _read_db(self):
+        pass
+    
+    def add_model(self):
+        pass
+    
+    def remove_model(self):
+        pass 
+    
+    def match_voice(self):
+        pass
+    
+class GMMVoiceDB(VoiceDB):
+    """ A Gaussian Mixture Model voice database """    
+    def _read_db(self):
+        """ Read for any changes the db voice models files """
+        self._speakermodels = {}
+        for g in self._genders:
+            self._speakermodels[ g ] = [ f for f in os.listdir(os.path.join(self._path, g )) if f.endswith('.gmm') ]
+    
+    def add_model(self, basepath, speaker_name, gender):
+        """ Add a gmm model to db """
+        
+        ident_seg(basepath, speaker_name)
+        train_init(basepath)
+        train_map(basepath)
+        
+        gmm_path = basepath+'.gmm'
+        original_gmm =  os.path.join(self.get_path(), gender, speaker_name+'.gmm')
+        try:
+            ensure_file_exists(original_gmm)
+            merge_gmms([original_gmm,gmm_path],original_gmm)
+            self._read_db()
+            return True
+        except Exception,e:
+            if str(e) == "File %s doesn't exist or not correctly created"  % original_gmm:
+                shutil.copy(gmm_path, original_gmm)
+                self._read_db()
+                return True
+        return False
+    
+    def remove_model(self, mfcc_file, speaker, gender, value):
+        """ Remove a gmm model from the db """
+        old_s = speaker
+        
+        folder_db_dir = os.path.join(self.get_path(),gender)
+        
+        if os.path.exists(os.path.join(folder_db_dir,old_s+".gmm")):
+            folder_tmp = os.path.join(folder_db_dir,old_s+"_tmp_gmms")
+            if not os.path.exists(folder_tmp):
+                os.mkdir(folder_tmp)
+                
+            split_gmm(os.path.join(folder_db_dir,old_s+".gmm"),folder_tmp)
+            listgmms = os.listdir(folder_tmp)
+            filebasename = os.path.splitext(mfcc_file)[0]
+            value_old_s = value
+            
+            if len(listgmms) != 1:
+                for gmm in listgmms:
+                    mfcc_vs_gmm(filebasename, os.path.join(old_s+"_tmp_gmms",gmm), gender)
+                    f = open("%s.ident.%s.%s.seg" % (filebasename, gender, gmm) , "r")
+                    for l in f:
+                        if l.startswith(";;"):
+                            speaker = l.split()[ 1 ].split(':')[ 1 ].split('_')[1]
+                            i = l.index('score:' + speaker) + len('score:' + speaker + " = ")
+                            ii = l.index(']', i) - 1
+                            value_tmp = l[i:ii]
+                            if float(value_tmp) == value_old_s:
+                                os.remove(os.path.join(folder_tmp, gmm))
+                merge_gmms(listgmms, os.path.join(folder_db_dir,old_s+".gmm"))
+                
+            else:
+                os.remove(os.path.join(folder_db_dir,old_s+".gmm")) #remove the 
+            shutil.rmtree(folder_tmp)
+            self._read_db() 
 
 class Cluster:
     """ A Cluster object, representing a computed cluster for a single speaker, with gender, a number of frames and environment """
-    def __init__(self, name, gender, frames ):
+    
+    def __init__(self, name, gender, frames, dirname ):
         """ Constructor of a Cluster object"""
         self.gender = gender
-        self.frames = frames
-        self.e = None
-        self.name = name
-        self.speaker = None
+        self._frames = frames
+        self._e = None #environment (studio, telephone, unknown)
+        self._name = name
+        self._speaker = None
+        self._segments = []
+        self._seg_header = None
         self.speakers = {}
         self.wave = None
         self.mfcc = None
-        self.segments = []
-        self.seg_header = None
+        self.dirname = dirname
 
     def add_speaker(self, name, value):
         """ Add a speaker with a computed score for the cluster, if a better value is already present the new value will be ignored."""
@@ -67,12 +146,12 @@ class Cluster:
 
     def get_speaker(self):
         """ Set the right speaker for the cluster if not set and returns its name """
-        if self.speaker == None:
-            self.speaker = self.get_best_speaker()
-        return self.speaker
+        if self._speaker == None:
+            self._speaker = self.get_best_speaker()
+        return self._speaker
     
     def set_speaker(self,speaker):
-        self.speaker = speaker
+        self._speaker = speaker
 
     def get_mean(self):
         """ Get the mean of all the scores of all the tested speakers for the cluster"""
@@ -80,7 +159,7 @@ class Cluster:
 
     def get_name(self):
         """ Get the cluster name assigned by the diarization process"""
-        return self.name
+        return self._name
 
     def get_best_speaker(self):
         """ Get the best speaker for the cluster according to the scores. If the speaker's score is lower than a fixed threshold or is too close to the second best matching voice, then it is set as "unknown" """
@@ -89,15 +168,15 @@ class Cluster:
             self.value = max(self.speakers.values())
         except:
             self.value = -100
-        self.speaker = 'unknown'
+        self._speaker = 'unknown'
         if self.value > max_val:
             for s in self.speakers:
                 if self.speakers[s] == self.value:
-                    self.speaker = s
+                    self._speaker = s
                     break
         if self.get_distance() < .1:
-            self.speaker = 'unknown'
-        return self.speaker
+            self._speaker = 'unknown'
+        return self._speaker
 
     def get_distance(self):
         """ Get the distance between the best speaker score and the closest speaker score"""
@@ -117,43 +196,44 @@ class Cluster:
         """ Generate a segmentation file for the cluster"""
         self._generate_a_seg_file(filename,self.wave[:-4])
 
-    def _generate_a_seg_file(self, filename, show):
+    def _generate_a_seg_file(self, filename, name):
         """ Generate a segmentation file for the given showname"""
         f = open(filename,'w')
-        f.write(self.seg_header)
-        line = self.segments[0][:]
-        line[0]=show
+        f.write(self._seg_header)
+        line = self._segments[0][:]
+        line[0]=name
         line[2]=0
-        line[3]=self.frames-1
+        line[3]=self._frames-1
         f.write("%s %s %s %s %s %s %s %s\n" % tuple(line) )
         f.close()
 
-    def build_and_store_gmm(self, show, db_dir):
-        """ Build a speaker model for the cluster and store in the main speakers db"""
-        oldshow = self.wave[:-4]
-        shutil.copy(oldshow+'.wav', show+'.wav')
-        shutil.copy(oldshow+'.mfcc', show+'.mfcc')
-        self._generate_a_seg_file(show+'.seg',show)
-
-        ident_seg(show, self.speaker)
-
-        train_init(show)
+        
+    def merge_waves(self, dirname):
+        """  Take all the wave of a cluster and build a single wave"""        
+        name = self.get_name() 
+        videocluster =  os.path.join( dirname, name )
+        
+        listwaves = os.listdir( videocluster )
+        
+        listw = [ os.path.join( videocluster, f ) for f in listwaves ]
+        
+        file_basename = os.path.join( dirname, name )
+        
+        self.wave = os.path.join(dirname,name+".wav")
+        
+        merge_waves(listw,self.wave)      
+        
         try:
-            ensure_file_exists(show+'.mfcc')
+            ensure_file_exists(file_basename+'.mfcc')
         except:
-            extract_mfcc(show)
-        train_map(show)
-        ensure_file_exists(show+".gmm")
-        original_gmm = os.path.join(db_dir,self.gender,self.speaker+'.gmm')
-        merge_gmms([original_gmm,show+'.gmm'],original_gmm)
-        if not keep_intermediate_files:
-            os.remove(show+'.gmm')
+            extract_mfcc(file_basename)
+            
             
     def to_dict(self):
         """ A dictionary representation of a Cluster """
         speaker = self.get_speaker()
         segs = []
-        for s in self.segments:
+        for s in self._segments:
             t = s[2:]
             t[-1] = speaker
             t[0] = int(t[0])
@@ -164,11 +244,15 @@ class Cluster:
     
     def print_segments(self):
         """ Print cluster timing """
-        for s in self.segments:
+        for s in self._segments:
             print "%s to %s" %( humanize_time(float(s[2])/100) , humanize_time((float(s[2])+float(s[3]))/100) )
 
 class Voiceid:
     """ The main object that represents the file audio/video to manage. """
+
+    @staticmethod
+    def from_json(json_file):
+        pass
 
     def __init__(self, db, filename ):
         """ Initializations"""
@@ -194,7 +278,10 @@ class Voiceid:
     def __iter__(self):
         """ Just iterate over the cluster's dictionary"""
         return self._clusters.__iter__()
-
+    
+    def get_db(self):
+        return self._db
+    
     #setters and getters
     def get_interactive(self):
         return self._interactive
@@ -277,7 +364,6 @@ class Voiceid:
         """ Identifie the speakers in the audio wav according to a speakers database. 
         If a speaker doesn't match any speaker in the database then sets it as unknown. 
         In interactive mode it asks the user to set speakers' names."""
-        clusters = {}
         start_time = time.time()
         
         self.to_wav()
@@ -293,50 +379,43 @@ class Voiceid:
         if not quiet: print "*** voice matching ***"
         self.extract_clusters()
         
+        #merging segments wave files for every cluster
         for cluster in self._clusters:
-            name = cluster
-            videocluster =  os.path.join(basename,name)
-            listwaves = os.listdir(videocluster)
-            listw = [os.path.join(videocluster, f) for f in listwaves]
-            show = os.path.join(basename,name)
-            self._clusters[cluster].wave = os.path.join(basename,name+".wav")
-            merge_waves(listw,self._clusters[cluster].wave)
-            extract_mfcc(show)
-            self._clusters[cluster].generate_seg_file(show+".seg")
-    
+            
+            self[cluster].merge_waves(basename)
+            self[cluster].generate_seg_file( os.path.join( basename, cluster+".seg" ) )
+            
         """Wave,seg(prendendo le info dal seg originale) e mfcc per ogni cluster
         Dal seg prendo il genere
         for mfcc for db_genere"""
     
-        #print "*** MScore ***"
         p = {}
-        files_in_db = {}
-        files_in_db["M"] = [ f for f in os.listdir(os.path.join(db_path,"M")) if f.endswith('.gmm') ]
-        files_in_db["F"] = [ f for f in os.listdir(os.path.join(db_path,"F")) if f.endswith('.gmm') ]
-        files_in_db["U"] = [ f for f in os.listdir(os.path.join(db_path,"U")) if f.endswith('.gmm') ]
-        
-        for cluster in self._clusters:
-            files = files_in_db[self._clusters[cluster].gender]
-            showname = os.path.join(basename,cluster)
+        files_in_db = self.get_db()._speakermodels
+
+
+        for cluster in self._clusters:            
+            files = files_in_db[ self[cluster].gender ]
+            filebasename = os.path.join(basename,cluster)
+            #TODO: modify to do not speak about mfcc or gmms  
             for f in files:
-    
                 if  len(active_children()) < cpus :
-                    p[f+cluster] = Process(target=mfcc_vs_gmm, args=( showname, f, self._clusters[cluster].gender) )
+                    p[f+cluster] = Process( target=mfcc_vs_gmm, args=( filebasename, f, self[cluster].gender ) )
                     p[f+cluster].start()
                 else:
                     while len(active_children()) >= cpus:
                         time.sleep(1)
-                    p[f+cluster] = Process(target=mfcc_vs_gmm, args=( showname, f, self._clusters[cluster].gender ) )
+                    p[f+cluster] = Process( target=mfcc_vs_gmm, args=( filebasename, f, self[cluster].gender ) )
                     p[f+cluster].start()
+
         for proc in p:
             if p[proc].is_alive():
                 p[proc].join()
     
         for cluster in self._clusters:
-            files = files_in_db[self._clusters[cluster].gender]
-            showname = os.path.join(basename,cluster)
+            files = files_in_db[self[cluster].gender]
+            filebasename = os.path.join(basename,cluster)
             for f in files:
-                manage_ident( showname,self._clusters[cluster].gender+"."+f , self.get_clusters())
+                manage_ident( filebasename, self[cluster].gender+"."+f , self.get_clusters())
     
         if not quiet: print ""
         speakers = {}
@@ -344,20 +423,20 @@ class Voiceid:
             if not quiet: 
                 print "**********************************"
                 print "speaker ", c
-                if interactive: self._clusters[c].print_segments()
-            speakers[c] = self._clusters[c].get_best_speaker()
+                if interactive: self[c].print_segments()
+            speakers[c] = self[c].get_best_speaker()
             gender = self._clusters[c].gender
             if not interactive: 
-                for speaker in self._clusters[c].speakers:
-                    if not quiet: print "\t %s %s" % (speaker , self._clusters[c].speakers[ speaker ])
+                for speaker in self[c].speakers:
+                    if not quiet: print "\t %s %s" % (speaker , self[c].speakers[ speaker ])
                 if not quiet: print '\t ------------------------'
             try:
-                distance = self._clusters[c].get_distance()
+                distance = self[c].get_distance()
             except:
                 distance = 1000.0
             try:
-                mean = self._clusters[c].get_mean()
-                m_distance = self._clusters[c].get_m_distance()
+                mean = self[c].get_mean()
+                m_distance = self[c].get_m_distance()
             except:
                 mean = 0
                 m_distance = 0
@@ -370,69 +449,56 @@ class Voiceid:
                 
                 old_s = speakers[c]
                 speakers[c] = best
-                self._clusters[c].set_speaker(best)
+                self[c].set_speaker(best)
                 
-                if speakers[c] != "unknown" and old_s != speakers[c]:
-                    videocluster = os.path.join(basename,c) #cluster directory
-                    listwaves = os.listdir(videocluster) #all cluster's waves
-                    listw = [os.path.join(videocluster, f) for f in listwaves] #all cluster's waves with absolute path
-                    folder_db_dir = os.path.join(db_path,gender)
-                    if os.path.exists(os.path.join(folder_db_dir,old_s+".gmm")):
-                        folder_tmp = os.path.join(folder_db_dir,old_s+"_tmp_gmms")
-                        if not os.path.exists(folder_tmp):
-                            os.mkdir(folder_tmp)
-                        split_gmm(os.path.join(folder_db_dir,old_s+".gmm"),folder_tmp)
-                        listgmms = os.listdir(folder_tmp)
-                        showname = os.path.join(basename, c)
-                        value_old_s = self._clusters[c].value
-                        if not quiet: print "value old %s" %value_old_s
-                        if len(listgmms) != 1:
-                            for gmm in listgmms:
-                                mfcc_vs_gmm(showname, os.path.join(old_s+"_tmp_gmms",gmm), gender)
-                                f = open("%s.ident.%s.%s.seg" % (showname, gender, gmm) , "r")
-                                for l in f:
-                                    if l.startswith(";;"):
-                                        cluster, speaker = l.split()[ 1 ].split(':')[ 1 ].split('_')
-                                        i = l.index('score:' + speaker) + len('score:' + speaker + " = ")
-                                        ii = l.index(']', i) - 1
-                                        value_tmp = l[i:ii]
-                                        if not quiet: print "value tmp %s" %float(value_tmp)
-                                        if float(value_tmp) == value_old_s:
-                                            os.remove(os.path.join(folder_tmp, gmm))
-                            merge_gmms(listgmms, os.path.join(folder_db_dir,old_s+".gmm"))
-                        else:
-                            os.remove(os.path.join(folder_db_dir,old_s+".gmm"))
-                        shutil.rmtree(folder_tmp)
-                    cont = 0
-                    gmm_name = speakers[c]+".gmm"
-                    wav_name = speakers[c]+".wav"
-                    if os.path.exists(wav_name):
-                        while True: #search an inexistent name for new gmm
-                            cont = cont +1
-                            gmm_name = speakers[c]+""+str(cont)+".gmm"
-                            wav_name = speakers[c]+""+str(cont)+".wav"
-                            if not os.path.exists(wav_name):
-                                break
-                    basename_file, extension_file = os.path.splitext(wav_name)
-                    merge_waves(listw,wav_name)
-                    if not quiet: print "name speaker %s " % speakers[c]
-    
-                    def build_gmm_wrapper(basename_file, cluster):
-                        self._clusters[cluster].build_and_store_gmm(basename_file,db_dir=db_path)
-                        if not keep_intermediate_files:
-                            os.remove("%s.wav" % basename_file )
-                            os.remove("%s.seg" % basename_file )
-                            os.remove("%s.mfcc" % basename_file )
-                            os.remove("%s.ident.seg" % basename_file )
-                            os.remove("%s.init.gmm" % basename_file )
-                    proc[c] = Process( target=build_gmm_wrapper, args=(basename_file,c) )
-                    proc[c].start()
+                if old_s != speakers[c] : # interactive training results don't match batch training results 
                     
+                    if old_s != "unknown" : # the wrong (batch calculated) name of the speaker is not 'unknown' 
+                        self.get_db().remove_model( os.path.join( basename, c) + '.mfcc', old_s, gender, self[c].value )  #remove the speaker model ---
+                    
+                    if speakers[c] != 'unknown': #the new speaker is not 'unknown'
+                        
+                        cont = 0
+                        wav_name = speakers[c]+".wav"
+                        if os.path.exists(wav_name):
+                            while True: #search an inexistent name for new gmm
+                                cont = cont +1
+                                wav_name = speakers[c]+""+str(cont)+".wav"
+                                if not os.path.exists(wav_name):
+                                    break
+                        basename_file = os.path.splitext(wav_name)[0]
+                        
+                        self[c].merge_waves(basename)
+                        
+                        shutil.move(self[c].wave, wav_name)
+                        
+                        if not quiet: print "name speaker %s " % speakers[c]
+        
+                        def build_model_wrapper(wave_b, cluster, wave_dir):
+                            try:
+                                ensure_file_exists(wave_b+'.seg')
+                            except:
+                                self[cluster]._generate_a_seg_file( wave_b+'.seg', wave_b)                             
+                         
+                            ensure_file_exists(wave_b+'.wav')
+                            
+                            self.get_db().add_model(wave_b, self[cluster].get_speaker(), self[cluster].gender ) 
+                            
+                            if not keep_intermediate_files:
+                                os.remove("%s.gmm" % wave_b )
+                                os.remove("%s.wav" % wave_b )
+                                os.remove("%s.seg" % wave_b )
+                                os.remove("%s.mfcc" % wave_b )
+                                os.remove("%s.ident.seg" % wave_b )
+                                os.remove("%s.init.gmm" % wave_b )
+                                
+                        proc[c] = Process( target=build_model_wrapper, args=(basename_file,c, basename) )
+                        proc[c].start()
                     
             if not interactive:
                 if not quiet: print '\t best speaker: %s (distance from 2nd %f - mean %f - distance from mean %f ) ' % (speakers[c] , distance, mean, m_distance)    
         
-        sec = wave_duration(basename+'.wav')
+        sec = wave_duration( basename+'.wav' )
         total_time = time.time() - start_time
         self.set_time( total_time )
         if interactive:
@@ -548,13 +614,13 @@ class Voiceid:
 #        
 #        """
         
-        dict = {"duration":self._time,
+        d = {"duration":self._time,
                 "url": self._filename,
                 "selections": []
                 }
         
         for s in self.get_time_slices():
-            dict['selections'].append({        
+            d['selections'].append({        
                                      "startTime" : float(s[0])/1000,
                                      "endTime" : float(s[0]+s[1])/1000,
                                      'speaker': s[-2],
@@ -562,35 +628,35 @@ class Voiceid:
                                      'gender': s[2]
                                      })
             
-        return dict
+        return d
 
-    def write_json(self,dict=None):
-        """ Write to file the json dict representation of the Clusters"""
-        if not dict:
-            dict = self.to_dict()
+    def write_json(self,dictionary=None):
+        """ Write to file the json dictionary representation of the Clusters"""
+        if not dictionary:
+            dictionary = self.to_dict()
         prefix = ''
         if self._interactive:
             prefix = '.interactive'
         
-        file = open(self.get_file_basename()+prefix+'.json','w')
-        file.write(str(dict))
-        file.close()
+        file_json = open(self.get_file_basename()+prefix+'.json','w')
+        file_json.write(str(dictionary))
+        file_json.close()
 
-    def write_output(self,format):
+    def write_output(self,mode):
         """ Write to file (basename.extension, for example: myfile.srt) the output of   """
         
-        if format == 'srt':
+        if mode == 'srt':
             seg2srt(self.get_file_basename()+'.seg')
             srt2subnames(self.get_file_basename(), self.get_speakers_map()) # build subtitles - the main output at this time
             shutil.move(self.get_file_basename()+'.ident.srt', self.get_file_basename()+'.srt')
             
-        if format == 'json':
+        if mode == 'json':
             self.write_json()
         
-        if format == 'xmp':
-            file = open(self.get_file_basename()+'.xmp','w')
-            file.write(str(self.to_XMP_string()))
-            file.close()
+        if mode == 'xmp':
+            file_xmp = open(self.get_file_basename()+'.xmp','w')
+            file_xmp.write(str(self.to_XMP_string()))
+            file_xmp.close()
 
 
 #-------------------------------------
@@ -649,7 +715,6 @@ def check_deps():
     if not os.path.exists(dir_u):
         os.makedirs(dir_u)
 
-
 def humanize_time(secs):
     """ Convert seconds into time format """
     mins, secs = divmod(secs, 60)
@@ -677,14 +742,14 @@ def merge_waves(input_waves,wavename):
     start_subprocess(commandline)
 
 
-def video2wav(show):
+def video2wav(file_name):
     """ Take any kind of video or audio and convert it to a "RIFF (little-endian) data, WAVE audio, Microsoft PCM, 16 bit, mono 16000 Hz" wave file using gstreamer. If you call it passing a wave it checks if in good format, otherwise it converts the wave in the good format """
-    def is_bad_wave(show):
+    def is_bad_wave(file_name):
         """ Check if the wave is in correct format for LIUM required input file """
         import wave
         par = None
         try:
-            w = wave.open(show)
+            w = wave.open(file_name)
             par = w.getparams()
             w.close()
         except Exception,e:
@@ -695,9 +760,9 @@ def video2wav(show):
         else:
             return True
 
-    name, ext = os.path.splitext(show)
-    if ext != '.wav' or is_bad_wave(show):
-        start_subprocess( "gst-launch filesrc location='"+show+"' ! decodebin ! audioresample ! 'audio/x-raw-int,rate=16000' ! audioconvert ! 'audio/x-raw-int,rate=16000,depth=16,signed=true,channels=1' ! wavenc ! filesink location="+name+".wav " )
+    name, ext = os.path.splitext(file_name)
+    if ext != '.wav' or is_bad_wave(file_name):
+        start_subprocess( "gst-launch filesrc location='"+file_name+"' ! decodebin ! audioresample ! 'audio/x-raw-int,rate=16000' ! audioconvert ! 'audio/x-raw-int,rate=16000,depth=16,signed=true,channels=1' ! wavenc ! filesink location="+name+".wav " )
     ensure_file_exists(name+'.wav')
 
 #-------------------------------------
@@ -745,14 +810,11 @@ def get_gender(input_file):
         print str(num_gmm) + " gmms"
         raise Exception('Loop needed for gmms')
 
-
     gmm_1 = gmm.read(8)
-
     nothing =  gmm.read(4)
 
     str_len = struct.unpack('>i', gmm.read(4) )
     name = gmm.read(str_len[0])
-
 
     gender = gmm.read(1)
     return gender
@@ -776,7 +838,7 @@ def split_gmm(input_file, output_dir=None):
 
         g_header = g_key + g_id + g_length + g_name + g_gender + g_kind + g_dim + g_count + g_weight
 
-        data = ''
+#        data = ''
         datasize = 0
         if g_kind == FULL:
             for j in range(dimension) :
@@ -815,8 +877,7 @@ def split_gmm(input_file, output_dir=None):
             raise Exception("Error: Gmm section doesn't match GMM_____ kind")
         h = f.read(4)     #readint 4bytes representing the hash (backward compatibility)
         l = f.read(4)     #readint 4bytes representing the name length
-        name = f.read( int( struct.unpack('>i',   l )[0] )  )
-                          #read string of l bytes
+        name = f.read( int( struct.unpack('>i',   l )[0] )  ) #read string of l bytes
         myfile['name'] = name
         g = f.read(1)     #read a char representing the gender
         gk = f.read(4)    #readint 4bytes representing the gaussian kind
@@ -846,7 +907,6 @@ def split_gmm(input_file, output_dir=None):
 
     index = 0
     basedir,filename = os.path.split(file_basename)
-    print output_dir
     if output_dir != None:
         basedir = output_dir
         for f in files:
@@ -896,25 +956,25 @@ def rename_gmm(input_file,new_name_gmm_file):
     new_gmm.close()
     
 
-def build_gmm(show,name):
+def build_gmm(file_basename,name):
     """ Build a gmm (Gaussian Mixture Model) file from a given wave with a speaker identifier (name)  associated """
 
-    diarization(show)
+    diarization(file_basename)
 
-    ident_seg(show,name)
+    ident_seg(file_basename,name)
 
-    extract_mfcc(show)
+    extract_mfcc(file_basename)
 
-    train_init(show)
+    train_init(file_basename)
 
-    train_map(show)
+    train_map(file_basename)
 
 #-------------------------------------
 #   seg files and trim functions
 #-------------------------------------
 def seg2trim(segfile):
     """ Take a wave and splits it in small waves in this directory structure <file base name>/<cluster>/<cluster>_<start time>.wav """
-    basename, extension = os.path.splitext(segfile)
+    basename = os.path.splitext(segfile)[0]
     s = open(segfile,'r')
     for line in s.readlines():
         if not line.startswith(";;"):
@@ -941,7 +1001,7 @@ def seg2srt(segfile):
     def readtime(aline):
         return int(aline[2])
 
-    basename, extension = os.path.splitext(segfile)
+    basename = os.path.splitext(segfile)[0]
     s = open(segfile,'r')
     lines = []
     for line in s.readlines():
@@ -966,26 +1026,26 @@ def seg2srt(segfile):
     srtfile.close()
     ensure_file_exists(basename+'.srt')
 
-def extract_mfcc(show):
+def extract_mfcc(file_basename):
     """ Extract audio features from the wave file, in particular the mel-frequency cepstrum using a sphinx tool """
-    commandline = "sphinx_fe -verbose no -mswav yes -i %s.wav -o %s.mfcc" %  ( show, show )
+    commandline = "sphinx_fe -verbose no -mswav yes -i %s.wav -o %s.mfcc" %  ( file_basename, file_basename )
     start_subprocess(commandline)
-    ensure_file_exists(show+'.mfcc')
+    ensure_file_exists(file_basename+'.mfcc')
 
-def ident_seg(showname,name):
-    """ Substitute cluster names with speaker names ang generate a "<showname>.ident.seg" file """
-    ident_seg_rename(showname,name,showname+'.ident')
+def ident_seg(filebasename,name):
+    """ Substitute cluster names with speaker names ang generate a "<filebasename>.ident.seg" file """
+    ident_seg_rename(filebasename,name,filebasename+'.ident')
 
 
-def ident_seg_rename(showname,name,outputname):
+def ident_seg_rename(filebasename,name,outputname):
     """ Take a seg file and substitute the clusters with a given name or identifier """
-    f = open(showname+'.seg','r')
+    f = open(filebasename+'.seg','r')
     clusters=[]
     lines = f.readlines()
     for line in lines:
         for k in line.split():
             if k.startswith('cluster:'):
-                prefix,c = k.split(':')
+                c = k.split(':')[1]
                 clusters.append(c)
     f.close()
     output = open(outputname+'.seg', 'w')
@@ -997,26 +1057,26 @@ def ident_seg_rename(showname,name,outputname):
     output.close()
     ensure_file_exists(outputname+'.seg')
 
-def manage_ident(showname, gmm, clusters):
+def manage_ident(filebasename, gmm, clusters):
     """ Take all the files created by the call of mfcc_vs_gmm() on the whole speakers db and put all the results in a bidimensional dictionary """
-    f = open("%s.ident.%s.seg" % (showname,gmm ) ,"r")
+    f = open("%s.ident.%s.seg" % (filebasename,gmm ) ,"r")
     for l in f:
         if l.startswith(";;"):
-           cluster, speaker = l.split()[ 1 ].split(':')[ 1 ].split('_')
-           i = l.index('score:'+speaker) + len('score:'+speaker+" = ")
-           ii = l.index(']',i) -1
-           value = l[i:ii]
-           clusters[ cluster ].add_speaker( speaker, value )
-           """
-           if clusters[ cluster ].has_key( speaker ) == False:
-               clusters[ cluster ][ speaker ] = float(value)
-           else:
-               if clusters[ cluster ][ speaker ] < float(value):
-                   _clusters[ cluster ][ speaker ] = float(value)
-           """
+            cluster, speaker = l.split()[ 1 ].split(':')[ 1 ].split('_')
+            i = l.index('score:'+speaker) + len('score:'+speaker+" = ")
+            ii = l.index(']',i) -1
+            value = l[i:ii]
+            clusters[ cluster ].add_speaker( speaker, value )
+            """
+            if clusters[ cluster ].has_key( speaker ) == False:
+                clusters[ cluster ][ speaker ] = float(value)
+            else:
+                if clusters[ cluster ][ speaker ] < float(value):
+                    _clusters[ cluster ][ speaker ] = float(value)
+            """
     f.close()
     if not keep_intermediate_files:
-        os.remove("%s.ident.%s.seg" % (showname,gmm ) )
+        os.remove("%s.ident.%s.seg" % (filebasename,gmm ) )
 
 def extract_clusters(filename, clusters):
     """ Read _clusters from segmentation file """
@@ -1024,19 +1084,19 @@ def extract_clusters(filename, clusters):
     last_cluster = None
     for l in f:
         if l.startswith(";;"):
-           speaker_id = l.split()[1].split(':')[1]
-           clusters[ speaker_id ] = Cluster(name=speaker_id, gender='U', frames=0)
-           last_cluster = clusters[ speaker_id ]
-           last_cluster.seg_header = l
+            speaker_id = l.split()[1].split(':')[1]
+            clusters[ speaker_id ] = Cluster(name=speaker_id, gender='U', frames=0, dirname=os.path.splitext(filename)[0] )
+            last_cluster = clusters[ speaker_id ]
+            last_cluster._seg_header = l
         else:
-           line = l.split()
-           last_cluster.segments.append(line)
-           last_cluster.frames += int(line[3])
-           last_cluster.gender =  line[4]
-           last_cluster.e =  line[5]
+            line = l.split()
+            last_cluster._segments.append(line)
+            last_cluster._frames += int(line[3])
+            last_cluster.gender =  line[4]
+            last_cluster._e =  line[5]
     f.close()
 
-def srt2subnames(showname, key_value):
+def srt2subnames(filebasename, key_value):
     """ Substitute cluster names with real names in subtitles """
 
     def replace_words(text, word_dic):
@@ -1051,12 +1111,12 @@ def srt2subnames(showname, key_value):
 
         return rc.sub(translate, text)
 
-    file_original_subtitle = open(showname+".srt")
+    file_original_subtitle = open(filebasename+".srt")
     original_subtitle = file_original_subtitle.read()
     file_original_subtitle.close()
     key_value = dict(map(lambda (key, value): (str(key)+"\n", value), key_value.items()))
     text = replace_words(original_subtitle, key_value)
-    out_file = showname+".ident.srt"
+    out_file = filebasename+".ident.srt"
     # create a output file
     fout = open(out_file, "w")
     fout.write(text)
@@ -1068,58 +1128,57 @@ def video2trim(videofile):
     """ Take a video or audio file and converts it into smaller waves according to the diarization process """
     if not quiet_mode: print "*** converting video to wav ***"
     video2wav(videofile)
-    show, ext = os.path.splitext(videofile)
+    file_basename = os.path.splitext(videofile)[0]
     if not quiet_mode: print "*** diarization ***"
-    diarization(show)
+    diarization(file_basename)
     if not quiet_mode: print "*** trim ***"
-    seg2trim(show+'.seg')
+    seg2trim(file_basename+'.seg')
 
 
 #--------------------------------------------
 #   diarization and voice matching functions
 #--------------------------------------------
-def diarization(showname):
+def diarization(filebasename):
     """ Take a wave file in the correct format and build a segmentation file. The seg file shows how much speakers are in the audio and when they talk """
-    start_subprocess( 'java -Xmx2024m -jar '+lium_jar+' --fInputMask=%s.wav --sOutputMask=%s.seg --doCEClustering ' +  showname )
-    ensure_file_exists(showname+'.seg')
+    start_subprocess( 'java -Xmx2024m -jar '+lium_jar+' --fInputMask=%s.wav --sOutputMask=%s.seg --doCEClustering ' +  filebasename )
+    ensure_file_exists(filebasename+'.seg')
 
-
-def train_init(show):
+def train_init(file_basename):
     """ Train the initial speaker gmm model """
-    commandline = 'java -Xmx256m -cp '+lium_jar+' fr.lium.spkDiarization.programs.MTrainInit --help --sInputMask=%s.ident.seg --fInputMask=%s.wav --fInputDesc="audio16kHz2sphinx,1:3:2:0:0:0,13,1:1:300:4"  --emInitMethod=copy --tInputMask='+ubm_path+' --tOutputMask=%s.init.gmm '+show
+    commandline = 'java -Xmx256m -cp '+lium_jar+' fr.lium.spkDiarization.programs.MTrainInit --help --sInputMask=%s.ident.seg --fInputMask=%s.wav --fInputDesc="audio16kHz2sphinx,1:3:2:0:0:0,13,1:1:300:4"  --emInitMethod=copy --tInputMask='+ubm_path+' --tOutputMask=%s.init.gmm '+file_basename
     start_subprocess(commandline)
-    ensure_file_exists(show+'.init.gmm')
+    ensure_file_exists(file_basename+'.init.gmm')
 
-def train_map(show):
+def train_map(file_basename):
     """ Train the speaker model using a MAP adaptation method """
-    commandline = 'java -Xmx256m -cp '+lium_jar+' fr.lium.spkDiarization.programs.MTrainMAP --help --sInputMask=%s.ident.seg --fInputMask=%s.mfcc --fInputDesc="audio16kHz2sphinx,1:3:2:0:0:0,13,1:1:300:4"  --tInputMask=%s.init.gmm --emCtrl=1,5,0.01 --varCtrl=0.01,10.0 --tOutputMask=%s.gmm ' + show 
+    commandline = 'java -Xmx256m -cp '+lium_jar+' fr.lium.spkDiarization.programs.MTrainMAP --help --sInputMask=%s.ident.seg --fInputMask=%s.mfcc --fInputDesc="audio16kHz2sphinx,1:3:2:0:0:0,13,1:1:300:4"  --tInputMask=%s.init.gmm --emCtrl=1,5,0.01 --varCtrl=0.01,10.0 --tOutputMask=%s.gmm ' + file_basename 
     start_subprocess(commandline)
-    ensure_file_exists(show+'.gmm')
+    ensure_file_exists(file_basename+'.gmm')
 
-def mfcc_vs_gmm(showname, gmm, gender,custom_db_dir=None):
+def mfcc_vs_gmm(filebasename, gmm, gender,custom_db_dir=None):
     """ Match a mfcc file and a given gmm model file """
     database = db_dir
     if custom_db_dir != None:
         database = custom_db_dir
-    gmm_dir, gmm_name = os.path.split(gmm)
-    commandline = 'java -Xmx256M -Xms256M -cp ' + lium_jar + '  fr.lium.spkDiarization.programs.MScore --sInputMask=%s.seg   --fInputMask=%s.mfcc  --sOutputMask=%s.ident.' + gender + '.' + gmm_name + '.seg --sOutputFormat=seg,UTF8  --fInputDesc="audio16kHz2sphinx,1:3:2:0:0:0,13,1:0:300:4" --tInputMask=' + database + '/' + gender + '/' + gmm + ' --sTop=8,' + ubm_path + '  --sSetLabel=add --sByCluster ' + showname 
+    gmm_name = os.path.split(gmm)[1]
+    commandline = 'java -Xmx256M -Xms256M -cp ' + lium_jar + '  fr.lium.spkDiarization.programs.MScore --sInputMask=%s.seg   --fInputMask=%s.mfcc  --sOutputMask=%s.ident.' + gender + '.' + gmm_name + '.seg --sOutputFormat=seg,UTF8  --fInputDesc="audio16kHz2sphinx,1:3:2:0:0:0,13,1:0:300:4" --tInputMask=' + database + '/' + gender + '/' + gmm + ' --sTop=8,' + ubm_path + '  --sSetLabel=add --sByCluster ' + filebasename 
     start_subprocess(commandline)
-    ensure_file_exists(showname + '.ident.' + gender + '.' + gmm_name + '.seg')
-
-def threshold_tuning():
-    """ Get a score to tune up the threshold to define when a speaker is unknown"""
-    showname = os.path.join(test_path,'mr_arkadin')
-    gmm = "mrarkadin.gmm"
-    gender = 'M'
-    ensure_file_exists(showname+'.wav')
-    ensure_file_exists( os.path.join(test_path,gender,gmm ) )
-    video2trim(showname+'.wav')
-    extract_mfcc(showname)
-    mfcc_vs_gmm(showname, gmm, gender,custom_db_dir=test_path)
-    clusters = {}
-    extract_clusters(showname+'.seg',clusters)
-    manage_ident(showname,gender+'.'+gmm,clusters)
-    return clusters['S0'].speakers['mrarkadin']
+    ensure_file_exists(filebasename + '.ident.' + gender + '.' + gmm_name + '.seg')
+    
+#def threshold_tuning():
+#    """ Get a score to tune up the threshold to define when a speaker is unknown"""
+#    filebasename = os.path.join(test_path,'mr_arkadin')
+#    gmm = "mrarkadin.gmm"
+#    gender = 'M'
+#    ensure_file_exists(filebasename+'.wav')
+#    ensure_file_exists( os.path.join(test_path,gender,gmm ) )
+#    video2trim(filebasename+'.wav')
+#    extract_mfcc(filebasename)
+#    mfcc_vs_gmm(filebasename, gmm, gender,custom_db_dir=test_path)
+#    clusters = {}
+#    extract_clusters(filebasename+'.seg',clusters)
+#    manage_ident(filebasename,gender+'.'+gmm,clusters)
+#    return clusters['S0'].speakers['mrarkadin']
 
 def interactive_training(videoname, cluster, speaker):
     """ A user interactive way to set the name to an unrecognized voice of a given cluster """
@@ -1163,7 +1222,6 @@ def interactive_training(videoname, cluster, speaker):
                     if ok in ('m',"menu"):
                         m = True
                         break
-                    
                 if not m: 
                     print "Yes, no or menu, please!"  
             continue
@@ -1171,9 +1229,6 @@ def interactive_training(videoname, cluster, speaker):
             return speaker
         print "Type 1, 2 or enter to skip, please"
 
-
-
-        
 #----------------------------------
 # argument parsing facilities
 #----------------------------------
@@ -1266,7 +1321,7 @@ examples:
     if options.file_input:
         
         #create db istance
-        default_db = VoiceDB( path=db_dir )
+        default_db = GMMVoiceDB( path=db_dir )
         
         #create voiceid instance
         cmanager = Voiceid( db=default_db, filename=options.file_input )
@@ -1286,8 +1341,9 @@ examples:
             shutil.rmtree( cmanager.get_file_basename() )
         exit(0)
         
+        
     if options.waves_for_gmm and options.speakerid:
-        show = None
+        file_basename = None
         waves = options.waves_for_gmm
         speaker = options.speakerid
         w = None
@@ -1297,10 +1353,8 @@ examples:
         else:
             w = waves[0]
         basename, extension = os.path.splitext(w)
-        show = basename
-        build_gmm(show,speaker)
+        file_basename = basename
+        build_gmm(file_basename,speaker)
         exit(0)
 
     parser.print_help()
-
-
