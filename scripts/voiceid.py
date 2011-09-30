@@ -45,10 +45,10 @@ class VoiceDB:
     def _read_db(self):
         pass
     
-    def add_model(self):
+    def add_model(self, basepath, speaker_name, gender):
         pass
     
-    def remove_model(self):
+    def remove_model(self, mfcc_file, speaker, gender, value):
         pass 
     
     def match_voice(self):
@@ -116,7 +116,10 @@ class GMMVoiceDB(VoiceDB):
             else:
                 os.remove(os.path.join(folder_db_dir,old_s+".gmm")) #remove the 
             shutil.rmtree(folder_tmp)
-            self._read_db() 
+            self._read_db()
+             
+    def match_voice(self):
+        pass
 
 class Cluster:
     """ A Cluster object, representing a computed cluster for a single speaker, with gender, a number of frames and environment """
@@ -206,7 +209,6 @@ class Cluster:
         line[3]=self._frames-1
         f.write("%s %s %s %s %s %s %s %s\n" % tuple(line) )
         f.close()
-
         
     def merge_waves(self, dirname):
         """  Take all the wave of a cluster and build a single wave"""        
@@ -227,7 +229,6 @@ class Cluster:
             ensure_file_exists(file_basename+'.mfcc')
         except:
             extract_mfcc(file_basename)
-            
             
     def to_dict(self):
         """ A dictionary representation of a Cluster """
@@ -256,6 +257,8 @@ class Voiceid:
 
     def __init__(self, db, filename ):
         """ Initializations"""
+        self.status_map = {0:'file_loaded',1:'file_converted',2:'diarization_done',3:'trim_done',4:'mfcc extracted',5:'speakers matched'} 
+        self.working_map = {0:'converting_file',1:'diarization',2:'trimming',3:'mfcc extraction',4:'voice matching',5:'extraction finished'}
         self._clusters = {}
         self._ext = ''       
         self._time = 0
@@ -263,7 +266,7 @@ class Voiceid:
         self._db = db
         ensure_file_exists(filename)
         self.set_filename(filename)
-            
+        self._status = self.status_map[0]    
 #        if dict:
 #            try:
 #                self._time = dict['duration']
@@ -278,6 +281,12 @@ class Voiceid:
     def __iter__(self):
         """ Just iterate over the cluster's dictionary"""
         return self._clusters.__iter__()
+    
+    def get_status(self):
+        return self._status
+
+    def get_working_status(self):
+        return self.working_map[ self.get_status() ]  #TODO: fix some issue on restarting and so on
     
     def get_db(self):
         return self._db
@@ -303,7 +312,19 @@ class Voiceid:
     
     def set_filename(self,filename):
         """ Set the filename of the current working file"""
-        self._filename = filename
+        
+        new_file_input = filename
+        new_file_input=new_file_input.replace("'",'_').replace('-','_').replace(' ','_')
+        try:
+            shutil.copy(filename,new_file_input)
+        except shutil.Error, e:
+            if  str(e) == "`%s` and `%s` are the same file" % (filename,new_file_input):
+                pass
+            else:
+                raise e
+        ensure_file_exists(new_file_input)
+        
+        self._filename = new_file_input
         self._basename, self._ext = os.path.splitext(self._filename)
         
     def get_filename(self):
@@ -365,18 +386,28 @@ class Voiceid:
         If a speaker doesn't match any speaker in the database then sets it as unknown. 
         In interactive mode it asks the user to set speakers' names."""
         start_time = time.time()
-        
+        if not quiet: print self.get_working_status()
         self.to_wav()
+        
+        self._status = 1    
+        
+        if not quiet: print self.get_working_status()
+        
         self.diarization()
+        
+        self._status = 2   
+        if not quiet: print self.get_working_status()        
         self.to_trim()
-        db_path = self._db.get_path()
-               
+        
+        self._status = 3  
+        if not quiet: print self.get_working_status()
         diarization_time = time.time() - start_time
 
         self.to_MFCC()
+        self._status = 4 
         basename = self.get_file_basename()
 
-        if not quiet: print "*** voice matching ***"
+        if not quiet: print self.get_working_status()
         self.extract_clusters()
         
         #merging segments wave files for every cluster
@@ -475,6 +506,7 @@ class Voiceid:
                         if not quiet: print "name speaker %s " % speakers[c]
         
                         def build_model_wrapper(wave_b, cluster, wave_dir):
+                            
                             try:
                                 ensure_file_exists(wave_b+'.seg')
                             except:
@@ -501,6 +533,8 @@ class Voiceid:
         sec = wave_duration( basename+'.wav' )
         total_time = time.time() - start_time
         self.set_time( total_time )
+        self._status = 5
+        if not quiet: print self.get_working_status()
         if interactive:
             print "Waiting for working processes"
             for p in proc:
@@ -1232,25 +1266,6 @@ def interactive_training(videoname, cluster, speaker):
 #----------------------------------
 # argument parsing facilities
 #----------------------------------
-def remove_blanks_callback(option, opt_str, value, parser):
-    """ Remove all white spaces in filename and substitute with underscores"""
-    if len(parser.rargs) == 0:
-        parser.error("incorrect number of arguments")
-    file_input=str(parser.rargs[0])
-    new_file_input = file_input
-    new_file_input=new_file_input.replace("'",'_').replace('-','_').replace(' ','_')
-    try:
-        shutil.copy(file_input,new_file_input)
-    except shutil.Error, e:
-        if  str(e) == "`%s` and `%s` are the same file" % (file_input,new_file_input):
-            pass
-        else:
-            raise e
-    ensure_file_exists(new_file_input)
-    file_input=new_file_input
-    if getattr(parser.values, option.dest):
-        args.extend(getattr(parser.values, option.dest))
-    setattr(parser.values, option.dest, file_input)
 
 def multiargs_callback(option, opt_str, value, parser):
     """ Create an array from multiple args"""
@@ -1288,7 +1303,7 @@ examples:
     parser.add_option("-v", "--verbose", dest="verbose", action="store_true", default=False, help="verbose mode")
     parser.add_option("-q", "--quiet", dest="quiet_mode", action="store_true", default=False, help="suppress prints")
     parser.add_option("-k", "--keep-intermediatefiles", dest="keep_intermediate_files", action="store_true", help="keep all the intermediate files")
-    parser.add_option("-i", "--identify", action="callback",callback=remove_blanks_callback, dest="file_input", metavar="FILE", help="identify speakers in video or audio file")
+    parser.add_option("-i", "--identify",  dest="file_input", metavar="FILE", help="identify speakers in video or audio file")
     parser.add_option("-g", "--gmm", action="callback", callback=multiargs_callback, dest="waves_for_gmm", help="build speaker model ")
     parser.add_option("-s", "--speaker", dest="speakerid", help="speaker identifier for model building")
     parser.add_option("-d", "--db",type="string", dest="dir_gmm", metavar="PATH",help="set the speakers models db path (default: %s)" % db_dir )
