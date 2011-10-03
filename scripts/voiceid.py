@@ -266,7 +266,7 @@ class Voiceid:
         self._db = db
         ensure_file_exists(filename)
         self.set_filename(filename)
-        self._status = self.status_map[0]    
+        self._status = 0   
 #        if dict:
 #            try:
 #                self._time = dict['duration']
@@ -430,12 +430,12 @@ class Voiceid:
             #TODO: modify to do not speak about mfcc or gmms  
             for f in files:
                 if  len(active_children()) < cpus :
-                    p[f+cluster] = Process( target=mfcc_vs_gmm, args=( filebasename, f, self[cluster].gender ) )
+                    p[f+cluster] = Process( target=mfcc_vs_gmm, args=( filebasename, f, self[cluster].gender, self.get_db().get_path()) )
                     p[f+cluster].start()
                 else:
                     while len(active_children()) >= cpus:
                         time.sleep(1)
-                    p[f+cluster] = Process( target=mfcc_vs_gmm, args=( filebasename, f, self[cluster].gender ) )
+                    p[f+cluster] = Process( target=mfcc_vs_gmm, args=( filebasename, f, self[cluster].gender, self.get_db().get_path() ) )
                     p[f+cluster].start()
 
         for proc in p:

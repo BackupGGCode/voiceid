@@ -5,19 +5,34 @@ import time
 import wx
 import MplayerCtrl as mpc
 import wx.lib.buttons as buttons
- 
+from voiceid import *
+from multiprocessing import Process, cpu_count, active_children
 dirName = os.path.dirname(os.path.abspath(__file__))
 bitmapDir = os.path.join(dirName, 'bitmaps')
+
+class LoggerPanel(wx.Panel):
+    def __init__(self,parent,id):
+        wx.Panel.__init__(self,parent,id,style=wx.SIMPLE_BORDER )
+        self.SetBackgroundColour("#fff")
+        self.sizer = wx.BoxSizer(wx.VERTICAL)
+        #vbox1.Add(loggerPanel, 1, wx.EXPAND | wx.ALL, 3)
+        #vbox1.Add(wx.TextCtrl(loggerPanel, 1),0, wx.ALL|wx.EXPAND, 5)
+        #midPan = wx.Panel(loggerPanel)
+        #midPan.SetBackgroundColour('#ededed')
+        #vbox1.Add(midPan, 1, wx.EXPAND | wx.ALL, 5)
+        self.textBox = wx.TextCtrl(self, style=wx.TE_MULTILINE)
+        self.textBox.SetEditable(False)
+        self.sizer.Add(self.textBox,1, wx.ALL|wx.EXPAND, 5)
+        self.SetSizer(self.sizer) 
+ 
+    def get_text_box(self):
+        return self.textBox
  
 class Frame(wx.Frame):
- 
     #----------------------------------------------------------------------
     def __init__(self, parent, id, title, mplayer):
         wx.Frame.__init__(self, parent, id, title,size=(800,600) )
         self.panel = wx.Panel(self, 1)
-        
-        self.panelTrain = self.build_training_controls()
-        #panelTrain.SetPosition(wx.Point(-1,-1))
         
         sp = wx.StandardPaths.Get()
         self.currentFolder = sp.GetDocumentsDir()
@@ -27,6 +42,7 @@ class Frame(wx.Frame):
  
         # create sizers
         self.mainSizer = wx.BoxSizer(wx.VERTICAL)
+        self.topSizer = wx.BoxSizer(wx.HORIZONTAL)
         controlSizer = self.build_player_controls()
         sliderSizer = wx.BoxSizer(wx.HORIZONTAL)
  
@@ -41,11 +57,11 @@ class Frame(wx.Frame):
         # set up playback timer
         self.playbackTimer = wx.Timer(self)
         self.Bind(wx.EVT_TIMER, self.on_update_playback)
- 
-        self.mainSizer.Add(self.mpc, 1, wx.ALL|wx.EXPAND, 5)
+        self.topSizer.Add(self.mpc, 1, wx.EXPAND| wx.ALL, 5)
+        self.mainSizer.Add(self.topSizer, 1,wx.ALL|wx.EXPAND, 5)
         self.mainSizer.Add(sliderSizer, 0, wx.ALL|wx.EXPAND, 5)
         self.mainSizer.Add(controlSizer, 0, wx.ALL|wx.CENTER, 5)
-        
+       
         self.panel.SetSizer(self.mainSizer)
         self.panel.SetBackgroundColour("#000")
  
@@ -138,6 +154,23 @@ class Frame(wx.Frame):
         
         return panelTrain
  
+ 
+    #----------------------------------------------------------------------
+    def create_logger_panel(self):
+        loggerPanel = LoggerPanel(self, -1, style=wx.SIMPLE_BORDER )
+#        loggerPanel.SetBackgroundColour("#fff")
+#        vbox1 = wx.BoxSizer(wx.VERTICAL)
+#        #vbox1.Add(loggerPanel, 1, wx.EXPAND | wx.ALL, 3)
+#        #vbox1.Add(wx.TextCtrl(loggerPanel, 1),0, wx.ALL|wx.EXPAND, 5)
+#        #midPan = wx.Panel(loggerPanel)
+#        #midPan.SetBackgroundColour('#ededed')
+#        #vbox1.Add(midPan, 1, wx.EXPAND | wx.ALL, 5)
+#        textBox = wx.TextCtrl(loggerPanel, style=wx.TE_MULTILINE)
+#        textBox.SetEditable(False)
+#        vbox1.Add(textBox,1, wx.ALL|wx.EXPAND, 5)
+#        
+#        loggerPanel.SetSizer(vbox1)
+        return loggerPanel
     #----------------------------------------------------------------------
     def create_menu(self):
         """
@@ -182,13 +215,45 @@ class Frame(wx.Frame):
         """
         Run Speaker Recognition
         """
+        self.panelLogger = LoggerPanel(self.panel, -1)
+        self.topSizer.Add(self.panelLogger, 0, wx.ALL|wx.EXPAND, 5)
+        self.Show()
+        self.panel.Layout()
+        #t = Process( target =self.panel.Layout)
+        #t.start()
+        
+        print self.mpc.GetFileName()
+        print self.mpc.GetProperty('path')
+        textBox = self.panelLogger.get_text_box()
+        textBox.write("textsgfdgfd")
+        #.write("textsgfdgfd")
+        #sizerLogger.GetChildren()[0].write("textsgfdgfd")
+#        def print_logger(self):
+#            while 1:
+#               try:
+#                   
+#                   input = v.get_status()
+#                   #sys.stdin.readline()
+#                   print input
+#                   
+#               except KeyboardError:
+#                    sys.exit()
+#        
+#        logger = Process( target = print_logger)
+#        logger.start()
+        v = Voiceid(GMMVoiceDB('/home/michela/.voiceid/gmm_db'),self.mpc.GetProperty('path'))
+        p = Process( target=v.extract_speakers, args=(False, False, 2) )
+        p.start()
+        
+                    
+                    
     #----------------------------------------------------------------------
     def on_train(self, event):
         """
         Train Speaker Recognition
-        """        
-        
-        self.mainSizer.Add(self.panelTrain, 0, wx.ALL|wx.EXPAND, 5)
+        """      
+        self.panelTrain = self.build_training_controls()  
+        self.mainSizer.Add(self.panelTrain,  0, wx.ALL|wx.EXPAND, 5)
         self.Show()
         self.panel.Layout()
     #----------------------------------------------------------------------
@@ -300,7 +365,9 @@ class Frame(wx.Frame):
             
             self.trackCounter.SetLabel(secsPlayed)
             self.trackCounter.SetForegroundColour("WHITE")
-            
+       
+        
+                 
 if __name__ == "__main__":
     import os, sys
    
