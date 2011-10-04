@@ -1,12 +1,14 @@
 #!/usr/bin/env python
+from multiprocessing import Process, cpu_count, active_children
 from pyinotify import Color
+from voiceid import *
+import MplayerCtrl as mpc
 import os
 import time
 import wx
-import MplayerCtrl as mpc
 import wx.lib.buttons as buttons
-from voiceid import *
-from multiprocessing import Process, cpu_count, active_children
+import thread
+
 dirName = os.path.dirname(os.path.abspath(__file__))
 bitmapDir = os.path.join(dirName, 'bitmaps')
 
@@ -15,11 +17,6 @@ class LoggerPanel(wx.Panel):
         wx.Panel.__init__(self,parent,id,style=wx.SIMPLE_BORDER )
         self.SetBackgroundColour("#fff")
         self.sizer = wx.BoxSizer(wx.VERTICAL)
-        #vbox1.Add(loggerPanel, 1, wx.EXPAND | wx.ALL, 3)
-        #vbox1.Add(wx.TextCtrl(loggerPanel, 1),0, wx.ALL|wx.EXPAND, 5)
-        #midPan = wx.Panel(loggerPanel)
-        #midPan.SetBackgroundColour('#ededed')
-        #vbox1.Add(midPan, 1, wx.EXPAND | wx.ALL, 5)
         self.textBox = wx.TextCtrl(self, style=wx.TE_MULTILINE)
         self.textBox.SetEditable(False)
         self.sizer.Add(self.textBox,1, wx.ALL|wx.EXPAND, 5)
@@ -219,31 +216,26 @@ class Frame(wx.Frame):
         self.topSizer.Add(self.panelLogger, 0, wx.ALL|wx.EXPAND, 5)
         self.Show()
         self.panel.Layout()
-        #t = Process( target =self.panel.Layout)
-        #t.start()
-        
-        print self.mpc.GetFileName()
-        print self.mpc.GetProperty('path')
         textBox = self.panelLogger.get_text_box()
-        textBox.write("textsgfdgfd")
-        #.write("textsgfdgfd")
-        #sizerLogger.GetChildren()[0].write("textsgfdgfd")
-#        def print_logger(self):
-#            while 1:
-#               try:
-#                   
-#                   input = v.get_status()
-#                   #sys.stdin.readline()
-#                   print input
-#                   
-#               except KeyboardError:
-#                    sys.exit()
-#        
-#        logger = Process( target = print_logger)
-#        logger.start()
+        
+        def print_logger(voiceid):
+            old_status = voiceid.get_status()
+            textBox.AppendText(voiceid.get_working_status())
+            while voiceid.get_status()!=5:
+               status = voiceid.get_status()
+               try:
+                   if status != old_status:
+                       old_status = voiceid.get_status()
+                       input = voiceid.get_working_status()
+                       textBox.AppendText(input +" \n")
+                   
+               except StandardError:
+                    sys.exit()
+        
+        
         v = Voiceid(GMMVoiceDB('/home/michela/.voiceid/gmm_db'),self.mpc.GetProperty('path'))
-        p = Process( target=v.extract_speakers, args=(False, False, 2) )
-        p.start()
+        thread.start_new_thread(print_logger, (v,))
+        thread.start_new_thread(v.extract_speakers, (False, False, 2))
         
                     
                     
