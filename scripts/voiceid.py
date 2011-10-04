@@ -20,13 +20,14 @@
 #########################################################################
 
 from optparse import OptionParser
-from multiprocessing import Process, cpu_count, active_children
+from multiprocessing import cpu_count
 import os
 import shlex, subprocess
 import time
 import re
 import shutil
 import struct
+import threading
 
 #-------------------------------------
 #   classes
@@ -51,7 +52,7 @@ class VoiceDB:
     def remove_model(self, mfcc_file, speaker, gender, value):
         pass 
     
-    def match_voice(self):
+    def match_voice(self, mfcc_file, speakername, gender):
         pass
     
 class GMMVoiceDB(VoiceDB):
@@ -84,7 +85,7 @@ class GMMVoiceDB(VoiceDB):
         return False
     
     def remove_model(self, mfcc_file, speaker, gender, value):
-        """ Remove a gmm model from the db """
+        """ Remove a voice model from the db """
         old_s = speaker
         
         folder_db_dir = os.path.join(self.get_path(),gender)
@@ -118,8 +119,17 @@ class GMMVoiceDB(VoiceDB):
             shutil.rmtree(folder_tmp)
             self._read_db()
              
-    def match_voice(self):
-        pass
+    def match_voice(self, mfcc_file, speakername, gender):
+        """ Match the voice (mfcc file) versus the gmm model of 'speakername' in db """
+        mfcc_basename = os.path.splitext(mfcc_file)[0]
+                
+        mfcc_vs_gmm( mfcc_basename , speakername+'.gmm', gender, self.get_path())
+        cls = {}
+        manage_ident(mfcc_basename, gender+'.'+speakername+'.gmm', cls)
+        s = {}
+        for c in cls:
+            s.update( cls[ c ].speakers )
+        return s
 
 class Cluster:
     """ A Cluster object, representing a computed cluster for a single speaker, with gender, a number of frames and environment """
@@ -154,6 +164,7 @@ class Cluster:
         return self._speaker
     
     def set_speaker(self,speaker):
+        """ Set the cluster speaker 'by hand' """
         self._speaker = speaker
 
     def get_mean(self):
@@ -266,7 +277,7 @@ class Voiceid:
         self._db = db
         ensure_file_exists(filename)
         self.set_filename(filename)
-        self._status = 0   
+        self._status = 0  
 #        if dict:
 #            try:
 #                self._time = dict['duration']
@@ -341,11 +352,11 @@ class Voiceid:
         
     def get_cluster(self,identifier):
         """ Get a the cluster by a given identifier"""
-        return self._clusters[identifier]
+        return self._clusters[ identifier ]
     
     def add_update_cluster(self, identifier, cluster):
         """ Add a cluster or update an existing cluster"""
-        self._clusters[identifier] = cluster
+        self._clusters[ identifier ] = cluster
         
     def remove_cluster(self, identifier):
         """ Remove the cluster from the cluster manager"""
@@ -381,10 +392,14 @@ class Voiceid:
     def extract_clusters(self):
         extract_clusters(self._basename+'.seg', self._clusters)
 
-    def extract_speakers(self,interactive=False,quiet=False,cpus=1):
+    def extract_speakers(self, interactive=False, quiet=False, thrd_n=1):
         """ Identifie the speakers in the audio wav according to a speakers database. 
         If a speaker doesn't match any speaker in the database then sets it as unknown. 
         In interactive mode it asks the user to set speakers' names."""
+        
+        if thrd_n < 1: thrd_n = 1
+        
+        self._status = 0
         start_time = time.time()
         if not quiet: print self.get_working_status()
         self.to_wav()
@@ -420,34 +435,32 @@ class Voiceid:
         Dal seg prendo il genere
         for mfcc for db_genere"""
     
-        p = {}
+        t = {}
         files_in_db = self.get_db()._speakermodels
 
 
+        def match_voice_wrapper(cluster, mfcc_name, db_entry, gender ):
+            results = self.get_db().match_voice( mfcc_name, db_entry, gender)
+            for r in results:
+                self[cluster].add_speaker( r, results[r] )
+        
         for cluster in self._clusters:            
             files = files_in_db[ self[cluster].gender ]
             filebasename = os.path.join(basename,cluster)
-            #TODO: modify to do not speak about mfcc or gmms  
-            for f in files:
-                if  len(active_children()) < cpus :
-                    p[f+cluster] = Process( target=mfcc_vs_gmm, args=( filebasename, f, self[cluster].gender, self.get_db().get_path()) )
-                    p[f+cluster].start()
+            for f in files:                
+                if  threading.active_count()  < thrd_n :
+                    t[f+cluster] = threading.Thread( target=match_voice_wrapper, args=( cluster ,  filebasename+'.mfcc', os.path.splitext(f)[0], self[cluster].gender ) )
+                    t[f+cluster].start()
                 else:
-                    while len(active_children()) >= cpus:
+                    while threading.active_count() > thrd_n:
                         time.sleep(1)
-                    p[f+cluster] = Process( target=mfcc_vs_gmm, args=( filebasename, f, self[cluster].gender, self.get_db().get_path() ) )
-                    p[f+cluster].start()
-
-        for proc in p:
-            if p[proc].is_alive():
-                p[proc].join()
-    
-        for cluster in self._clusters:
-            files = files_in_db[self[cluster].gender]
-            filebasename = os.path.join(basename,cluster)
-            for f in files:
-                manage_ident( filebasename, self[cluster].gender+"."+f , self.get_clusters())
-    
+                    t[f+cluster] = threading.Thread( target=match_voice_wrapper, args=( cluster,  filebasename+'.mfcc', os.path.splitext(f)[0], self[cluster].gender ) )
+                    t[f+cluster].start()                    
+                    
+        for thr in t:
+            if t[thr].is_alive():
+                t[thr].join()
+                
         if not quiet: print ""
         speakers = {}
         for c in self._clusters:
@@ -472,7 +485,7 @@ class Voiceid:
                 mean = 0
                 m_distance = 0
     
-            proc = {}
+            threads = {}
             if interactive == True:
                 self.set_interactive( True )
                 
@@ -524,8 +537,8 @@ class Voiceid:
                                 os.remove("%s.ident.seg" % wave_b )
                                 os.remove("%s.init.gmm" % wave_b )
                                 
-                        proc[c] = Process( target=build_model_wrapper, args=(basename_file,c, basename) )
-                        proc[c].start()
+                        threads[c] = threading.Thread( target=build_model_wrapper, args=(basename_file,c, basename) )
+                        threads[c].start()
                     
             if not interactive:
                 if not quiet: print '\t best speaker: %s (distance from 2nd %f - mean %f - distance from mean %f ) ' % (speakers[c] , distance, mean, m_distance)    
@@ -537,11 +550,11 @@ class Voiceid:
         if not quiet: print self.get_working_status()
         if interactive:
             print "Waiting for working processes"
-            for p in proc:
-                if proc[p].is_alive():
-                    proc[p].join()
+            for t in threads:
+                if threads[t].is_alive():
+                    threads[t].join()
         if not interactive:
-            if not quiet: print "\nwav duration: %s\nall done in %dsec (%s) (diarization %dsec time:%s )  with %s cpus and %d voices in db (%f)  " % ( humanize_time(sec), total_time, humanize_time(total_time), diarization_time, humanize_time(diarization_time), cpus, len(files_in_db['F'])+len(files_in_db['M'])+len(files_in_db['U']), float(total_time - diarization_time )/len(files_in_db) )
+            if not quiet: print "\nwav duration: %s\nall done in %dsec (%s) (diarization %dsec time:%s )  with %s threads and %d voices in db (%f)  " % ( humanize_time(sec), total_time, humanize_time(total_time), diarization_time, humanize_time(diarization_time), thrd_n, len(files_in_db['F'])+len(files_in_db['M'])+len(files_in_db['U']), float(total_time - diarization_time )/len(files_in_db) )
 
         
 
@@ -1100,6 +1113,8 @@ def manage_ident(filebasename, gmm, clusters):
             i = l.index('score:'+speaker) + len('score:'+speaker+" = ")
             ii = l.index(']',i) -1
             value = l[i:ii]
+            if not clusters.has_key(cluster):
+                clusters[ cluster ] = Cluster(cluster, 'U', '0', '')
             clusters[ cluster ].add_speaker( speaker, value )
             """
             if clusters[ cluster ].has_key( speaker ) == False:
@@ -1226,7 +1241,11 @@ def interactive_training(videoname, cluster, speaker):
     print info
 
     while True:
-        char = raw_input("\n 1) Listen\n 2) Set name\n Press enter to skip\n> ")
+        try:
+            char = raw_input("\n 1) Listen\n 2) Set name\n Press enter to skip\n> ")
+        except EOFError:
+            print ''
+            continue
         print ''
         if p != None and p.poll() == None:
             p.kill()
@@ -1342,7 +1361,7 @@ examples:
         cmanager = Voiceid( db=default_db, filename=options.file_input )
         
         #extract the speakers
-        cmanager.extract_speakers( options.interactive, quiet_mode, cpus=cpu_count() )
+        cmanager.extract_speakers( options.interactive, quiet_mode, thrd_n=cpu_count() * 4 )
         
         #write the output according to the given output format
         cmanager.write_output( output_format )
