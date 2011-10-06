@@ -8,16 +8,19 @@ import time
 import wx
 import wx.lib.buttons as buttons
 import thread
-
+import threading
 dirName = os.path.dirname(os.path.abspath(__file__))
 bitmapDir = os.path.join(dirName, 'bitmaps')
 
+
+
 class LoggerPanel(wx.Panel):
+    """Return a custom Panel to print logs"""
     def __init__(self,parent,id):
         wx.Panel.__init__(self,parent,id,style=wx.SIMPLE_BORDER )
         self.SetBackgroundColour("#fff")
         self.sizer = wx.BoxSizer(wx.VERTICAL)
-        self.textBox = wx.TextCtrl(self, style=wx.TE_MULTILINE)
+        self.textBox = wx.TextCtrl(self, style=wx.TE_CENTRE|wx.TE_MULTILINE,size=(150,400) )
         self.textBox.SetEditable(False)
         self.sizer.Add(self.textBox,1, wx.ALL|wx.EXPAND, 5)
         self.SetSizer(self.sizer) 
@@ -25,18 +28,70 @@ class LoggerPanel(wx.Panel):
     def get_text_box(self):
         return self.textBox
  
+class TrainingPanel(wx.Panel):
+    """Return a custom Panel to train speakers"""
+    def __init__(self,parent):
+        wx.Panel.__init__(self,parent,style=wx.BORDER_SUNKEN)
+        fieldsetText = wx.StaticText(self,0, ' Train space')
+        #sizer 
+        self.sizer = wx.BoxSizer(wx.VERTICAL)
+        self.buttonsizer =wx.BoxSizer(wx.HORIZONTAL)
+        self.speakersizer = wx.BoxSizer(wx.HORIZONTAL)
+        
+        #buttons
+        self.listen = wx.Button(self, label='Listen')
+        self.buttonsizer.Add(self.listen, 1, wx.ALL|wx.CENTER, 5)
+
+        self.rename = wx.Button(self, label="Rename")
+        self.buttonsizer.Add(self.rename, 1, wx.ALL|wx.CENTER, 5)
+        
+        
+        self.skip = wx.Button(self,label="Skip")
+        self.buttonsizer.Add(self.skip, 1, wx.ALL|wx.CENTER, 5)
+        
+        self.prev = wx.BitmapButton(self, 0, wx.Bitmap(os.path.join(bitmapDir, 'prev.png')))
+        self.next = wx.BitmapButton(self, 0, wx.Bitmap(os.path.join(bitmapDir, 'next.png')))
+
+        #speaker name
+        self.speaker = wx.StaticText(self, 1, 'Speaker Name')
+        font3 = wx.Font(10, wx.MODERN, wx.NORMAL, wx.BOLD)
+        self.speaker.SetFont(font3)
+
+        #build speaker name sizer
+        self.speakersizer.Add(self.prev,0, wx.ALL|wx.CENTER, 5)
+        self.speakersizer.Add(self.speaker,1, wx.ALL|wx.CENTER, 5)
+        self.speakersizer.Add(self.next,0, wx.ALL|wx.CENTER, 5)
+        
+        #build panel train
+        self.sizer.Add(self.speakersizer,1, wx.ALL|wx.CENTER, 5)
+        self.sizer.Add(self.buttonsizer,1, wx.ALL|wx.CENTER, 5)
+        self.SetSizer(self.sizer)
+        self.SetBackgroundColour("#fff")
+        
+        self.next.Bind(wx.EVT_BUTTON,parent.on_next_speaker)
+        self.prev.Bind(wx.EVT_BUTTON,parent.on_prev_speaker)
+        
+    def set_speaker_label(self, name):
+        return self.speaker.SetLabel(name)
+ 
+        #----------------------------------------------------------------------
+    
 class Frame(wx.Frame):
     #----------------------------------------------------------------------
     def __init__(self, parent, id, title, mplayer):
         wx.Frame.__init__(self, parent, id, title,size=(800,600) )
+       
         self.panel = wx.Panel(self, 1)
-        
+        self.panelLogger = None
+        self.panelTrain = None
+      
         sp = wx.StandardPaths.Get()
         self.currentFolder = sp.GetDocumentsDir()
         self.currentVolume = 50
  
         self.create_menu()
  
+        self.clusters = None
         # create sizers
         self.mainSizer = wx.BoxSizer(wx.VERTICAL)
         self.topSizer = wx.BoxSizer(wx.HORIZONTAL)
@@ -91,10 +146,10 @@ class Frame(wx.Frame):
         """
         controlSizer = wx.BoxSizer(wx.HORIZONTAL)
         
-        btnData = [{'bitmap':'play.png',
+        btnData = [{'bitmap':'pause.png',
                     'handler':self.on_pause, 'name':'pause'},
-                   {'bitmap':'stop.png',
-                    'handler':self.on_stop, 'name':'stop'},
+                   {'bitmap':'play.png',
+                    'handler':self.on_play, 'name':'play'},
                    {'bitmap':'backward.png',
                     'handler':self.on_prev, 'name':'prev'},
                     {'bitmap':'forward.png',
@@ -105,69 +160,6 @@ class Frame(wx.Frame):
  
         return controlSizer
  
- 
-    #----------------------------------------------------------------------
-    def build_training_controls(self):
-        """
-        Builds the player bar controls
-        """
-        panelTrain = wx.Panel(self.panel, style=wx.BORDER_SUNKEN)
-        fieldsetText = wx.StaticText(panelTrain,0, ' Train space')
-        
-        #sizer 
-        sizer = wx.BoxSizer(wx.VERTICAL)
-        buttonsizer =wx.BoxSizer(wx.HORIZONTAL)
-        speakersizer = wx.BoxSizer(wx.HORIZONTAL)
-        
-        #buttons
-        button1 = wx.Button(panelTrain, label='Listen')
-        buttonsizer.Add(button1, 1, wx.ALL|wx.CENTER, 5)
-
-        button2 = wx.Button(panelTrain, label="Rename")
-        buttonsizer.Add(button2, 1, wx.ALL|wx.CENTER, 5)
-        
-        
-        button3 = wx.Button(panelTrain,label="Skip")
-        buttonsizer.Add(button3, 1, wx.ALL|wx.CENTER, 5)
-        
-        button4 = wx.BitmapButton(panelTrain, 0, wx.Bitmap('bitmaps/prev.png'))
-        button5 = wx.BitmapButton(panelTrain, 0, wx.Bitmap('bitmaps/next.png'))
-
-        #speaker name
-        speaker = wx.StaticText(panelTrain, 1, 'Speaker Name')
-        font3 = wx.Font(10, wx.MODERN, wx.NORMAL, wx.BOLD)
-        speaker.SetFont(font3)
-
-        #build speaker name sizer
-        speakersizer.Add(button4,0, wx.ALL|wx.CENTER, 5)
-        speakersizer.Add(speaker,1, wx.ALL|wx.CENTER, 5)
-        speakersizer.Add(button5,0, wx.ALL|wx.CENTER, 5)
-        
-        #build panel train
-        sizer.Add(speakersizer,1, wx.ALL|wx.CENTER, 5)
-        sizer.Add(buttonsizer,1, wx.ALL|wx.CENTER, 5)
-        panelTrain.SetSizer(sizer)
-        panelTrain.SetBackgroundColour("#fff")
-        
-        return panelTrain
- 
- 
-    #----------------------------------------------------------------------
-    def create_logger_panel(self):
-        loggerPanel = LoggerPanel(self, -1, style=wx.SIMPLE_BORDER )
-#        loggerPanel.SetBackgroundColour("#fff")
-#        vbox1 = wx.BoxSizer(wx.VERTICAL)
-#        #vbox1.Add(loggerPanel, 1, wx.EXPAND | wx.ALL, 3)
-#        #vbox1.Add(wx.TextCtrl(loggerPanel, 1),0, wx.ALL|wx.EXPAND, 5)
-#        #midPan = wx.Panel(loggerPanel)
-#        #midPan.SetBackgroundColour('#ededed')
-#        #vbox1.Add(midPan, 1, wx.EXPAND | wx.ALL, 5)
-#        textBox = wx.TextCtrl(loggerPanel, style=wx.TE_MULTILINE)
-#        textBox.SetEditable(False)
-#        vbox1.Add(textBox,1, wx.ALL|wx.EXPAND, 5)
-#        
-#        loggerPanel.SetSizer(vbox1)
-        return loggerPanel
     #----------------------------------------------------------------------
     def create_menu(self):
         """
@@ -177,16 +169,18 @@ class Frame(wx.Frame):
         fileMenu = wx.Menu()
         srMenu = wx.Menu()
         add_file_menu_item = fileMenu.Append(wx.NewId(), "&New video", "Add Media File")
-        #add_file_menu_item = fileMenu.Append(wx.NewId(), "&", "Add Media File")
-        run_menu_item = srMenu.Append(wx.NewId(), "&Run ")
-        train_menu_item = srMenu.Append(wx.NewId(), "&Train ")
+        runid = wx.NewId()
+        trainid = wx.NewId()
+        self.run_menu_item = srMenu.Append(runid, "&Run ")
+        self.train_menu_item = srMenu.Append(trainid, "&Train ")
+        self.train_menu_item.Enable(False)
         menubar.Append(fileMenu, '&File')
         menubar.Append(srMenu, '&Speaker Recognition')
  
         self.SetMenuBar(menubar)
         self.Bind(wx.EVT_MENU, self.on_add_file, add_file_menu_item)
-        self.Bind(wx.EVT_MENU, self.on_run, run_menu_item)
-        self.Bind(wx.EVT_MENU, self.on_train, train_menu_item)
+        self.Bind(wx.EVT_MENU, self.on_run, self.run_menu_item)
+        self.Bind(wx.EVT_MENU, self.on_train, self.train_menu_item)
  
     #----------------------------------------------------------------------
     def on_add_file(self, event):
@@ -206,36 +200,41 @@ class Frame(wx.Frame):
             self.currentFolder = os.path.dirname(path[0])
             trackPath = '"%s"' % path.replace("\\", "/")
             self.mpc.Loadfile(trackPath)
- 
+        self.run_menu_item.Enable(True)    
     #----------------------------------------------------------------------
     def on_run(self, event):
         """
         Run Speaker Recognition
         """
-        self.panelLogger = LoggerPanel(self.panel, -1)
-        self.topSizer.Add(self.panelLogger, 0, wx.ALL|wx.EXPAND, 5)
-        self.Show()
-        self.panel.Layout()
-        textBox = self.panelLogger.get_text_box()
-        
+        self.run_menu_item.Enable(False)
+        if not self.panelLogger:
+            self.panelLogger = LoggerPanel(self.panel, -1 )
+            self.topSizer.Add(self.panelLogger, 0, wx.ALL|wx.EXPAND, 5)
+            self.Show()
+            self.panel.Layout()
+            textBox = self.panelLogger.get_text_box()
+            textBox.AppendText("\n*Start process*\n\n")
+        else:
+            textBox.Clear()
+            
         def print_logger(voiceid):
             old_status = voiceid.get_status()
-            textBox.AppendText(voiceid.get_working_status())
+            textBox.AppendText("-- "+voiceid.get_working_status() +" --\n")
             while voiceid.get_status()!=5:
                status = voiceid.get_status()
                try:
                    if status != old_status:
                        old_status = voiceid.get_status()
                        input = voiceid.get_working_status()
-                       textBox.AppendText(input +" \n")
+                       textBox.AppendText("-- "+input +" --\n")
                    
                except StandardError:
                     sys.exit()
-        
-        
-        v = Voiceid(GMMVoiceDB('/home/michela/.voiceid/gmm_db'),self.mpc.GetProperty('path'))
-        thread.start_new_thread(print_logger, (v,))
-        thread.start_new_thread(v.extract_speakers, (False, False, 2))
+            textBox.AppendText("\n*End process*\n")
+            self.train_menu_item.Enable(True)
+        self.voiceid = Voiceid(GMMVoiceDB('/home/michela/SpeakerRecognition/voiceid/scripts/test_db'),self.mpc.GetProperty('path'))
+        thread.start_new_thread(print_logger, (self.voiceid,))
+        thread.start_new_thread(self.voiceid.extract_speakers, (False, False, 2))
         
                     
                     
@@ -244,21 +243,31 @@ class Frame(wx.Frame):
         """
         Train Speaker Recognition
         """      
-        self.panelTrain = self.build_training_controls()  
-        self.mainSizer.Add(self.panelTrain,  0, wx.ALL|wx.EXPAND, 5)
-        self.Show()
-        self.panel.Layout()
+        self.train_menu_item.Enable(False)
+        if not self.panelTrain:
+            self.panelTrain = TrainingPanel(self) 
+            self.mainSizer.Add(self.panelTrain,  0, wx.ALL|wx.EXPAND, 5)
+            self.Show()
+            self.panel.Layout()
+        
+        self.clusters = self.voiceid.get_clusters()
+        self.current_index_cluster = 0
+        current_cluster = self.clusters.keys()[self.current_index_cluster]
+        self.panelTrain.set_speaker_label(self.clusters[current_cluster].get_speaker())
+        info_cluster = self.clusters[current_cluster].to_dict()
+        self.play_training(info_cluster)
+        #self.mpc.Pause()
     #----------------------------------------------------------------------
     def on_media_started(self, event):
         print 'Media started!'
         t_len = self.mpc.GetTimeLength()
-        print t_len
+        self.mpc.SetProperty("loop",0)
         self.playbackSlider.SetRange(0, t_len)
         self.playbackTimer.Start(100) 
     #----------------------------------------------------------------------
     def on_media_finished(self, event):
         print 'Media finished!'
-        self.playbackTimer.Stop()
+        self.playbackTimer.Start()
  
     #----------------------------------------------------------------------
     def on_pause(self, event):
@@ -268,10 +277,7 @@ class Frame(wx.Frame):
             self.mpc.Pause()
             self.playbackTimer.Stop()
             #self.SetIcon(wx.Icon('pause.png',wx.BITMAP_TYPE_PNG))
-        else:
-            print "unpausing..."
-            self.mpc.Pause()
-            self.playbackTimer.Start()
+            
             #self.SetIcon(wx.Icon('play.png',wx.BITMAP_TYPE_PNG))
  
     #----------------------------------------------------------------------
@@ -291,11 +297,11 @@ class Frame(wx.Frame):
         self.mpc.SetProperty("volume", self.currentVolume)
  
     #----------------------------------------------------------------------
-    def on_stop(self, event):
+    def on_play(self, event):
         """"""
-        print "stopping..."
-        self.mpc.Stop()
-        self.playbackTimer.Stop()
+        print "playing..."
+        self.mpc.Pause()
+        self.playbackTimer.Start()
     #----------------------------------------------------------------------
     def on_next(self, event):
         """"""
@@ -308,39 +314,64 @@ class Frame(wx.Frame):
         print "backwarding..."
         self.mpc.Seek(-5)
         
-    #----------------------------------------------------------------------
-    
     def on_prev_speaker(self, event):
         """"""
         print "backwarding speaker..."
-        
+        if self.current_index_cluster != 0:
+             self.current_index_cluster = self.current_index_cluster -1
+             self.on_update_training()
     #----------------------------------------------------------------------
     
     def on_next_speaker(self, event):
         """"""
         print "forwarding speaker ..."
-        
+        if self.current_index_cluster != len(self.clusters):
+             self.current_index_cluster = self.current_index_cluster +1
+             self.on_update_training()
     #----------------------------------------------------------------------
     
     def on_listen_speaker(self, event):
         """"""
-        print "forwarding speaker ..."
+        print "listen speaker ..."
         
     #----------------------------------------------------------------------
     
     def on_skip_speaker(self, event):
         """"""
-        print "forwarding speaker ..."
+        print "skip speaker ..."
         
     #----------------------------------------------------------------------
     
     def on_rename_speaker(self, event):
         """"""
-        print "forwarding speaker ..."
+        print "rename speaker ..."
         
-    #----------------------------------------------------------------------
-    
-    
+    def on_update_training(self):
+        current_cluster = self.clusters.keys()[self.current_index_cluster]
+        self.panelTrain.set_speaker_label(self.clusters[current_cluster].get_speaker())
+        info_cluster = self.clusters[current_cluster].to_dict()
+        self.play_training(info_cluster)
+                
+    def play_training(self,info_cluster):
+        def next_seg(start_time):
+            #print "start_time %s" % float(start_time)/100
+            print float(start_time)/100
+            self.mpc.Seek(float(start_time)/100,2)
+            
+#        if not self.playbackTimer.IsRunning():
+#            self.mpc.Pause()
+#            self.playbackTimer.Start()
+            
+        for segment in range(len(info_cluster)):
+            duration = info_cluster[segment][1]
+            #print "duration %s" % float(duration)/100
+            print "time start %s" %   info_cluster[segment][0]
+            timer = threading.Timer(float(duration)/100, next_seg, args=(info_cluster[segment][0], )) 
+            timer.start()   
+#        if self.playbackTimer.IsRunning():
+#            self.mpc.Pause()
+#            self.playbackTimer.Stop()
+        
     def on_update_playback(self, event):
         """
         Updates playback slider and track counter
