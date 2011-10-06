@@ -68,6 +68,7 @@ class GMMVoiceDB(VoiceDB):
         
         ident_seg(basepath, speaker_name)
         train_init(basepath)
+        extract_mfcc(basepath)
         train_map(basepath)
         
         gmm_path = basepath+'.gmm'
@@ -123,9 +124,9 @@ class GMMVoiceDB(VoiceDB):
         """ Match the voice (mfcc file) versus the gmm model of 'speakername' in db """
         mfcc_basename = os.path.splitext(mfcc_file)[0]
                 
-        mfcc_vs_gmm( mfcc_basename , speakername+'.gmm', gender, self.get_path())
+        mfcc_vs_gmm( mfcc_basename , speakername+'.gmm', gender, self.get_path() )
         cls = {}
-        manage_ident(mfcc_basename, gender+'.'+speakername+'.gmm', cls)
+        manage_ident( mfcc_basename, gender+'.'+speakername+'.gmm', cls )
         s = {}
         for c in cls:
             s.update( cls[ c ].speakers )
@@ -183,12 +184,13 @@ class Cluster:
         except:
             self.value = -100
         self._speaker = 'unknown'
-        if self.value > max_val:
+        distance = self.get_distance()
+        if self.value > max_val - distance:
             for s in self.speakers:
                 if self.speakers[s] == self.value:
                     self._speaker = s
                     break
-        if self.get_distance() < .1:
+        if distance < .09:
             self._speaker = 'unknown'
         return self._speaker
 
@@ -278,6 +280,7 @@ class Voiceid:
         ensure_file_exists(filename)
         self.set_filename(filename)
         self._status = 0  
+        
 #        if dict:
 #            try:
 #                self._time = dict['duration']
@@ -497,8 +500,8 @@ class Voiceid:
                 
                 if old_s != speakers[c] : # interactive training results don't match batch training results 
                     
-                    if old_s != "unknown" : # the wrong (batch calculated) name of the speaker is not 'unknown' 
-                        self.get_db().remove_model( os.path.join( basename, c) + '.mfcc', old_s, gender, self[c].value )  #remove the speaker model ---
+#                    if old_s != "unknown" : # the wrong (batch calculated) name of the speaker is not 'unknown' 
+#                        self.get_db().remove_model( os.path.join( basename, c) + '.mfcc', old_s, gender, self[c].value )  #remove the speaker model ---
                     
                     if speakers[c] != 'unknown': #the new speaker is not 'unknown'
                         
@@ -518,7 +521,7 @@ class Voiceid:
                         
                         if not quiet: print "name speaker %s " % speakers[c]
         
-                        def build_model_wrapper(wave_b, cluster, wave_dir):
+                        def build_model_wrapper(wave_b, cluster, wave_dir, old_speaker):
                             
                             try:
                                 ensure_file_exists(wave_b+'.seg')
@@ -526,9 +529,20 @@ class Voiceid:
                                 self[cluster]._generate_a_seg_file( wave_b+'.seg', wave_b)                             
                          
                             ensure_file_exists(wave_b+'.wav')
+                            new_speaker = self[cluster].get_speaker()
+                            self.get_db().add_model(wave_b, new_speaker, self[cluster].gender )
                             
-                            self.get_db().add_model(wave_b, self[cluster].get_speaker(), self[cluster].gender ) 
+                            b_s = self[cluster].get_best_speaker()
                             
+                            if b_s != new_speaker :
+                                self.get_db().remove_model( os.path.join( wave_dir, cluster) + '.mfcc', old_speaker, self[cluster].gender, self[cluster].value )
+                                self[cluster].set_speaker(new_speaker)
+                                
+#                            if old_speaker != "unknown":
+#                                results = self.get_db().match_voice( mfcc_name, db_entry, gender)
+#                                for r in results:
+#                                    self[cluster].add_speaker( r, results[r] )
+
                             if not keep_intermediate_files:
                                 os.remove("%s.gmm" % wave_b )
                                 os.remove("%s.wav" % wave_b )
@@ -537,7 +551,7 @@ class Voiceid:
                                 os.remove("%s.ident.seg" % wave_b )
                                 os.remove("%s.init.gmm" % wave_b )
                                 
-                        threads[c] = threading.Thread( target=build_model_wrapper, args=(basename_file,c, basename) )
+                        threads[c] = threading.Thread( target=build_model_wrapper, args=(basename_file,c, basename, old_s) )
                         threads[c].start()
                     
             if not interactive:
