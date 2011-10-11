@@ -65,7 +65,6 @@ class GMMVoiceDB(VoiceDB):
     
     def add_model(self, basepath, speaker_name, gender):
         """ Add a gmm model to db """
-        
         ident_seg(basepath, speaker_name)
         train_init(basepath)
         extract_mfcc(basepath)
@@ -169,7 +168,6 @@ class Segment:
 
     def get_line(self):
         return self._line
-
 
 class Cluster:
     """ A Cluster object, representing a computed cluster for a single speaker, with gender, a number of frames and environment """
@@ -304,9 +302,19 @@ class Voiceid:
     """ The main object that represents the file audio/video to manage. """
 
     @staticmethod
-    def from_json(json_file):
-        #TODO: factory method to build a Voiceid from json
-        pass
+    def from_dict(db,json_dict):
+        """ Build a Voiceid object from json dictionary """
+        v = Voiceid(db, json_dict['url'])
+        dirname = os.path.splitext(json_dict['url'])
+        
+        for e in json_dict['selections']:            
+            c = v.get_cluster(e['speakerLabel'])
+            if not c:
+                c = Cluster(e['speaker'], e['gender'], 0, dirname)
+            s = Segment([dirname,1,int(e['startTime']*100),int( 100*(e['endTime']-e['startTime']) ), e['gender'], 'U', 'U', e['speaker'] ])
+            c._segments.append(s)
+            v.add_update_cluster(e['speakerLabel'], c)
+        return v
 
     def __init__(self, db, filename ):
         """ Initializations"""
@@ -320,14 +328,6 @@ class Voiceid:
         ensure_file_exists(filename)
         self.set_filename(filename)
         self._status = 0  
-        
-#        if dict:
-#            try:
-#                self._time = dict['duration']
-#                self.set_filename(dict['url'])
-#                sel = dict['selections']            
-#            except:
-#                raise Exeption('problems in Voiceid initialization')
             
     def __getitem__(self,key):
         return self._clusters.__getitem__(key)
@@ -395,7 +395,10 @@ class Voiceid:
         
     def get_cluster(self,identifier):
         """ Get a the cluster by a given identifier"""
-        return self._clusters[ identifier ]
+        try:
+            return self._clusters[ identifier ]
+        except:
+            return None
     
     def add_update_cluster(self, identifier, cluster):
         """ Add a cluster or update an existing cluster"""
@@ -472,11 +475,9 @@ class Voiceid:
         for cluster in self._clusters:
             self[cluster].merge_waves(basename)
             self[cluster].generate_seg_file( os.path.join( basename, cluster+".seg" ) )
-            
     
         t = {}
         files_in_db = self.get_db()._speakermodels  #TODO: avoid to look directly at the db entries 
-
 
         def match_voice_wrapper(cluster, mfcc_name, db_entry, gender ):
             """ A wrapper to match the voices each in a different Thread """
@@ -491,7 +492,6 @@ class Voiceid:
                 if t[thr].is_alive():
                     num += 1
             return num
-                    
         
         for cluster in self._clusters:            
             files = files_in_db[ self[cluster].gender ]
@@ -518,7 +518,6 @@ class Voiceid:
                 print "speaker ", c
                 if interactive: self[c].print_segments()
             speakers[c] = self[c].get_best_speaker()
-#            gender = self._clusters[c].gender
             if not interactive: 
                 for speaker in self[c].speakers:
                     if not quiet: print "\t %s %s" % (speaker , self[c].speakers[ speaker ])
@@ -535,6 +534,7 @@ class Voiceid:
                 m_distance = 0
     
             threads = {}
+            
             if interactive == True:
                 self.set_interactive( True )
                 
@@ -566,7 +566,6 @@ class Voiceid:
                         shutil.move(self[c].wave, wav_name)
                         
                         if not quiet: print "name speaker %s " % speakers[c]
-                        
                         
                         def build_model_wrapper(wave_b, cluster, wave_dir, old_speaker):
                             """ A procedure to wrap the model building to run in a Thread """
@@ -600,7 +599,7 @@ class Voiceid:
                                 os.remove("%s.mfcc" % wave_b )
                                 os.remove("%s.ident.seg" % wave_b )
                                 os.remove("%s.init.gmm" % wave_b )
-                        
+                            #end build_model_wrapper
                         
                         threads[c] = threading.Thread( target=build_model_wrapper, args=(basename_file,c, basename, old_s) )
                         threads[c].start()
@@ -620,8 +619,6 @@ class Voiceid:
                     threads[t].join()
         if not interactive:
             if not quiet: print "\nwav duration: %s\nall done in %dsec (%s) (diarization %dsec time:%s )  with %s threads and %d voices in db (%f)  " % ( humanize_time(sec), total_time, humanize_time(total_time), diarization_time, humanize_time(diarization_time), thrd_n, len(files_in_db['F'])+len(files_in_db['M'])+len(files_in_db['U']), float(total_time - diarization_time )/len(files_in_db) )
-
-        
 
     def to_XMP_string(self):
         """ Return the Adobe XMP representation of the information about who is speaking and when. The tags used are Tracks and Markers, the ones used by Adobe Premiere for speech-to-text information.
@@ -733,13 +730,12 @@ class Voiceid:
         
         for s in self.get_time_slices():
             d['selections'].append({        
-                                     "startTime" : float(s[0])/1000,
-                                     "endTime" : float(s[0]+s[1])/1000,
+                                     "startTime" : float(s[0])/100,
+                                     "endTime" : float(s[0]+s[1])/100,
                                      'speaker': s[-2],
                                      'speakerLabel': s[-1],
                                      'gender': s[2]
                                      })
-            
         return d
 
     def write_json(self,dictionary=None):
@@ -769,7 +765,6 @@ class Voiceid:
             file_xmp = open(self.get_file_basename()+'.xmp','w')
             file_xmp.write(str(self.to_XMP_string()))
             file_xmp.close()
-
 
 #-------------------------------------
 # initializations and global variables
@@ -819,7 +814,6 @@ def check_deps():
         raise Exception("No gmm db directory found in %s (take a look to the configuration, db_dir parameter)" % db_dir )
     if os.listdir(db_dir) == []:
         print "WARNING: Gmm db directory found in %s is empty" % db_dir
-#               raise Exception("Gmm db directory found in %s is empty" % db_dir )
     if not os.path.exists(dir_m):
         os.makedirs(dir_m)
     if not os.path.exists(dir_f):
@@ -852,7 +846,6 @@ def merge_waves(input_waves,wavename):
     w = " ".join(waves)
     commandline = "sox "+str(w)+" "+ str(wavename)
     start_subprocess(commandline)
-
 
 def video2wav(file_name):
     """ Take any kind of video or audio and convert it to a "RIFF (little-endian) data, WAVE audio, Microsoft PCM, 16 bit, mono 16000 Hz" wave file using gstreamer. If you call it passing a wave it checks if in good format, otherwise it converts the wave in the good format """
@@ -999,7 +992,6 @@ def split_gmm(input_file, output_dir=None):
         myfile['header'] = gvect_header
         myfile['content'] = read_gaussian_container(f)
         return myfile
-
 
     f = open(input_file,'r')
     key = f.read(8)
@@ -1148,7 +1140,6 @@ def ident_seg(filebasename,name):
     """ Substitute cluster names with speaker names ang generate a "<filebasename>.ident.seg" file """
     ident_seg_rename(filebasename,name,filebasename+'.ident')
 
-
 def ident_seg_rename(filebasename,name,outputname):
     """ Take a seg file and substitute the clusters with a given name or identifier """
     f = open(filebasename+'.seg','r')
@@ -1237,7 +1228,6 @@ def srt2subnames(filebasename, key_value):
     fout.close()
     ensure_file_exists(out_file)
 
-
 def video2trim(videofile):
     """ Take a video or audio file and converts it into smaller waves according to the diarization process """
     if not quiet_mode: print "*** converting video to wav ***"
@@ -1247,7 +1237,6 @@ def video2trim(videofile):
     diarization(file_basename)
     if not quiet_mode: print "*** trim ***"
     seg2trim(file_basename+'.seg')
-
 
 #--------------------------------------------
 #   diarization and voice matching functions
@@ -1426,7 +1415,7 @@ examples:
         cmanager = Voiceid( db=default_db, filename=options.file_input )
         
         #extract the speakers
-        cmanager.extract_speakers( options.interactive, quiet_mode, thrd_n=cpu_count() * 4 )
+        cmanager.extract_speakers( interactive=options.interactive, quiet=quiet_mode, thrd_n=cpu_count() * 4 )
         
         #write the output according to the given output format
         cmanager.write_output( output_format )
@@ -1439,7 +1428,6 @@ examples:
                 os.remove( w )
             shutil.rmtree( cmanager.get_file_basename() )
         exit(0)
-        
         
     if options.waves_for_gmm and options.speakerid:
         file_basename = None
