@@ -132,6 +132,45 @@ class GMMVoiceDB(VoiceDB):
             s.update( cls[ c ].speakers )
         return s
 
+class Segment:
+    """ A Segment taken from seg file, representing the smallest recognized voice time slice """
+    
+    def __init__(self, line):
+        self._basename = str(line[0])
+        self._one = int(line[1])
+        self._start = int(line[2])
+        self._duration = int(line[3])
+        self._gender = str(line[4])
+        self._environment = str(line[5])
+        self._u = str(line[6])
+        self._speaker = str(line[7])
+        self._line = line[:]
+
+    def get_basename(self):
+        return self._basename
+
+    def get_start(self):
+        return self._start
+    
+    def get_end(self):
+        return self._start+self._duration 
+    
+    def get_duration(self):
+        return self._duration
+
+    def get_gender(self):
+        return self._gender
+
+    def get_environment(self):
+        return self._environment
+
+    def get_speaker(self):
+        return self._speaker
+
+    def get_line(self):
+        return self._line
+
+
 class Cluster:
     """ A Cluster object, representing a computed cluster for a single speaker, with gender, a number of frames and environment """
     
@@ -216,7 +255,7 @@ class Cluster:
         """ Generate a segmentation file for the given showname"""
         f = open(filename,'w')
         f.write(self._seg_header)
-        line = self._segments[0][:]
+        line = self._segments[0].get_line()
         line[0]=name
         line[2]=0
         line[3]=self._frames-1
@@ -248,7 +287,7 @@ class Cluster:
         speaker = self.get_speaker()
         segs = []
         for s in self._segments:
-            t = s[2:]
+            t = s._line[2:]
             t[-1] = speaker
             t[0] = int(t[0])
             t[1] = int(t[1])
@@ -259,13 +298,14 @@ class Cluster:
     def print_segments(self):
         """ Print cluster timing """
         for s in self._segments:
-            print "%s to %s" %( humanize_time(float(s[2])/100) , humanize_time((float(s[2])+float(s[3]))/100) )
+            print "%s to %s" % ( humanize_time( float(s.get_start())/100 ), humanize_time( float(s.get_end())/100 ) )
 
 class Voiceid:
     """ The main object that represents the file audio/video to manage. """
 
     @staticmethod
     def from_json(json_file):
+        #TODO: factory method to build a Voiceid from json
         pass
 
     def __init__(self, db, filename ):
@@ -300,7 +340,7 @@ class Voiceid:
         return self._status
 
     def get_working_status(self):
-        return self.working_map[ self.get_status() ]  #TODO: fix some issue on restarting and so on
+        return self.working_map[ self.get_status() ]  #TODO: fix some issue on restarting and so on about current status
     
     def get_db(self):
         return self._db
@@ -430,32 +470,38 @@ class Voiceid:
         
         #merging segments wave files for every cluster
         for cluster in self._clusters:
-            
             self[cluster].merge_waves(basename)
             self[cluster].generate_seg_file( os.path.join( basename, cluster+".seg" ) )
             
-        """Wave,seg(prendendo le info dal seg originale) e mfcc per ogni cluster
-        Dal seg prendo il genere
-        for mfcc for db_genere"""
     
         t = {}
-        files_in_db = self.get_db()._speakermodels
+        files_in_db = self.get_db()._speakermodels  #TODO: avoid to look directly at the db entries 
 
 
         def match_voice_wrapper(cluster, mfcc_name, db_entry, gender ):
+            """ A wrapper to match the voices each in a different Thread """
             results = self.get_db().match_voice( mfcc_name, db_entry, gender)
             for r in results:
                 self[cluster].add_speaker( r, results[r] )
+                
+        def alive_threads():
+            """ Check how much threads are running and alive """ 
+            num = 0
+            for thr in t:
+                if t[thr].is_alive():
+                    num += 1
+            return num
+                    
         
         for cluster in self._clusters:            
             files = files_in_db[ self[cluster].gender ]
             filebasename = os.path.join(basename,cluster)
             for f in files:                
-                if  threading.active_count()  < thrd_n :
+                if  alive_threads()  < thrd_n :
                     t[f+cluster] = threading.Thread( target=match_voice_wrapper, args=( cluster ,  filebasename+'.mfcc', os.path.splitext(f)[0], self[cluster].gender ) )
                     t[f+cluster].start()
                 else:
-                    while threading.active_count() > thrd_n:
+                    while alive_threads() > thrd_n:
                         time.sleep(1)
                     t[f+cluster] = threading.Thread( target=match_voice_wrapper, args=( cluster,  filebasename+'.mfcc', os.path.splitext(f)[0], self[cluster].gender ) )
                     t[f+cluster].start()                    
@@ -472,7 +518,7 @@ class Voiceid:
                 print "speaker ", c
                 if interactive: self[c].print_segments()
             speakers[c] = self[c].get_best_speaker()
-            gender = self._clusters[c].gender
+#            gender = self._clusters[c].gender
             if not interactive: 
                 for speaker in self[c].speakers:
                     if not quiet: print "\t %s %s" % (speaker , self[c].speakers[ speaker ])
@@ -520,9 +566,10 @@ class Voiceid:
                         shutil.move(self[c].wave, wav_name)
                         
                         if not quiet: print "name speaker %s " % speakers[c]
-        
+                        
+                        
                         def build_model_wrapper(wave_b, cluster, wave_dir, old_speaker):
-                            
+                            """ A procedure to wrap the model building to run in a Thread """
                             try:
                                 ensure_file_exists(wave_b+'.seg')
                             except:
@@ -531,10 +578,13 @@ class Voiceid:
                             ensure_file_exists(wave_b+'.wav')
                             new_speaker = self[cluster].get_speaker()
                             self.get_db().add_model(wave_b, new_speaker, self[cluster].gender )
-                            
+                            match_voice_wrapper(cluster, wave_b+'.mfcc', new_speaker, self[cluster].gender)                            
                             b_s = self[cluster].get_best_speaker()
                             
+                            print 'b_s = %s   new_speaker = %s ' % ( b_s, new_speaker )
+                            
                             if b_s != new_speaker :
+                                print "removing model for speaker %s" % (old_speaker)
                                 self.get_db().remove_model( os.path.join( wave_dir, cluster) + '.mfcc', old_speaker, self[cluster].gender, self[cluster].value )
                                 self[cluster].set_speaker(new_speaker)
                                 
@@ -550,7 +600,8 @@ class Voiceid:
                                 os.remove("%s.mfcc" % wave_b )
                                 os.remove("%s.ident.seg" % wave_b )
                                 os.remove("%s.init.gmm" % wave_b )
-                                
+                        
+                        
                         threads[c] = threading.Thread( target=build_model_wrapper, args=(basename_file,c, basename, old_s) )
                         threads[c].start()
                     
@@ -1153,7 +1204,7 @@ def extract_clusters(filename, clusters):
             last_cluster._seg_header = l
         else:
             line = l.split()
-            last_cluster._segments.append(line)
+            last_cluster._segments.append( Segment(line) )
             last_cluster._frames += int(line[3])
             last_cluster.gender =  line[4]
             last_cluster._e =  line[5]
