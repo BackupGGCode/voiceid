@@ -9,95 +9,36 @@ import wx
 import wx.lib.buttons as buttons
 import thread
 import threading
+import sched
+
+
 dirName = os.path.dirname(os.path.abspath(__file__))
 bitmapDir = os.path.join(dirName, 'bitmaps')
-
-
-
-class LoggerPanel(wx.Panel):
-    """Return a custom Panel to print logs"""
-    def __init__(self,parent,id):
-        wx.Panel.__init__(self,parent,id,style=wx.SIMPLE_BORDER )
-        self.SetBackgroundColour("#fff")
-        self.sizer = wx.BoxSizer(wx.VERTICAL)
-        self.textBox = wx.TextCtrl(self, style=wx.TE_CENTRE|wx.TE_MULTILINE,size=(150,400) )
-        self.textBox.SetEditable(False)
-        self.sizer.Add(self.textBox,1, wx.ALL|wx.EXPAND, 5)
-        self.SetSizer(self.sizer) 
- 
-    def get_text_box(self):
-        return self.textBox
- 
-class TrainingPanel(wx.Panel):
-    """Return a custom Panel to train speakers"""
-    def __init__(self,parent):
-        wx.Panel.__init__(self,parent,style=wx.BORDER_SUNKEN)
-        fieldsetText = wx.StaticText(self,0, ' Train space')
-        #sizer 
-        self.sizer = wx.BoxSizer(wx.VERTICAL)
-        self.buttonsizer =wx.BoxSizer(wx.HORIZONTAL)
-        self.speakersizer = wx.BoxSizer(wx.HORIZONTAL)
-        
-        #buttons
-        self.listen = wx.Button(self, label='Listen')
-        self.buttonsizer.Add(self.listen, 1, wx.ALL|wx.CENTER, 5)
-
-        self.rename = wx.Button(self, label="Rename")
-        self.buttonsizer.Add(self.rename, 1, wx.ALL|wx.CENTER, 5)
-        
-        
-        self.skip = wx.Button(self,label="Skip")
-        self.buttonsizer.Add(self.skip, 1, wx.ALL|wx.CENTER, 5)
-        
-        self.prev = wx.BitmapButton(self, 0, wx.Bitmap(os.path.join(bitmapDir, 'prev.png')))
-        self.next = wx.BitmapButton(self, 0, wx.Bitmap(os.path.join(bitmapDir, 'next.png')))
-
-        #speaker name
-        self.speaker = wx.StaticText(self, 1, 'Speaker Name')
-        font3 = wx.Font(10, wx.MODERN, wx.NORMAL, wx.BOLD)
-        self.speaker.SetFont(font3)
-
-        #build speaker name sizer
-        self.speakersizer.Add(self.prev,0, wx.ALL|wx.CENTER, 5)
-        self.speakersizer.Add(self.speaker,1, wx.ALL|wx.CENTER, 5)
-        self.speakersizer.Add(self.next,0, wx.ALL|wx.CENTER, 5)
-        
-        #build panel train
-        self.sizer.Add(self.speakersizer,1, wx.ALL|wx.CENTER, 5)
-        self.sizer.Add(self.buttonsizer,1, wx.ALL|wx.CENTER, 5)
-        self.SetSizer(self.sizer)
-        self.SetBackgroundColour("#fff")
-        
-        self.next.Bind(wx.EVT_BUTTON,parent.on_next_speaker)
-        self.prev.Bind(wx.EVT_BUTTON,parent.on_prev_speaker)
-        
-    def set_speaker_label(self, name):
-        return self.speaker.SetLabel(name)
- 
-        #----------------------------------------------------------------------
     
-class Frame(wx.Frame):
+
+class MainFrame(wx.Frame):
     #----------------------------------------------------------------------
-    def __init__(self, parent, id, title, mplayer):
-        wx.Frame.__init__(self, parent, id, title,size=(800,600) )
+    def __init__(self, parent, title, mplayer):
+        wx.Frame.__init__(self, parent, title=title, size=(800,600) )
        
+        # init panels
         self.panel = wx.Panel(self, 1)
         self.panelLogger = None
-        self.panelTrain = None
-      
+        self.panelTrain  = None
         sp = wx.StandardPaths.Get()
         self.currentFolder = sp.GetDocumentsDir()
-        self.currentVolume = 50
- 
+        self.scheduler = None
+        self.trainer = None 
+        # init menu
         self.create_menu()
  
-        self.clusters = None
         # create sizers
-        self.mainSizer = wx.BoxSizer(wx.VERTICAL)
+        self.mainSizer = wx.BoxSizer(wx.VERTICAL) 
         self.topSizer = wx.BoxSizer(wx.HORIZONTAL)
         controlSizer = self.build_player_controls()
         sliderSizer = wx.BoxSizer(wx.HORIZONTAL)
- 
+        
+        # init player objects
         self.mpc = mpc.MplayerCtrl(self.panel, 0, u'mplayer')
         self.playbackSlider = wx.Slider(self.panel, size=wx.DefaultSize)
         sliderSizer.Add(self.playbackSlider, 1, wx.ALL|wx.EXPAND, 5)
@@ -109,6 +50,8 @@ class Frame(wx.Frame):
         # set up playback timer
         self.playbackTimer = wx.Timer(self)
         self.Bind(wx.EVT_TIMER, self.on_update_playback)
+        
+        # add components to sizers
         self.topSizer.Add(self.mpc, 1, wx.EXPAND| wx.ALL, 5)
         self.mainSizer.Add(self.topSizer, 1,wx.ALL|wx.EXPAND, 5)
         self.mainSizer.Add(sliderSizer, 0, wx.ALL|wx.EXPAND, 5)
@@ -117,6 +60,7 @@ class Frame(wx.Frame):
         self.panel.SetSizer(self.mainSizer)
         self.panel.SetBackgroundColour("#000")
  
+        # bind buttons to function control
         self.panel.Bind(mpc.EVT_MEDIA_STARTED, self.on_media_started)
         self.panel.Bind(mpc.EVT_MEDIA_FINISHED, self.on_media_finished)
         self.panel.Bind(mpc.EVT_PROCESS_STARTED, self.on_process_started)
@@ -125,6 +69,8 @@ class Frame(wx.Frame):
  
         self.Show()
         self.panel.Layout()
+ 
+        self.clusters = None
  
     #----------------------------------------------------------------------
     def build_btn(self, btnDict, sizer):
@@ -169,10 +115,8 @@ class Frame(wx.Frame):
         fileMenu = wx.Menu()
         srMenu = wx.Menu()
         add_file_menu_item = fileMenu.Append(wx.NewId(), "&New video", "Add Media File")
-        runid = wx.NewId()
-        trainid = wx.NewId()
-        self.run_menu_item = srMenu.Append(runid, "&Run ")
-        self.train_menu_item = srMenu.Append(trainid, "&Train ")
+        self.run_menu_item = srMenu.Append(wx.NewId(), "&Run ")
+        self.train_menu_item = srMenu.Append(wx.NewId(), "&Train ")
         self.train_menu_item.Enable(False)
         menubar.Append(fileMenu, '&File')
         menubar.Append(srMenu, '&Speaker Recognition')
@@ -183,6 +127,61 @@ class Frame(wx.Frame):
         self.Bind(wx.EVT_MENU, self.on_train, self.train_menu_item)
  
     #----------------------------------------------------------------------
+    
+    def create_training_panel(self):
+        
+        """Return a custom Panel to train speakers"""
+        
+        self.panelTrain  = wx.Panel(self, -1,style=wx.BORDER_SUNKEN )
+        
+        fieldsetText = wx.StaticText(self.panelTrain,0, ' Train space')
+        #sizer 
+        sizer = wx.BoxSizer(wx.VERTICAL)
+        buttonsizer =wx.BoxSizer(wx.HORIZONTAL)
+        speakersizer = wx.BoxSizer(wx.HORIZONTAL)
+        
+        #buttons
+        self.panelTrain.listen = wx.Button(self.panelTrain, label='Listen')
+        buttonsizer.Add(self.panelTrain.listen, 1, wx.ALL|wx.CENTER, 5)
+
+        self.panelTrain.rename = wx.Button(self.panelTrain, label="Rename")
+        buttonsizer.Add(self.panelTrain.rename, 1, wx.ALL|wx.CENTER, 5)
+        
+        
+        self.panelTrain.skip = wx.Button(self.panelTrain,label="Skip")
+        buttonsizer.Add(self.panelTrain.skip, 1, wx.ALL|wx.CENTER, 5)
+        
+        self.panelTrain.prev = wx.BitmapButton(self.panelTrain, 0, wx.Bitmap(os.path.join(bitmapDir, 'prev.png')))
+        self.panelTrain.next = wx.BitmapButton(self.panelTrain, 0, wx.Bitmap(os.path.join(bitmapDir, 'next.png')))
+
+        #speaker name
+        self.panelTrain.speaker = wx.StaticText(self.panelTrain, 1, 'Speaker Name')
+        font3 = wx.Font(10, wx.MODERN, wx.NORMAL, wx.BOLD)
+        self.panelTrain.speaker.SetFont(font3)
+
+        #build speaker name sizer
+        speakersizer.Add(self.panelTrain.prev,0, wx.ALL|wx.CENTER, 5)
+        speakersizer.Add(self.panelTrain.speaker,1, wx.ALL|wx.CENTER, 5)
+        speakersizer.Add(self.panelTrain.next,0, wx.ALL|wx.CENTER, 5)
+        
+        #build panel train
+        sizer.Add(speakersizer,1, wx.ALL|wx.CENTER, 5)
+        sizer.Add(buttonsizer,1, wx.ALL|wx.CENTER, 5)
+        self.panelTrain.SetSizer(sizer)
+        self.panelTrain.SetBackgroundColour("#fff")
+        
+        self.panelTrain.next.Bind(wx.EVT_BUTTON,self.on_next_speaker)
+        self.panelTrain.prev.Bind(wx.EVT_BUTTON,self.on_prev_speaker)  
+        
+    def create_logger_panel(self):
+        self.panelLogger  = wx.Panel(self, -1,style=wx.SIMPLE_BORDER )
+        self.panelLogger.SetBackgroundColour("#fff")
+        sizer = wx.BoxSizer(wx.VERTICAL)
+        self.panelLogger.textBox = wx.TextCtrl(self.panelLogger, style=wx.TE_CENTRE|wx.TE_MULTILINE,size=(150,400) )
+        self.panelLogger.textBox.SetEditable(False)
+        sizer.Add(self.panelLogger.textBox,1, wx.ALL|wx.EXPAND, 5)
+        self.panelLogger.SetSizer(sizer) 
+    
     def on_add_file(self, event):
         """
         Add a Movie and start playing it
@@ -208,55 +207,55 @@ class Frame(wx.Frame):
         """
         self.run_menu_item.Enable(False)
         if not self.panelLogger:
-            self.panelLogger = LoggerPanel(self.panel, -1 )
+            self.create_logger_panel()
             self.topSizer.Add(self.panelLogger, 0, wx.ALL|wx.EXPAND, 5)
             self.Show()
             self.panel.Layout()
-            textBox = self.panelLogger.get_text_box()
-            textBox.AppendText("\n*Start process*\n\n")
+            self.panelLogger.textBox.AppendText("\n*Start process*\n\n")
         else:
-            textBox.Clear()
+            self.panelLogger.textBox.Clear()
             
         def print_logger(voiceid):
             old_status = voiceid.get_status()
-            textBox.AppendText("-- "+voiceid.get_working_status() +" --\n")
+            self.panelLogger.textBox.AppendText("-- "+voiceid.get_working_status() +" --\n")
             while voiceid.get_status()!=5:
                status = voiceid.get_status()
                try:
                    if status != old_status:
                        old_status = voiceid.get_status()
                        input = voiceid.get_working_status()
-                       textBox.AppendText("-- "+input +" --\n")
+                       self.panelLogger.textBox.AppendText("-- "+input +" --\n")
                    
                except StandardError:
                     sys.exit()
-            textBox.AppendText("\n*End process*\n")
+            self.panelLogger.textBox.AppendText("\n*End process*\n")
             self.train_menu_item.Enable(True)
-        self.voiceid = Voiceid(GMMVoiceDB('/home/michela/SpeakerRecognition/voiceid/scripts/test_db'),self.mpc.GetProperty('path'))
-        thread.start_new_thread(print_logger, (self.voiceid,))
-        thread.start_new_thread(self.voiceid.extract_speakers, (False, False, 2))
+        self.voiceid = Voiceid(GMMVoiceDB('/home/michela/SpeakerRecognition/voiceid/scripts/smalldb'),self.mpc.GetProperty('path'))
         
-                    
+        thread = threading.Thread(target=print_logger,args=(self.voiceid,))
+        thread.start()
+        thread2 = threading.Thread(target=self.voiceid.extract_speakers, args=(False, False, 2))
+        thread2.start()
                     
     #----------------------------------------------------------------------
     def on_train(self, event):
         """
         Train Speaker Recognition
         """      
+        
+        
         self.train_menu_item.Enable(False)
+        
+        
         if not self.panelTrain:
-            self.panelTrain = TrainingPanel(self) 
+            self.create_training_panel() 
             self.mainSizer.Add(self.panelTrain,  0, wx.ALL|wx.EXPAND, 5)
             self.Show()
             self.panel.Layout()
         
-        self.clusters = self.voiceid.get_clusters()
-        self.current_index_cluster = 0
-        current_cluster = self.clusters.keys()[self.current_index_cluster]
-        self.panelTrain.set_speaker_label(self.clusters[current_cluster].get_speaker())
-        info_cluster = self.clusters[current_cluster].to_dict()
-        self.play_training(info_cluster)
-        #self.mpc.Pause()
+        clusters = self.voiceid.get_clusters()
+        self.trainer = Trainer(clusters,self.mpc)
+        self.trainer.play_cluster()
     #----------------------------------------------------------------------
     def on_media_started(self, event):
         print 'Media started!'
@@ -276,9 +275,6 @@ class Frame(wx.Frame):
             print "pausing..."
             self.mpc.Pause()
             self.playbackTimer.Stop()
-            #self.SetIcon(wx.Icon('pause.png',wx.BITMAP_TYPE_PNG))
-            
-            #self.SetIcon(wx.Icon('play.png',wx.BITMAP_TYPE_PNG))
  
     #----------------------------------------------------------------------
     def on_process_started(self, event):
@@ -317,17 +313,14 @@ class Frame(wx.Frame):
     def on_prev_speaker(self, event):
         """"""
         print "backwarding speaker..."
-        if self.current_index_cluster != 0:
-             self.current_index_cluster = self.current_index_cluster -1
-             self.on_update_training()
+        self.trainer.play_prev_cluster()
+        
     #----------------------------------------------------------------------
     
     def on_next_speaker(self, event):
         """"""
         print "forwarding speaker ..."
-        if self.current_index_cluster != len(self.clusters):
-             self.current_index_cluster = self.current_index_cluster +1
-             self.on_update_training()
+        self.trainer.play_next_cluster()
     #----------------------------------------------------------------------
     
     def on_listen_speaker(self, event):
@@ -345,33 +338,25 @@ class Frame(wx.Frame):
     def on_rename_speaker(self, event):
         """"""
         print "rename speaker ..."
+        #current_cluster = self.trainer.get_current_cluster()
+        #current_cluster.set_speaker()
         
-    def on_update_training(self):
-        current_cluster = self.clusters.keys()[self.current_index_cluster]
-        self.panelTrain.set_speaker_label(self.clusters[current_cluster].get_speaker())
-        info_cluster = self.clusters[current_cluster].to_dict()
-        self.play_training(info_cluster)
-                
-    def play_training(self,info_cluster):
-        def next_seg(start_time):
-            #print "start_time %s" % float(start_time)/100
-            print float(start_time)/100
-            self.mpc.Seek(float(start_time)/100,2)
+    def pause(self):
+        if self.playbackTimer.IsRunning():
+            self.mpc.Pause()
+            self.playbackTimer.Stop()
+            print "pause playing"    
             
-#        if not self.playbackTimer.IsRunning():
-#            self.mpc.Pause()
-#            self.playbackTimer.Start()
+    def start(self):
+        if not self.playbackTimer.IsRunning():
+            print "start playing"
+            self.mpc.Pause()
+            self.playbackTimer.Start()  
+    
+    def play_seek(self,seconds):
+        print float(seconds)/100
+        self.mpc.Seek(float(seconds)/100,2)
             
-        for segment in range(len(info_cluster)):
-            duration = info_cluster[segment][1]
-            #print "duration %s" % float(duration)/100
-            print "time start %s" %   info_cluster[segment][0]
-            timer = threading.Timer(float(duration)/100, next_seg, args=(info_cluster[segment][0], )) 
-            timer.start()   
-#        if self.playbackTimer.IsRunning():
-#            self.mpc.Pause()
-#            self.playbackTimer.Stop()
-        
     def on_update_playback(self, event):
         """
         Updates playback slider and track counter
@@ -388,12 +373,93 @@ class Frame(wx.Frame):
             
             self.trackCounter.SetLabel(secsPlayed)
             self.trackCounter.SetForegroundColour("WHITE")
-       
+            
+class Trainer:
+    def __init__(self,clusters,mediaplayer):
+        self._clusters = clusters
+        self._scheduler = Scheduler()
+        self._keys = self._clusters.keys()
+        self._current_index_cluster = 0
+        self._mediaplayer = mediaplayer
+        self._current_cluster = self.get_current_cluster()
         
+    def get_current_cluster(self):
+        return self._clusters[self._keys[self._current_index_cluster]]
+    
+    
+    def set_current_cluster(self,cluster):
+        self._current_cluster = cluster
+        
+    def play_prev_cluster(self):
+        if self._current_index_cluster > 0:
+             self._current_index_cluster =-1
+        c = self._keys[self._current_index_cluster] 
+        set_current_cluster(c)    
+        self.play_cluster(c)
+    
+    def play_next_cluster(self):
+        if self._current_index_cluster < len(self._clusters):
+             self._current_index_cluster =+1
+        c = self._keys[self._current_index_cluster]
+        set_current_cluster(c)
+        self.play_cluster(c)    
+    
+    def get_segments(self,cluster):
+        return cluster._segments
+        
+    def play_seek(self,seconds):
+        print float(seconds)/100
+        self._mediaplayer.Seek(float(seconds)/100,2)   
+        
+    def play_cluster(self,cluster=None):
+        delay = 0
+        self._scheduler.StopAllTasks()
+        segments = []
+        
+        if not cluster:
+            segments = self.get_current_cluster()._segments
+        else:
+            segments = cluster._segments
+            
+        for segment in range(len(segments)):
+            s = segments[segment]
+            duration = s.get_duration()
+            if not segment == 0:
+                delay = delay + (segments[segment-1].get_duration()/100)
+            self._scheduler.AddTask(delay, 1, self.play_seek, (s.get_start(),))
+            
+        last_segment = segments[-1]    
+        #self._scheduler.AddTask(delay + float(last_segment.get_duration())/100, 1, self._mediaplayer.pause, ())   
+        thread = threading.Thread(target=self._scheduler.StartAllTasks)  
+        thread.start()      
+        #self._mediaplayer.start()
+        
+class Scheduler:
+    def __init__( self ):
+        self._tasks = []
+        self._scheduler = sched.scheduler(time.time, time.sleep)
+    def __repr__( self ):
+        rep = ''
+        for task in self._tasks:
+            rep += '%s\n' % `task`
+        return rep
+        
+    def AddTask( self, delay, priority, action, argument ):
+        task = self._scheduler.enter(delay, priority, action, argument)
+        print 'add task'
+        self._tasks.append( task )
+    
+    def StartAllTasks( self ):
+        print 'scheduler run'
+        self._scheduler.run()
+    
+    def StopAllTasks( self ):
+        map(self._scheduler.cancel, self._scheduler.queue)
+        print 'Stopped'  
                  
 if __name__ == "__main__":
     import os, sys
    
     app = wx.App(redirect=False)
-    frame = Frame(None, -1, 'VOICEID',  u'mplayer')
+    frame = MainFrame(None, 'VOICEID',  u'mplayer')
     app.MainLoop()

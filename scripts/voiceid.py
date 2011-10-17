@@ -493,6 +493,14 @@ class Voiceid:
                     num += 1
             return num
         
+        def alive_threads():
+           num = 0
+           for thr in t:
+               if t[thr].is_alive():
+                   num += 1
+           return num
+                   
+       
         for cluster in self._clusters:            
             files = files_in_db[ self[cluster].gender ]
             filebasename = os.path.join(basename,cluster)
