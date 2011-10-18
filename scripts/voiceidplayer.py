@@ -174,6 +174,14 @@ class Controller:
             
             self.clusters_list.list.Select(index)
             
+            cmd = wx.CommandEvent(wx.EVT_LISTBOX.evtType[0])
+        #  (if your control is not a wx.ComboBox, obviously change the event name, and please write evtType exactly as I did)
+            cmd.SetEventObject(self.clusters_list.list)
+            cmd.SetId(self.clusters_list.list.GetId())
+            mycontrol.GetEventHandler().ProcessEvent(cmd)
+            
+            
+            
             self.cluster_form.Destroy()
             
 
