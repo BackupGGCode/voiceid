@@ -17,7 +17,8 @@ bitmapDir = os.path.join(dirName, 'bitmaps')
 LIST_ID = 26
 PLAY_ID = 1
 EDIT_ID = 0
-
+OK_DIALOG =33
+CANCEL_DIALOG =34
 class Controller:
     def __init__(self, app):
         self.model = Model()
@@ -34,7 +35,8 @@ class Controller:
         
         self.frame.Bind(wx.EVT_MENU, self.on_add_file, self.frame.add_file_menu_item)
         self.frame.Bind(wx.EVT_MENU, self.on_run, self.frame.run_menu_item)
-        self.frame.Bind(wx.EVT_MENU, self.on_train, self.frame.train_menu_item) 
+        self.frame.Bind(wx.EVT_MENU, self.on_test, self.frame.train_menu_item) 
+        
         
         self.clusters_list.Bind(wx.EVT_LISTBOX, self.on_select_cluster, id=LIST_ID)
         
@@ -135,41 +137,85 @@ class Controller:
         
         self.clusters_list.set_info_clusters(text)
         
-        self.clusters_list.buttons_sizer.ShowItems(True)    
-    def on_train(self, event):
-        pass
-
+        self.clusters_list.buttons_sizer.ShowItems(True)
+        self.clusters_list.Layout()
+            
+    def on_test(self, event):
+        self.on_edit_cluster(event)
+        
+        
     def on_play_cluster(self, event):
         pass
     
     def on_edit_cluster(self, event):
         
-        ClusterForm()
+        self.cluster_form =ClusterForm(self.frame,"Edit cluster speaker")
+        self.cluster_form.Bind(wx.EVT_BUTTON, self.set_speaker_name)
+        self.cluster_form.Layout()
+        self.cluster_form.ShowModal()
+        print "on_edit"
+        
+    def set_speaker_name(self, event):
+        if event.GetId() == CANCEL_DIALOG:
+            self.cluster_form.Destroy()
+            return
+        
+        if event.GetId() == OK_DIALOG:
+            speaker = self.cluster_form.tc1.GetValue()
+            index = self.clusters_list.list.GetSelection()
+            cluster = self.clusters_list.list.GetString(index)
+            name = cluster.split(' ')[0]
+            
+            c = self.model.get_cluster(name)
+            
+            c.set_speaker(speaker)
+            
+            self.clusters_list.list.SetString(index,name + " ("+speaker+ ")")
+            
+            self.clusters_list.list.Select(index)
+            
+            self.cluster_form.Destroy()
+            
 
     def exit(self):
         self.player.mpc.Quit()
 
-class ClusterForm(wx.PopupWindow):
-    def __init__(self):
-        wx.PopupWindow.__init__(self, None, title="Cluster edit", size=(100, 100))
+class ClusterForm(wx.Dialog):
+    def __init__(self, parent, title):
+        wx.Dialog.__init__(self, parent, 20, title, wx.DefaultPosition, wx.Size(250, 100))
         
-        panel = wx.Panel(self)
+        #panel = wx.Panel(self)
+
+        vbox = wx.BoxSizer(wx.VERTICAL)
 
         hbox = wx.BoxSizer(wx.HORIZONTAL)
-
+        
+        buttonbox = wx.BoxSizer(wx.HORIZONTAL)
+        
         fgs = wx.FlexGridSizer(3, 2, 9, 25)
 
-        title = wx.StaticText(panel, label="Title")
+        title = wx.StaticText(self, label="Speaker")
 
-        tc1 = wx.TextCtrl(panel)
+        self.tc1 = wx.TextCtrl(self,size=(150,25))
 
-        fgs.AddMany([(title), (tc1, 1, wx.EXPAND)])
+        fgs.AddMany([(title), (self.tc1, 1, wx.EXPAND)])
 
         fgs.AddGrowableRow(2, 1)
         fgs.AddGrowableCol(1, 1)
 
-        hbox.Add(fgs, proportion=1, flag=wx.ALL|wx.EXPAND, border=15)
-        panel.SetSizer(hbox)
+        hbox.Add(fgs, flag=wx.ALL|wx.EXPAND, border=15)
+        self.b_ok = wx.Button(self, label='Ok', id=OK_DIALOG)
+        self.b_cancel = wx.Button(self, label='Cancel', id=CANCEL_DIALOG)
+#        self.Bind(wx.EVT_BUTTON, self.OnClose, id=1)
+#        self.Bind(wx.EVT_BUTTON, self.OnRandomMove, id=2)
+        
+        buttonbox.Add(self.b_ok,1, border=15)
+        buttonbox.Add(self.b_cancel,1, border=15)
+        
+        vbox.Add(hbox, flag= wx.ALIGN_CENTER|wx.ALL|wx.EXPAND)
+        vbox.Add(buttonbox, flag= wx.ALIGN_CENTER)
+        self.SetSizer(vbox)
+        
 
 class MainFrame(wx.Frame):
     def __init__(self):
@@ -188,8 +234,8 @@ class MainFrame(wx.Frame):
         srMenu = wx.Menu()
         self.add_file_menu_item = fileMenu.Append(wx.NewId(), "&Open video", "Add Media File")
         self.run_menu_item = srMenu.Append(wx.NewId(), "&Run Recognition")
-        self.train_menu_item = srMenu.Append(wx.NewId(), "&Train ")
-        self.train_menu_item.Enable(False)
+        self.train_menu_item = srMenu.Append(wx.NewId(), "&Test ")
+        self.train_menu_item.Enable(True)
         menubar.Append(fileMenu, '&File')
         menubar.Append(srMenu, '&Speaker Recognition')
  
