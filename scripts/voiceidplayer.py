@@ -19,6 +19,8 @@ PLAY_ID = 1
 EDIT_ID = 0
 OK_DIALOG =33
 CANCEL_DIALOG =34
+TRAIN_ON = 100
+TRAIN_OFF = 101
 class Controller:
     def __init__(self, app):
         self.model = Model()
@@ -30,6 +32,7 @@ class Controller:
         sizer.Add(self.clusters_list, 1, wx.EXPAND)
         self.frame.SetSizer(sizer)
         self.frame.Layout()
+        self.mode = TRAIN_OFF
         sp = wx.StandardPaths.Get()
         self.currentFolder = sp.GetDocumentsDir()
         
@@ -37,6 +40,7 @@ class Controller:
         self.frame.Bind(wx.EVT_MENU, self.on_run, self.frame.run_menu_item)
         self.frame.Bind(wx.EVT_MENU, self.on_test, self.frame.train_menu_item) 
         
+        self.player.Bind(wx.EVT_TIMER, self.on_update_playback)
         
         self.clusters_list.Bind(wx.EVT_LISTBOX, self.on_select_cluster, id=LIST_ID)
         
@@ -44,8 +48,11 @@ class Controller:
         
         self.clusters_list.Bind(wx.EVT_BUTTON, self.on_edit_cluster, id=EDIT_ID)
         
+        
         Publisher().subscribe(self.update_status, "update_status")
         Publisher().subscribe(self.update_list, "update_list")
+        
+        
     def on_add_file(self, event):
         """
         Add a Movie and start playing it
@@ -86,6 +93,47 @@ class Controller:
         wx.CallAfter(Publisher().sendMessage, "update_list", "Process finished")
         
         
+    def get_current_cluster(self):
+        
+        index = self.clusters_list.list.GetSelection()
+        cluster = self.clusters_list.list.GetString(index)
+        name = cluster.split(' ')[0]
+        
+        c = self.model.get_cluster(name)
+        return c
+        
+            
+    def on_play_segment(self, event):
+        if self.mode == TRAIN_ON:
+            c = self.get_current_cluster()
+            segments = c._segments[:]
+            offset = self.player.mpc.GetTimePos()
+            segments.reverse()
+            n = 0
+            for s in segments:
+                end = float(s.get_end())/100
+                print "offset = %s  end = %s " % (offset,end)
+                if offset >= end :
+                    print "n %s" %n
+                    next = len(c._segments) - n + 1
+                    if  n>1 :
+                        print "successivo = %s" % next
+                        start = float(c._segments[ next ].get_start())/100
+                        print "play at = %s " %  start
+                        self.player.mpc.Seek( start, 2 )
+                        time.sleep(1)
+                    else:
+                        print 'pause'
+                        self.toggle_pause()
+                    break
+                elif offset >= float(s.get_start())/100:
+                    break
+                n+=1
+                        
+                    
+                    
+            #self.player.
+        
    #----------------------------------------------------------------------
     def update_status(self, msg):
         """
@@ -109,7 +157,23 @@ class Controller:
             self.clusters_list.add_cluster(c.get_name(),c.get_speaker())
             
             
-            
+    def on_update_playback(self, event):
+        """
+        Updates playback slider and track counter
+        """
+        
+        try:
+            offset = self.player.mpc.GetTimePos()
+        except:
+            return
+        mod_off = str(offset)[-1]
+        if mod_off == '0':
+            offset = int(offset)
+            self.player.playbackSlider.SetValue(offset)
+            secsPlayed = time.strftime('%M:%S', time.gmtime(offset))
+            self.player.trackCounter.SetLabel(secsPlayed)
+        if self.mode == TRAIN_ON:
+            self.on_play_segment(event)        
             
     def on_run(self, event):
         """
@@ -127,13 +191,10 @@ class Controller:
     
     def on_select_cluster(self, event):
         print "select"
-        index = event.GetSelection()
-        cluster = self.clusters_list.list.GetString(index)
-        name = cluster.split(' ')[0]
+        self.toggle_pause()
+        c = self.get_current_cluster()
         
-        c = self.model.get_cluster(name)
-        
-        text = "Name %s\nSpeaker %s\nMean %s\nDistance %s" %(name, c.get_speaker(), c.get_mean(), c.get_distance())
+        text = "Name %s\nSpeaker %s\nMean %s\nDistance %s" %(c.get_name(), c.get_speaker(), c.get_mean(), c.get_distance())
         
         self.clusters_list.set_info_clusters(text)
         
@@ -143,10 +204,36 @@ class Controller:
     def on_test(self, event):
         self.on_edit_cluster(event)
         
-        
+    def toggle_play(self):
+        self.clusters_list.play_button.SetLabel("Pause")
+        self.mode = TRAIN_ON
+        print "play ",self.player.playbackTimer.IsRunning() 
+        if not self.player.playbackTimer.IsRunning():
+            self.player.mpc.Pause()
+            self.player.playbackTimer.Start()
+            
+    def toggle_pause(self):
+        self.clusters_list.play_button.SetLabel("Play")
+        self.mode = TRAIN_OFF   
+        print "pause ",self.player.playbackTimer.IsRunning()
+        if self.player.playbackTimer.IsRunning():
+               self.player.mpc.Pause()
+               self.player.playbackTimer.Stop()       
+                 
     def on_play_cluster(self, event):
-        pass
-    
+        
+        if self.mode == TRAIN_OFF:
+            self.toggle_play()
+            c = self.get_current_cluster()
+            first_segments = c._segments[0]
+           # print "on_play_cluster"
+            print first_segments.get_start()
+            c.print_segments()
+            self.player.mpc.Seek( float(first_segments.get_start())/100 ,2)
+            #self.player.mpc.
+        else:
+            self.toggle_pause()    
+        
     def on_edit_cluster(self, event):
         
         self.cluster_form =ClusterForm(self.frame,"Edit cluster speaker")
@@ -162,24 +249,21 @@ class Controller:
         
         if event.GetId() == OK_DIALOG:
             speaker = self.cluster_form.tc1.GetValue()
-            index = self.clusters_list.list.GetSelection()
-            cluster = self.clusters_list.list.GetString(index)
-            name = cluster.split(' ')[0]
-            
-            c = self.model.get_cluster(name)
-            
-            c.set_speaker(speaker)
-            
-            self.clusters_list.list.SetString(index,name + " ("+speaker+ ")")
-            
-            self.clusters_list.list.Select(index)
-            
-            cmd = wx.CommandEvent(wx.EVT_LISTBOX.evtType[0])
-        #  (if your control is not a wx.ComboBox, obviously change the event name, and please write evtType exactly as I did)
-            cmd.SetEventObject(self.clusters_list.list)
-            cmd.SetId(self.clusters_list.list.GetId())
-            mycontrol.GetEventHandler().ProcessEvent(cmd)
-            
+            if not len(speaker) == 0: 
+                c = self.get_current_cluster()
+                
+                c.set_speaker(speaker)
+                
+                self.clusters_list.list.SetString(index,name + " ("+speaker+ ")")
+                
+                #self.clusters_list.list.SetSelection(index)
+                
+                cmd = wx.CommandEvent(wx.EVT_LISTBOX.evtType[0])
+            #  (if your control is not a wx.ComboBox, obviously change the event name, and please write evtType exactly as I did)
+                cmd.SetEventObject(self.clusters_list.list)
+                cmd.SetId(self.clusters_list.list.GetId())
+                self.clusters_list.list.GetEventHandler().ProcessEvent(cmd)
+                
             
             
             self.cluster_form.Destroy()
@@ -276,7 +360,6 @@ class Player(wx.Panel):
         
         # set up playback timer
         self.playbackTimer = wx.Timer(self)
-        self.Bind(wx.EVT_TIMER, self.on_update_playback)
         
         self.sizer.Add(self.mpc, 1, wx.EXPAND | wx.ALL, 5)
         self.sizer.Add(self.sliderSizer, 0, wx.ALL | wx.EXPAND, 5)
@@ -372,21 +455,7 @@ class Player(wx.Panel):
         print "backwarding..."
         self.mpc.Seek(-5)    
 
-    def on_update_playback(self, event):
-        """
-        Updates playback slider and track counter
-        """
-        try:
-            offset = self.mpc.GetTimePos()
-        except:
-            return
-        mod_off = str(offset)[-1]
-        if mod_off == '0':
-            offset = int(offset)
-            self.playbackSlider.SetValue(offset)
-            secsPlayed = time.strftime('%M:%S', time.gmtime(offset))
-            
-            self.trackCounter.SetLabel(secsPlayed)
+  
             #self.trackCounter.SetForegroundColour("WHITE")
 
 class ClustersList(wx.Panel):
