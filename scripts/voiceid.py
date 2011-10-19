@@ -493,13 +493,6 @@ class Voiceid:
                     num += 1
             return num
         
-        def alive_threads():
-           num = 0
-           for thr in t:
-               if t[thr].is_alive():
-                   num += 1
-           return num
-                   
        
         for cluster in self._clusters:            
             files = files_in_db[ self[cluster].gender ]
@@ -620,7 +613,7 @@ class Voiceid:
         self.set_time( total_time )
         self._status = 5
         if not quiet: print self.get_working_status()
-        if interactive:
+        if interactive and len(threads) > 0:
             print "Waiting for working processes"
             for t in threads:
                 if threads[t].is_alive():
@@ -1329,6 +1322,10 @@ def interactive_training(videoname, cluster, speaker):
                 while True:
                     if len(name) == 0:
                         name = "unknown"
+                    if not name.isalnum() :
+                        print 'No blanks, dashes or special characters are allowed! Retry'   
+#                        m = True        
+                        break
                     ok = raw_input("Save as '"+name+"'? [Y/n/m] ")
                     if ok in ('y', 'ye', 'yes',''):
                         return name
