@@ -121,7 +121,7 @@ class Controller:
                         start = float(c._segments[ next ].get_start())/100
                         print "play at = %s " %  start
                         self.player.mpc.Seek( start, 2 )
-                        time.sleep(1)
+                        #time.sleep(1)
                     else:
                         print 'pause'
                         self.toggle_pause()
@@ -191,7 +191,19 @@ class Controller:
     
     def on_select_cluster(self, event):
         print "select"
+        c = self.get_current_cluster()
+        first_segments = c._segments[0]
+        
+        offset = float(first_segments.get_start())/100
+        self.player.mpc.Seek( offset ,2)
+        
+        self.player.playbackSlider.SetValue(offset)
+        secsPlayed = time.strftime('%M:%S', time.gmtime(offset))
+        self.player.trackCounter.SetLabel(secsPlayed)
+        
+        
         self.toggle_pause()
+        self.on_update_playback(None)
         c = self.get_current_cluster()
         
         text = "Name %s\nSpeaker %s\nMean %s\nDistance %s" %(c.get_name(), c.get_speaker(), c.get_mean(), c.get_distance())
@@ -207,7 +219,6 @@ class Controller:
     def toggle_play(self):
         self.clusters_list.play_button.SetLabel("Pause")
         self.mode = TRAIN_ON
-        print "play ",self.player.playbackTimer.IsRunning() 
         if not self.player.playbackTimer.IsRunning():
             self.player.mpc.Pause()
             self.player.playbackTimer.Start()
@@ -215,22 +226,20 @@ class Controller:
     def toggle_pause(self):
         self.clusters_list.play_button.SetLabel("Play")
         self.mode = TRAIN_OFF   
-        print "pause ",self.player.playbackTimer.IsRunning()
         if self.player.playbackTimer.IsRunning():
-               self.player.mpc.Pause()
-               self.player.playbackTimer.Stop()       
+            self.player.mpc.Pause()
+            self.player.playbackTimer.Stop()       
                  
     def on_play_cluster(self, event):
         
         if self.mode == TRAIN_OFF:
-            self.toggle_play()
             c = self.get_current_cluster()
             first_segments = c._segments[0]
-           # print "on_play_cluster"
             print first_segments.get_start()
             c.print_segments()
+            self.clusters_list.play_button.SetLabel("Stop")
             self.player.mpc.Seek( float(first_segments.get_start())/100 ,2)
-            #self.player.mpc.
+            self.toggle_play()
         else:
             self.toggle_pause()    
         
@@ -326,8 +335,8 @@ class MainFrame(wx.Frame):
         srMenu = wx.Menu()
         self.add_file_menu_item = fileMenu.Append(wx.NewId(), "&Open video", "Add Media File")
         self.run_menu_item = srMenu.Append(wx.NewId(), "&Run Recognition")
-        self.train_menu_item = srMenu.Append(wx.NewId(), "&Test ")
-        self.train_menu_item.Enable(True)
+        self.train_menu_item = srMenu.Append(wx.NewId(), "&Save ")
+        self.train_menu_item.Enable(False)
         menubar.Append(fileMenu, '&File')
         menubar.Append(srMenu, '&Speaker Recognition')
  
@@ -441,9 +450,10 @@ class Player(wx.Panel):
  
     def on_play(self, event):
         """"""
-        print "playing..."
-        self.mpc.Pause()
-        self.playbackTimer.Start()
+        if not self.playbackTimer.IsRunning():
+            print "playing..."
+            self.mpc.Pause()
+            self.playbackTimer.Start()
         
     def on_next(self, event):
         """"""
@@ -455,8 +465,7 @@ class Player(wx.Panel):
         print "backwarding..."
         self.mpc.Seek(-5)    
 
-  
-            #self.trackCounter.SetForegroundColour("WHITE")
+        #self.trackCounter.SetForegroundColour("WHITE")
 
 class ClustersList(wx.Panel):
     def __init__(self, parent):
