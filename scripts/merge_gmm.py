@@ -32,9 +32,9 @@ if __name__ == '__main__':
 		print 'not enough arguments'
 		exit(0)
 	if len(input_files) == 1 and len(output_file) == 1:
-		shutil.copy(input_files[0],output_file[0])
+		shutil.copy(input_files[0], output_file[0])
 		exit(0)
 
 	output_file = output_file[0]
-	merge_gmms(input_files,output_file)
+	merge_gmms(input_files, output_file)
 

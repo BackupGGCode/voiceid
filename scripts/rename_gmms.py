@@ -21,8 +21,8 @@
 
 import struct
 import sys
-import os,shutil
-from voiceid import split_gmm,merge_gmms,rename_gmm
+import os, shutil
+from voiceid import split_gmm, merge_gmms, rename_gmm
 
 
 
@@ -41,11 +41,11 @@ if __name__ == '__main__':
     files = os.listdir(output_dir)
     files_path = [os.path.join(output_dir, f) for f in files]
     for f in files_path:
-        rename_gmm(f,input_name)
+        rename_gmm(f, input_name)
     
     files_path = [os.path.join(output_dir, f) for f in files]
     
-    merge_gmms(files_path,input_name+".gmm")
+    merge_gmms(files_path, input_name + ".gmm")
     
     os.remove(input_file) 
         

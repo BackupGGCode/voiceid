@@ -24,4 +24,4 @@ import sys, struct
 
 
 if __name__ == '__main__':
-	split_gmm( sys.argv[1] , '.')
+	split_gmm(sys.argv[1] , '.')

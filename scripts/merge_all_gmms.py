@@ -33,12 +33,12 @@ from voiceid import merge_gmms
 def get_speaker(input_file):
     #input_file = sys.argv[1]
 
-    gmm = open(input_file,'r')
+    gmm = open(input_file, 'r')
 
     kind = gmm.read(8)
 
     num_gmm_string = gmm.read(4)
-    num_gmm = struct.unpack('>i', num_gmm_string )
+    num_gmm = struct.unpack('>i', num_gmm_string)
 
     if num_gmm != (1,):
        print str(num_gmm) + " gmms"
@@ -47,9 +47,9 @@ def get_speaker(input_file):
 
     gmm_1 = gmm.read(8)
 
-    nothing =  gmm.read(4)
+    nothing = gmm.read(4)
 
-    str_len = struct.unpack('>i', gmm.read(4) )
+    str_len = struct.unpack('>i', gmm.read(4))
     name = gmm.read(str_len[0])
 
   
@@ -65,9 +65,9 @@ if __name__ == '__main__':
             s = get_speaker(f)
 	    if not speakers.has_key(s):
 		speakers[s] = []
-	    if str(f) == str(s+".gmm"):
-		shutil.move(f,s+"_____.gmm")
-		speakers[s].append(s+"_____.gmm")
+	    if str(f) == str(s + ".gmm"):
+		shutil.move(f, s + "_____.gmm")
+		speakers[s].append(s + "_____.gmm")
 	    else:
 		speakers[s].append(f)
     	
@@ -75,11 +75,11 @@ if __name__ == '__main__':
 
 	
     for sp in speakers:  
-	out = sp+".gmm"
+	out = sp + ".gmm"
 	if len(speakers[sp]) == 1:
-		os.rename(speakers[sp][0],sp+".gmm")		
+		os.rename(speakers[sp][0], sp + ".gmm")		
         else:		
-	        merge_gmms(speakers[sp],out)    
+	        merge_gmms(speakers[sp], out)    
 		for s in speakers[sp]:
 			os.remove(s)	
 	

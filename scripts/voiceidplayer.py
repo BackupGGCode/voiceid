@@ -17,8 +17,8 @@ bitmapDir = os.path.join(dirName, 'bitmaps')
 LIST_ID = 26
 PLAY_ID = 1
 EDIT_ID = 0
-OK_DIALOG =33
-CANCEL_DIALOG =34
+OK_DIALOG = 33
+CANCEL_DIALOG = 34
 TRAIN_ON = 100
 TRAIN_OFF = 101
 class Controller:
@@ -111,24 +111,24 @@ class Controller:
             segments.reverse()
             n = 0
             for s in segments:
-                end = float(s.get_end())/100
-                print "offset = %s  end = %s " % (offset,end)
+                end = float(s.get_end()) / 100
+                #print "offset = %s  end = %s " % (offset, end)
                 if offset >= end :
-                    print "n %s" %n
-                    next = len(c._segments) - n + 1
-                    if  n>1 :
+                    print "n %s" % n
+                    next = len(c._segments) - n
+                    if  n > 0 :
                         print "successivo = %s" % next
-                        start = float(c._segments[ next ].get_start())/100
-                        print "play at = %s " %  start
-                        self.player.mpc.Seek( start, 2 )
+                        start = float(c._segments[ next ].get_start()) / 100
+                        print "play at = %s " % start
+                        self.player.mpc.Seek(start, 2)
                         #time.sleep(1)
                     else:
                         print 'pause'
                         self.toggle_pause()
                     break
-                elif offset >= float(s.get_start())/100:
+                elif offset >= float(s.get_start()) / 100:
                     break
-                n+=1
+                n += 1
                         
                     
                     
@@ -150,11 +150,11 @@ class Controller:
         t = msg.data
         self.frame.set_status_text(t)
         u, k = self.model.get_clusters_info()
-        text = "Speakers info:\n " +  str(u) + " unknown \n "+  str(k)+" known" 
+        text = "Speakers info:\n " + str(u) + " unknown \n " + str(k) + " known" 
         self.clusters_list.set_info_clusters(text)
-        clusters =  self.model.get_clusters()
+        clusters = self.model.get_clusters()
         for c in clusters.values():
-            self.clusters_list.add_cluster(c.get_name(),c.get_speaker())
+            self.clusters_list.add_cluster(c.get_name(), c.get_speaker())
             
             
     def on_update_playback(self, event):
@@ -194,21 +194,24 @@ class Controller:
         c = self.get_current_cluster()
         first_segments = c._segments[0]
         
-        offset = float(first_segments.get_start())/100
-        self.player.mpc.Seek( offset ,2)
+        offset = float(first_segments.get_start()) / 100
+        self.player.mpc.Seek(offset , 2)
         
         self.player.playbackSlider.SetValue(offset)
         secsPlayed = time.strftime('%M:%S', time.gmtime(offset))
         self.player.trackCounter.SetLabel(secsPlayed)
         
-        
         self.toggle_pause()
-        self.on_update_playback(None)
+        
         c = self.get_current_cluster()
         
-        text = "Name %s\nSpeaker %s\nMean %s\nDistance %s" %(c.get_name(), c.get_speaker(), c.get_mean(), c.get_distance())
+        text = "Name %s\nSpeaker %s\nMean %s\nDistance %s" % (c.get_name(), c.get_speaker(), c.get_mean(), c.get_distance())
         
         self.clusters_list.set_info_clusters(text)
+        
+        index = self.clusters_list.list.GetSelection()
+        self.clusters_list.list.SetItemBackgroundColour(index,"#3ca1fd")
+        self.clusters_list.list.Layout()
         
         self.clusters_list.buttons_sizer.ShowItems(True)
         self.clusters_list.Layout()
@@ -217,15 +220,17 @@ class Controller:
         self.on_edit_cluster(event)
         
     def toggle_play(self):
-        self.clusters_list.play_button.SetLabel("Pause")
+        self.clusters_list.play_button.SetLabel("Stop")
         self.mode = TRAIN_ON
+        wx.CallAfter(Publisher().sendMessage, "update_status", "Train ON ...")
         if not self.player.playbackTimer.IsRunning():
             self.player.mpc.Pause()
             self.player.playbackTimer.Start()
             
     def toggle_pause(self):
         self.clusters_list.play_button.SetLabel("Play")
-        self.mode = TRAIN_OFF   
+        self.mode = TRAIN_OFF  
+        wx.CallAfter(Publisher().sendMessage, "update_status", "Train OFF ...")
         if self.player.playbackTimer.IsRunning():
             self.player.mpc.Pause()
             self.player.playbackTimer.Stop()       
@@ -237,15 +242,15 @@ class Controller:
             first_segments = c._segments[0]
             print first_segments.get_start()
             c.print_segments()
-            self.clusters_list.play_button.SetLabel("Stop")
-            self.player.mpc.Seek( float(first_segments.get_start())/100 ,2)
+            self.player.mpc.Seek(float(first_segments.get_start()) / 100 , 2)
+            
             self.toggle_play()
         else:
             self.toggle_pause()    
         
     def on_edit_cluster(self, event):
         
-        self.cluster_form =ClusterForm(self.frame,"Edit cluster speaker")
+        self.cluster_form = ClusterForm(self.frame, "Edit cluster speaker")
         self.cluster_form.Bind(wx.EVT_BUTTON, self.set_speaker_name)
         self.cluster_form.Layout()
         self.cluster_form.ShowModal()
@@ -260,10 +265,10 @@ class Controller:
             speaker = self.cluster_form.tc1.GetValue()
             if not len(speaker) == 0: 
                 c = self.get_current_cluster()
-                
+                index = self.clusters_list.list.GetSelection()
                 c.set_speaker(speaker)
-                
-                self.clusters_list.list.SetString(index,name + " ("+speaker+ ")")
+                name = c.get_name()
+                self.clusters_list.list.SetString(index, name + " (" + speaker + ")")
                 
                 #self.clusters_list.list.SetSelection(index)
                 
@@ -297,24 +302,24 @@ class ClusterForm(wx.Dialog):
 
         title = wx.StaticText(self, label="Speaker")
 
-        self.tc1 = wx.TextCtrl(self,size=(150,25))
+        self.tc1 = wx.TextCtrl(self, size=(150, 25))
 
         fgs.AddMany([(title), (self.tc1, 1, wx.EXPAND)])
 
         fgs.AddGrowableRow(2, 1)
         fgs.AddGrowableCol(1, 1)
 
-        hbox.Add(fgs, flag=wx.ALL|wx.EXPAND, border=15)
+        hbox.Add(fgs, flag=wx.ALL | wx.EXPAND, border=15)
         self.b_ok = wx.Button(self, label='Ok', id=OK_DIALOG)
         self.b_cancel = wx.Button(self, label='Cancel', id=CANCEL_DIALOG)
 #        self.Bind(wx.EVT_BUTTON, self.OnClose, id=1)
 #        self.Bind(wx.EVT_BUTTON, self.OnRandomMove, id=2)
         
-        buttonbox.Add(self.b_ok,1, border=15)
-        buttonbox.Add(self.b_cancel,1, border=15)
+        buttonbox.Add(self.b_ok, 1, border=15)
+        buttonbox.Add(self.b_cancel, 1, border=15)
         
-        vbox.Add(hbox, flag= wx.ALIGN_CENTER|wx.ALL|wx.EXPAND)
-        vbox.Add(buttonbox, flag= wx.ALIGN_CENTER)
+        vbox.Add(hbox, flag=wx.ALIGN_CENTER | wx.ALL | wx.EXPAND)
+        vbox.Add(buttonbox, flag=wx.ALIGN_CENTER)
         self.SetSizer(vbox)
         
 
@@ -337,6 +342,7 @@ class MainFrame(wx.Frame):
         self.run_menu_item = srMenu.Append(wx.NewId(), "&Run Recognition")
         self.train_menu_item = srMenu.Append(wx.NewId(), "&Save ")
         self.train_menu_item.Enable(False)
+        self.frame.run_menu_item.Enable(False)
         menubar.Append(fileMenu, '&File')
         menubar.Append(srMenu, '&Speaker Recognition')
  
@@ -386,7 +392,7 @@ class Player(wx.Panel):
         self.sizer.Layout()
     
     
-    def update_slider(self,event):
+    def update_slider(self, event):
         
         self.mpc.Seek(self.playbackSlider.GetValue(), 2)
     
@@ -427,7 +433,7 @@ class Player(wx.Panel):
         print 'Media started!'
         t_len = self.mpc.GetTimeLength()
         self.mpc.SetProperty("loop", 0)
-        self.mpc.SetProperty("osdlevel",0) 
+        self.mpc.SetProperty("osdlevel", 0) 
         self.playbackSlider.SetRange(0, t_len)
         self.playbackTimer.Start(100) 
 
@@ -475,10 +481,10 @@ class ClustersList(wx.Panel):
         self.sizer = wx.BoxSizer(wx.VERTICAL)
         
         self.buttons_sizer = wx.BoxSizer(wx.HORIZONTAL)
-        self.play_button = wx.Button(self,label="Play",id = PLAY_ID)
-        self.edit_button = wx.Button(self,label="Edit", id = EDIT_ID)
-        self.buttons_sizer.Add(self.play_button,1,  wx.CENTER)
-        self.buttons_sizer.Add(self.edit_button,1,  wx.CENTER)
+        self.play_button = wx.Button(self, label="Play", id=PLAY_ID)
+        self.edit_button = wx.Button(self, label="Edit", id=EDIT_ID)
+        self.buttons_sizer.Add(self.play_button, 1, wx.CENTER)
+        self.buttons_sizer.Add(self.edit_button, 1, wx.CENTER)
         
         self.buttons_sizer.ShowItems(False)
         
@@ -492,20 +498,20 @@ class ClustersList(wx.Panel):
         #sb_info.SetForegroundColour("#FFF")
         
         self.boxsizer_list = wx.StaticBoxSizer(sb_list, wx.VERTICAL)
-        self.boxsizer_list.Add(self.list,5, wx.EXPAND | wx.ALL, 2)
+        self.boxsizer_list.Add(self.list, 5, wx.EXPAND | wx.ALL, 2)
         
         self.boxsizer_info = wx.StaticBoxSizer(sb_info, wx.VERTICAL)
-        self.boxsizer_info.Add(self.info,5, wx.EXPAND | wx.ALL, 2)
-        self.boxsizer_info.Add(self.buttons_sizer,1, wx.ALL |wx.EXPAND)
+        self.boxsizer_info.Add(self.info, 5, wx.EXPAND | wx.ALL, 2)
+        self.boxsizer_info.Add(self.buttons_sizer, 1, wx.ALL | wx.EXPAND)
         
         
-        self.sizer.Add(self.boxsizer_info, 2, wx.EXPAND | wx.ALL,2)
-        self.sizer.Add(self.boxsizer_list, 5, wx.EXPAND | wx.ALL,2)
+        self.sizer.Add(self.boxsizer_info, 2, wx.EXPAND | wx.ALL, 2)
+        self.sizer.Add(self.boxsizer_list, 5, wx.EXPAND | wx.ALL, 2)
         
         self.SetSizer(self.sizer)
 
-    def add_cluster(self, cluster_label,cluster_speaker):
-        self.list.Append(cluster_label+" ("+cluster_speaker+")")
+    def add_cluster(self, cluster_label, cluster_speaker):
+        self.list.Append(cluster_label + " (" + cluster_speaker + ")")
         
         
     def set_info_clusters(self, text):

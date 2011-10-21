@@ -26,12 +26,12 @@ if __name__ == '__main__':
 
 	input_file = sys.argv[1]
 
-	gmm = open(input_file,'r')
+	gmm = open(input_file, 'r')
 
 	kind = gmm.read(8)
 
 	num_gmm_string = gmm.read(4) 
-	num_gmm = struct.unpack('>i', num_gmm_string )
+	num_gmm = struct.unpack('>i', num_gmm_string)
 
 	if num_gmm != (1,):
 		print str(num_gmm) + " gmms"
@@ -40,9 +40,9 @@ if __name__ == '__main__':
 
 	gmm_1 = gmm.read(8)
 
-	nothing =  gmm.read(4) 
+	nothing = gmm.read(4) 
 
-	str_len = struct.unpack('>i', gmm.read(4) )
+	str_len = struct.unpack('>i', gmm.read(4))
 	name = gmm.read(str_len[0])
 
 
