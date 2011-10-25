@@ -84,7 +84,7 @@ class Controller:
                     old_status = self.model.get_status()
                     wx.CallAfter(Publisher().sendMessage, "update_status", self.model.get_working_status() + " ...")
             except StandardError:
-                 print "Error in print_logger"
+                print "Error in print_logger"
         self.on_finish_process()
         
     def on_finish_process(self):
@@ -134,7 +134,7 @@ class Controller:
                     
             #self.player.
         
-   #----------------------------------------------------------------------
+#----------------------------------------------------------------------
     def update_status(self, msg):
         """
         Receives data from thread and updates the status bar
@@ -215,6 +215,12 @@ class Controller:
         
         self.clusters_list.buttons_sizer.ShowItems(True)
         self.clusters_list.Layout()
+        
+        segs = [ (s.get_start(), s.get_end()) for s in c._segments  ]
+        print segs
+        self.player.draw_cluster_segs(segs)
+#        self.on_update_playback(event)
+        
             
     def on_test(self, event):
         self.on_edit_cluster(event)
@@ -240,6 +246,7 @@ class Controller:
         if self.mode == TRAIN_OFF:
             c = self.get_current_cluster()
             first_segments = c._segments[0]
+            # print "on_play_cluster"
             print first_segments.get_start()
             c.print_segments()
             self.player.mpc.Seek(float(first_segments.get_start()) / 100 , 2)
@@ -342,7 +349,7 @@ class MainFrame(wx.Frame):
         self.run_menu_item = srMenu.Append(wx.NewId(), "&Run Recognition")
         self.train_menu_item = srMenu.Append(wx.NewId(), "&Save ")
         self.train_menu_item.Enable(False)
-        self.frame.run_menu_item.Enable(False)
+        self.run_menu_item.Enable(False)
         menubar.Append(fileMenu, '&File')
         menubar.Append(srMenu, '&Speaker Recognition')
  
@@ -365,9 +372,18 @@ class Player(wx.Panel):
         self.controlSizer = self.build_player_controls()
         self.sliderSizer = wx.BoxSizer(wx.HORIZONTAL)
         
-        # create slider
+        self.colorSizer =  wx.BoxSizer(wx.VERTICAL)
+        
         self.playbackSlider = wx.Slider(self, size=wx.DefaultSize)
-        self.sliderSizer.Add(self.playbackSlider, 1, wx.ALL | wx.EXPAND, 5)
+
+        self.colorPanel = ColorPanel(self, 99)
+        self.colorSizer.Add(self.colorPanel, 1, wx.ALL | wx.EXPAND,0)
+        
+        # create slider
+        
+        self.colorSizer.Add(self.playbackSlider, 1, wx.ALL | wx.EXPAND, 0)
+        
+        self.sliderSizer.Add(self.colorSizer, 1, wx.ALL | wx.EXPAND, 0)
  
         # create track counter
         self.trackCounter = wx.StaticText(self, label="00:00")
@@ -377,6 +393,7 @@ class Player(wx.Panel):
         self.playbackTimer = wx.Timer(self)
         
         self.sizer.Add(self.mpc, 1, wx.EXPAND | wx.ALL, 5)
+#        self.sizer.Add(self.colorPanel,0, wx.ALL | wx.EXPAND, 5)
         self.sizer.Add(self.sliderSizer, 0, wx.ALL | wx.EXPAND, 5)
         self.sizer.Add(self.controlSizer, 0, wx.ALL | wx.CENTER, 5)
         
@@ -391,6 +408,14 @@ class Player(wx.Panel):
         self.SetSizerAndFit(self.sizer)
         self.sizer.Layout()
     
+    
+    def draw_cluster_segs(self,segs):
+        print 'draw_cluster_segs'
+        self.colorPanel.clear()
+        
+        for s,e in segs:
+            self.colorPanel.write_slice(float(s)/100,float(e)/100)
+            
     
     def update_slider(self, event):
         
@@ -436,6 +461,10 @@ class Player(wx.Panel):
         self.mpc.SetProperty("osdlevel", 0) 
         self.playbackSlider.SetRange(0, t_len)
         self.playbackTimer.Start(100) 
+        
+        #test
+#        self.colorPanel.write_slice(0, 10)
+#        self.colorPanel.write_slice(30, 120)
 
     def on_media_finished(self, event):
         print 'Media finished!'
@@ -518,8 +547,52 @@ class ClustersList(wx.Panel):
 
         self.info.text_info.SetLabel(text)
         
-       
-    
+class ColorPanel(wx.Panel):
+    def __init__(self, parent, myid):
+        wx.Panel.__init__(self, parent, myid)
+#        self.SetBackgroundColour("white")
+
+        # start the paint event for DrawRectangle() and FloodFill()
+        self.Bind(wx.EVT_PAINT, self.OnPaint)
+        self.parent = parent
+
+    def OnPaint(self, evt):
+        pass
+#        self.write_slice(10,20)
+#        
+#        self.write_slice(5,8)
+#        self.write_slice(25,28)
+
+    def clear(self):
+        self.dc = wx.PaintDC(self)
+        self.dc.Clear()
+        del self.dc
+        
+    def write_slice(self, start_time, end_time):
+        width = self.GetSizeTuple()[0] -5
+        print width
+        time_l = self.parent.mpc.GetTimeLength()
+        print self.parent.mpc.GetTimeLength()
+        
+        pixel4sec =  float(width) / float( time_l )
+        
+        duration = end_time - start_time
+        
+        self._write_rectangle( start_time * pixel4sec, 10 , duration * pixel4sec, 10)  
+
+    def _write_rectangle(self,x,y,w,h):
+        self.dc = wx.PaintDC(self)
+#        self.dc.Clear()
+        self.dc.BeginDrawing()
+        
+        self.dc.SetPen(wx.Pen("BLACK",1))
+        # draw a few colorful rectangles ...
+
+        self.dc.SetBrush( wx.Brush((0,0,180), wx.SOLID ) )
+        self.dc.DrawRectangle(x,y,w,h)
+        self.dc.EndDrawing()
+        # free up the device context now
+        del self.dc
                
 class ClusterInfo():
     pass
@@ -528,7 +601,7 @@ class ClusterInfo():
 class Model:
     def __init__(self):
         self.voiceid = None
-        self.db = GMMVoiceDB('/home/michela/SpeakerRecognition/voiceid/scripts/test_db')
+        self.db = GMMVoiceDB('/home/mauro/dev/voiceid/scripts')
         self._clusters = None
         
     def load_video(self, video_path):        
@@ -568,7 +641,7 @@ class App(wx.App):
         
     def OnExit(self):
         pass
-         #self.controller.exit()
+        #self.controller.exit()
        
 if __name__ == "__main__":
     app = App(redirect=False)

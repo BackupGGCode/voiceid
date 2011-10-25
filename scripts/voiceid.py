@@ -182,9 +182,13 @@ class Cluster:
         self._segments = []
         self._seg_header = None
         self.speakers = {}
+        self.up_to_date = True
         self.wave = None
         self.mfcc = None
         self.dirname = dirname
+        
+    def __str__(self):
+        return "%s (%s)" % (self._name, self._speaker)
 
     def add_speaker(self, name, value):
         """ Add a speaker with a computed score for the cluster, if a better value is already present the new value will be ignored."""
@@ -203,6 +207,7 @@ class Cluster:
     
     def set_speaker(self,speaker):
         """ Set the cluster speaker 'by hand' """
+        self.up_to_date = False
         self._speaker = speaker
 
     def get_mean(self):
@@ -479,32 +484,18 @@ class Voiceid:
         t = {}
         files_in_db = self.get_db()._speakermodels  #TODO: avoid to look directly at the db entries 
 
-        def match_voice_wrapper(cluster, mfcc_name, db_entry, gender ):
-            """ A wrapper to match the voices each in a different Thread """
-            results = self.get_db().match_voice( mfcc_name, db_entry, gender)
-            for r in results:
-                self[cluster].add_speaker( r, results[r] )
-                
-        def alive_threads():
-            """ Check how much threads are running and alive """ 
-            num = 0
-            for thr in t:
-                if t[thr].is_alive():
-                    num += 1
-            return num
-        
        
         for cluster in self._clusters:            
             files = files_in_db[ self[cluster].gender ]
             filebasename = os.path.join(basename,cluster)
             for f in files:                
-                if  alive_threads()  < thrd_n :
-                    t[f+cluster] = threading.Thread( target=match_voice_wrapper, args=( cluster ,  filebasename+'.mfcc', os.path.splitext(f)[0], self[cluster].gender ) )
+                if  alive_threads(t)  < thrd_n :
+                    t[f+cluster] = threading.Thread( target=self.match_voice_wrapper, args=( cluster ,  filebasename+'.mfcc', os.path.splitext(f)[0], self[cluster].gender ) )
                     t[f+cluster].start()
                 else:
-                    while alive_threads() > thrd_n:
+                    while alive_threads(t) > thrd_n:
                         time.sleep(1)
-                    t[f+cluster] = threading.Thread( target=match_voice_wrapper, args=( cluster,  filebasename+'.mfcc', os.path.splitext(f)[0], self[cluster].gender ) )
+                    t[f+cluster] = threading.Thread( target=self.match_voice_wrapper, args=( cluster,  filebasename+'.mfcc', os.path.splitext(f)[0], self[cluster].gender ) )
                     t[f+cluster].start()                    
                     
         for thr in t:
@@ -513,6 +504,7 @@ class Voiceid:
                 
         if not quiet: print ""
         speakers = {}
+        
         for c in self._clusters:
             if not quiet: 
                 print "**********************************"
@@ -523,10 +515,9 @@ class Voiceid:
                 for speaker in self[c].speakers:
                     if not quiet: print "\t %s %s" % (speaker , self[c].speakers[ speaker ])
                 if not quiet: print '\t ------------------------'
-            try:
-                distance = self[c].get_distance()
-            except:
-                distance = 1000.0
+                
+            distance = self[c].get_distance()
+            
             try:
                 mean = self[c].get_mean()
                 m_distance = self[c].get_m_distance()
@@ -534,92 +525,105 @@ class Voiceid:
                 mean = 0
                 m_distance = 0
     
-            threads = {}
-            
             if interactive == True:
                 self.set_interactive( True )
                 
-                best = interactive_training(basename, c, speakers[c])
+                speakers[c] = best = interactive_training(basename, c, speakers[c])
                 
-                old_s = speakers[c]
-                speakers[c] = best
                 self[c].set_speaker(best)
                 
-                if old_s != speakers[c] : # interactive training results don't match batch training results 
-                    
-#                    if old_s != "unknown" : # the wrong (batch calculated) name of the speaker is not 'unknown' 
-#                        self.get_db().remove_model( os.path.join( basename, c) + '.mfcc', old_s, gender, self[c].value )  #remove the speaker model ---
-                    
-                    if speakers[c] != 'unknown': #the new speaker is not 'unknown'
-                        
-                        cont = 0
-                        wav_name = speakers[c]+".wav"
-                        if os.path.exists(wav_name):
-                            while True: #search an inexistent name for new gmm
-                                cont = cont +1
-                                wav_name = speakers[c]+""+str(cont)+".wav"
-                                if not os.path.exists(wav_name):
-                                    break
-                        basename_file = os.path.splitext(wav_name)[0]
-                        
-                        self[c].merge_waves(basename)
-                        
-                        shutil.move(self[c].wave, wav_name)
-                        
-                        if not quiet: print "name speaker %s " % speakers[c]
-                        
-                        def build_model_wrapper(wave_b, cluster, wave_dir, old_speaker):
-                            """ A procedure to wrap the model building to run in a Thread """
-                            try:
-                                ensure_file_exists(wave_b+'.seg')
-                            except:
-                                self[cluster]._generate_a_seg_file( wave_b+'.seg', wave_b)                             
-                         
-                            ensure_file_exists(wave_b+'.wav')
-                            new_speaker = self[cluster].get_speaker()
-                            self.get_db().add_model(wave_b, new_speaker, self[cluster].gender )
-                            match_voice_wrapper(cluster, wave_b+'.mfcc', new_speaker, self[cluster].gender)                            
-                            b_s = self[cluster].get_best_speaker()
-                            
-                            print 'b_s = %s   new_speaker = %s ' % ( b_s, new_speaker )
-                            
-                            if b_s != new_speaker :
-                                print "removing model for speaker %s" % (old_speaker)
-                                self.get_db().remove_model( os.path.join( wave_dir, cluster) + '.mfcc', old_speaker, self[cluster].gender, self[cluster].value )
-                                self[cluster].set_speaker(new_speaker)
-                                
-#                            if old_speaker != "unknown":
-#                                results = self.get_db().match_voice( mfcc_name, db_entry, gender)
-#                                for r in results:
-#                                    self[cluster].add_speaker( r, results[r] )
-
-                            if not keep_intermediate_files:
-                                os.remove("%s.gmm" % wave_b )
-                                os.remove("%s.wav" % wave_b )
-                                os.remove("%s.seg" % wave_b )
-                                os.remove("%s.mfcc" % wave_b )
-                                os.remove("%s.ident.seg" % wave_b )
-                                os.remove("%s.init.gmm" % wave_b )
-                            #end build_model_wrapper
-                        
-                        threads[c] = threading.Thread( target=build_model_wrapper, args=(basename_file,c, basename, old_s) )
-                        threads[c].start()
-                    
             if not interactive:
                 if not quiet: print '\t best speaker: %s (distance from 2nd %f - mean %f - distance from mean %f ) ' % (speakers[c] , distance, mean, m_distance)    
+        
         
         sec = wave_duration( basename+'.wav' )
         total_time = time.time() - start_time
         self.set_time( total_time )
         self._status = 5
         if not quiet: print self.get_working_status()
-        if interactive and len(threads) > 0:
-            print "Waiting for working processes"
-            for t in threads:
-                if threads[t].is_alive():
-                    threads[t].join()
+        if interactive:
+            print "Updating db"
+            self.update_db(thrd_n)
+
         if not interactive:
             if not quiet: print "\nwav duration: %s\nall done in %dsec (%s) (diarization %dsec time:%s )  with %s threads and %d voices in db (%f)  " % ( humanize_time(sec), total_time, humanize_time(total_time), diarization_time, humanize_time(diarization_time), thrd_n, len(files_in_db['F'])+len(files_in_db['M'])+len(files_in_db['U']), float(total_time - diarization_time )/len(files_in_db) )
+            
+    def match_voice_wrapper(self,cluster, mfcc_name, db_entry, gender ):
+        """ A wrapper to match the voices each in a different Thread """
+        results = self.get_db().match_voice( mfcc_name, db_entry, gender)
+        for r in results:
+            self[cluster].add_speaker( r, results[r] )
+
+    def update_db(self,t_num=4):
+        """ Update voice """
+        def get_available_wav_basename(speaker):
+            cont = 0
+            wav_name = speaker+".wav"
+            if os.path.exists(wav_name):
+                while True: #search an inexistent name for new gmm
+                    cont = cont +1
+                    wav_name = speaker+""+str(cont)+".wav"
+                    if not os.path.exists(wav_name):
+                        break
+            return speaker+""+str(cont)
+        
+        
+        def build_model_wrapper(self, wave_b, cluster, wave_dir, new_speaker, old_speaker):
+            """ A procedure to wrap the model building to run in a Thread """
+            try:
+                ensure_file_exists(wave_b+'.seg')
+            except:
+                self[cluster]._generate_a_seg_file( wave_b+'.seg', wave_b)                             
+         
+            ensure_file_exists(wave_b+'.wav')
+#            new_speaker = self[cluster].get_speaker()
+            self.get_db().add_model(wave_b, new_speaker, self[cluster].gender )
+            self.match_voice_wrapper(cluster, wave_b+'.mfcc', new_speaker, self[cluster].gender)                            
+            b_s = self[cluster].get_best_speaker()
+            
+#            print 'b_s = %s   new_speaker = %s ' % ( b_s, new_speaker )
+            
+            if b_s != new_speaker :
+#                print "removing model for speaker %s" % (old_speaker)
+                self.get_db().remove_model( os.path.join( wave_dir, cluster) + '.mfcc', old_speaker, self[cluster].gender, self[cluster].value )
+                self[cluster].set_speaker(new_speaker)
+                
+
+            if not keep_intermediate_files:
+                os.remove("%s.gmm" % wave_b )
+                os.remove("%s.wav" % wave_b )
+                os.remove("%s.seg" % wave_b )
+                os.remove("%s.mfcc" % wave_b )
+                os.remove("%s.ident.seg" % wave_b )
+                os.remove("%s.init.gmm" % wave_b )
+            #end build_model_wrapper
+            
+        threads = {}
+        
+        for c in self._clusters.values():
+#            print c
+            if c.up_to_date == False:
+                
+                current_speaker = c.get_speaker()
+#                print current_speaker,' to update'
+                old_s= c.get_best_speaker()
+                if current_speaker != 'unknown' and current_speaker != old_s:
+                    basename_file = get_available_wav_basename(current_speaker)
+                    wav_name = basename_file+'.wav'
+                    basename = self.get_file_basename()
+                    c.merge_waves( basename )
+                    shutil.move(c.wave, wav_name)
+                    
+                    cluster_label = c.get_name()
+                    threads[ cluster_label ] = threading.Thread( target=build_model_wrapper, args=(self, basename_file, cluster_label, basename, current_speaker, old_s) )
+                    threads[ cluster_label ].start()
+
+                c.up_to_date = True
+        
+        for t in threads:
+            if threads[t].is_alive():
+                threads[t].join()
+
 
     def to_XMP_string(self):
         """ Return the Adobe XMP representation of the information about who is speaking and when. The tags used are Tracks and Markers, the ones used by Adobe Premiere for speech-to-text information.
@@ -787,6 +791,14 @@ if verbose:
 #-------------------------------------
 #  utils
 #-------------------------------------
+def alive_threads(t):
+    """ Check how much threads are running and alive in a thread dictionary """ 
+    num = 0
+    for thr in t:
+        if t[thr].is_alive():
+            num += 1
+    return num
+
 def start_subprocess(commandline):
     """ Start a subprocess using the given commandline and checks for correct termination """
     args = shlex.split(commandline)
