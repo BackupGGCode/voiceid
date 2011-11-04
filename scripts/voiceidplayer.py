@@ -345,6 +345,7 @@ class MainFrame(wx.Frame):
         menubar = wx.MenuBar()
         fileMenu = wx.Menu()
         srMenu = wx.Menu()
+        srSettings = wx.Menu()
         self.add_file_menu_item = fileMenu.Append(wx.NewId(), "&Open video", "Add Media File")
         self.run_menu_item = srMenu.Append(wx.NewId(), "&Run Recognition")
         self.train_menu_item = srMenu.Append(wx.NewId(), "&Save ")
@@ -352,7 +353,7 @@ class MainFrame(wx.Frame):
         self.run_menu_item.Enable(False)
         menubar.Append(fileMenu, '&File')
         menubar.Append(srMenu, '&Speaker Recognition')
- 
+        #menubar.Append(srSettings, '&Settings')
         self.SetMenuBar(menubar)
         
      
@@ -601,7 +602,7 @@ class ClusterInfo():
 class Model:
     def __init__(self):
         self.voiceid = None
-        self.db = GMMVoiceDB('/home/mauro/dev/voiceid/scripts')
+        self.db = GMMVoiceDB('/home/michela/SpeakerRecognition/voiceid/scripts/test_db')
         self._clusters = None
         
     def load_video(self, video_path):        
