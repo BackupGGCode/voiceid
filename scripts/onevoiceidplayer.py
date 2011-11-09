@@ -53,7 +53,8 @@ from wx.lib.pubsub import Publisher
 #-------------------------------------
 dirName = os.path.dirname(os.path.abspath(__file__))
 bitmapDir = os.path.join(dirName, 'bitmaps')
-
+OK_DIALOG = 33
+CANCEL_DIALOG = 34
 
 class Controller:
     """A class that represents a controller between the views (CentralPanel and MainFrame) and model data management (Models) """
@@ -70,7 +71,7 @@ class Controller:
         self.frame.Bind(wx.EVT_MENU, lambda event: self.create_central_panel(event, False), self.frame.training_rec_menu_item)
         self.frame.Bind(wx.EVT_MENU, lambda event: self.create_central_panel(event, True), self.frame.start_rec_menu_item)
         Publisher().subscribe(self.update_status, "update_status")
-
+        Publisher().subscribe(self.create_dialog, "crea_dialog")
 
     def create_central_panel(self,event,test_mode):
         """ Create a central panel for displaying data """
@@ -99,20 +100,74 @@ class Controller:
         
         self.central_panel.timer.Start(1000)
         self.central_panel.toggle_record_button()
-        self.model.start_record(self.on_pause)
+        if self.model.get_test_mode() == True:
+            self.model.start_record(self.on_pause)
+        else:
+            self.model.start_record(self.on_pause, self.open_dialog)
         wx.CallAfter(Publisher().sendMessage, "update_status", "Recording ... ")
         
         
     def on_pause(self,event=None):  
         """ Stop record process """  
         
-        if self.model.get_test_mode():
+        def wait_stop(test_mode):
             self.model.stop_record()
+            stop_sign = True
+            wx.CallAfter(Publisher().sendMessage, "update_status", "Wait for updates ... ") 
+            while not self.model.get_process_status():
+                time.sleep(2)
+            best = self.model.get_last_result()[0]
+            print best
+            wx.CallAfter(Publisher().sendMessage, "update_status", "Best speaker is "+best[0])
+        
+            self.central_panel.toggle_stop_button()
+        
+        self.central_panel.pauseButton.Disable()
+        
+        if  self.model.get_test_mode() == True:
+            self.t = threading.Thread(target=wait_stop, args=(True,))
+            self.t.start()
+        else:
+            self.central_panel.toggle_stop_button()
+
         self.central_panel.timer.Stop()
-        wx.CallAfter(Publisher().sendMessage, "update_status", "Record stopped")
-        self.central_panel.toggle_stop_button()
+        
+        
+    
+    def open_dialog(self, file):
+        """
+        Open input dialog to insert speaker name
+        """
+        print "open dialog"
+        wx.CallAfter(Publisher().sendMessage, "crea_dialog",file)
+        
+    def create_dialog(self, file):
+        print "create dialog"
+        
+        self.cluster_form = ClusterForm(self.frame, "Edit cluster speaker")
+        
+        self.cluster_form.Bind(wx.EVT_BUTTON, lambda event: self.set_speaker_name(event,str(file.data)))
+        self.cluster_form.Layout()
+        self.cluster_form.ShowModal()
 
 
+    def set_speaker_name(self, event, file):
+        
+        wx.CallAfter(Publisher().sendMessage, "update_status", "Wait for db updates ... ") 
+        
+        if event.GetId() == CANCEL_DIALOG:
+            self.cluster_form.Destroy()
+            return
+    
+        if event.GetId() == OK_DIALOG:
+            speaker = self.cluster_form.tc1.GetValue()
+            if not len(speaker) == 0: 
+                if self.model.set_speaker_name(speaker, file) == True:
+                    wx.CallAfter(Publisher().sendMessage, "update_status", "Speaker added in db")
+                else:
+                    wx.CallAfter(Publisher().sendMessage, "update_status", "Error adding speaker in db")   
+            self.cluster_form.Destroy()
+            
     def update_status(self, msg):
         """
         Receives data from thread and updates the status bar
@@ -124,13 +179,17 @@ class Controller:
     def update(self):
         """ Update speaker's list  """
         
-        result = self.model.get_last_result()
-        print "result", result
-        i = 0
-        self.central_panel.textList.Clear()
-        for r in result:
-            i+=1
-            self.central_panel.textList.Append(str(i) +"  "+r[0])
+        if self.model.get_test_mode() == True:
+            result = self.model.get_last_result()
+            i = 0
+            self.central_panel.textList.Clear()
+            for r in result:
+                i+=1
+                self.central_panel.textList.Append(str(i) +"  "+r[0])
+           
+
+
+
 
 class Record():
     """
@@ -176,13 +235,11 @@ class Record():
                current = float(i) * float(self.chunk) / float(self.rate)
                #test mode
                if self.mode == True and current>0 and ( current % self.partial_seconds ) == 0:
-                   print "test mode"
-                   self.thread_rec = threading.Thread(target=self.save_wave, args =(all,str(current)))
+                   self.thread_rec = threading.Thread(target=self.save_wave, args =(all,str(int(current))+".wav"))
                    self.thread_rec.start()
                    
                #train mode    
                if not self.mode  and self.record_seconds != None :
-                   print "train mode"
                    if  current >= self.record_seconds:
                        self.thread_rec = threading.Thread(target=self.save_wave, args =(all,self.wave_output_filename))
                        self.thread_rec.start()
@@ -198,7 +255,6 @@ class Record():
         return not self._stop_signal 
     
     def stop(self):
-        print "stop"
         """ Stop the record"""
         
         if self.stop_callback != None:
@@ -213,20 +269,20 @@ class Record():
         
         print "save_wave ", name
         data = ''.join(all)
-        file = "test_"+name+".wav"
-        wf = wave.open(file, 'wb')
+       
+        wf = wave.open(name, 'wb')
         wf.setnchannels(self.channels)
         wf.setsampwidth(self.p.get_sample_size(self.format))
         wf.setframerate(self.rate)
         wf.writeframes(data)
         wf.close()
-        self.save_callback(file)
+        self.save_callback(name)
     
 
 class MainFrame(wx.Frame):
     """ Frame containing all GUI components """
     def __init__(self):
-        wx.Frame.__init__(self, None, title="Voiceid", size=(500, 400))
+        wx.Frame.__init__(self, None, title="Voiceid", size=(600, 500))
         self._create_menu()
         self.sb = self.CreateStatusBar()
         self.Show()
@@ -256,7 +312,7 @@ class MainPanel(wx.Panel):
     """ A panel containing a window to write input/output info and control's buttons """
     
     def __init__(self, parent, test_mode):
-        wx.Panel.__init__(self, parent, -1,size=(300, 550))
+        wx.Panel.__init__(self, parent, -1,size=(500, 400))
         
         self.parent = parent
         
@@ -280,9 +336,9 @@ class MainPanel(wx.Panel):
              
              self.staticText = wx.StaticText(self, wx.ID_ANY, label="TRAINING MODE", style=wx.ALIGN_CENTER)
              
-             self.textRead = wx.TextCtrl(self, size=(250, 120))
+             self.textRead = wx.TextCtrl(self, size=(450, 320),  style=wx.TE_MULTILINE)
               
-             text = """La Sardegna, la seconda isola piu estesa del mar Mediterraneo dopo la Sicilia (ottava in Europa e la quarantottesima
+             text = """La Sardegna, la seconda isola piu estesa del mar Mediterraneo dopo la Sicilia (ottava in Europa e la quarantottesima 
              nel mondo) e una regione italiana a statuto speciale denominata Regione Autonoma della Sardegna.
              Lo Statuto Speciale, sancito nella Costituzione del 1948, garantisce l'autonomia amministrativa delle istituzioni
              locali a tutela delle peculiarita etno-linguistiche e geografiche.
@@ -319,7 +375,7 @@ class MainPanel(wx.Panel):
         
         font = wx.Font(40, wx.SWISS, wx.NORMAL, wx.NORMAL, False, u'Comic Sans MS')
         
-        self.trackCounter = wx.StaticText(self, label="     00",style=wx.EXPAND | wx.ALL)
+        self.trackCounter = wx.StaticText(self, label="     00:00",style=wx.EXPAND | wx.ALL)
         
         self.trackCounter.SetFont(font)
         
@@ -374,7 +430,7 @@ class Model:
     def __init__(self):
         self.voiceid = None
         self.db = GMMVoiceDB('/home/michela/SpeakerRecognition/voiceid/scripts/test_db')
-        self._clusters = None
+        self._cluster = None
         self._max_record_time = 6
         self._partial_record_time = 5
         self.test_mode = None
@@ -410,19 +466,31 @@ class Model:
 
     def save_callback(self, file=None):
         """ Adds a file to the queue after it's been saved """
+        if self.test_mode == True:
+            print file
+            self.queue_processes.append((file,None))
+            
+
+    def set_speaker_name(self, name, file):
+        """ Adds speaker model in db  """
+        f = os.path.splitext(file)[0]
         
-        self.queue_processes.append((file,None))
-    
+        print f
+        return self.db.add_model(f,name)
+        
+            
     def on_process(self):
         """ Extract speakers from each partial recording file """
-        
-        while self.record.get_thread_status():
+        #print self.record.get_thread_status()
+        print "onprocess"
+        while self.record.get_thread_status() == True:
             index = 0
-            #print self.queue_processes
+#            print self.queue_processes
             for file, result in self.queue_processes:
                 if result == None:
-                    self.load_wave(file)
-                    self.extract_speakers()
+                    print "extract"
+                    print file
+                    self.extract_speaker(file)
                     self.queue_processes[index] = ( file, self.get_best_five() )
                     self.notify()
                 index += 1
@@ -438,16 +506,19 @@ class Model:
                 return result
         return None
         
-    def start_record(self, stop_callback=None):
+    def start_record(self, stop_callback=None,save_callback = None ):
         """ start a new record process """
         
-        if self.test_mode: #self.frame.set_status_text("Stop recording")
+        self.queue_processes = []
+        
+        if self.test_mode == True: #self.frame.set_status_text("Stop recording")
             self.record = Record(None, self._partial_record_time,True, None,self.save_callback)
         else:
-            self.record = Record(self._max_record_time, 0, False, stop_callback,self.save_callback)
-        self._processing_thread = threading.Thread(target=self.on_process)
-        self._processing_thread.start()
+            self.record = Record(self._max_record_time, 0, False, stop_callback,save_callback)
+            
         self.record.start()
+        self._processing_thread = threading.Thread(target=self.on_process)
+        if self.test_mode == True: self._processing_thread.start()
         
     def set_test_mode(self, mode):
         """ Set mode to record - True for test mode False otherwise """
@@ -461,40 +532,98 @@ class Model:
     
     def stop_record(self):
         """ Stop record process """
-        
+        print "stop"
         self.record.stop()
-    
-    def load_wave(self, wave_path):  
-        """  """
-              
-        self.voiceid = Voiceid(self.db, wave_path, single = True)
         
-    def extract_speakers(self):
-        """ Extract speakers from a wave """
+    def get_process_status(self):
         
-        self.voiceid.extract_speakers(False, False, 4)
-        self._clusters = self.voiceid.get_clusters()
+        if self.test_mode == True:
+            q = self.queue_processes[:]
+            for file, result in q:
+                if result == None:
+                    return False
+            return True              
+                                
+    def extract_speaker(self, wave):
+        """ Extract speaker from a wave """
+        print "extract speaker"
+        print wave
+        
+        self.voiceid = Voiceid(self.db, wave, single = True)
+        self.voiceid.extract_speakers()
+        
 
     def get_status(self):
         """ Return voiceid status """
         
-        return self.voiceid.get_status()
-    
+        try:
+            return self.voiceid.get_status()
+        except IOError:
+            print "Voiceid not exist"
+            return None
+        
     def get_working_status(self):
         """ Return voiceid working status """
+        try:
+            return self.voiceid.get_working_status()
+        except IOError:
+            print "Voiceid not exist"
+            return None
         
-        return self.voiceid.get_working_status()
     
     def get_best_five(self):
         """ Return best five speakers """
+        try:
+            return self._get_cluster().get_best_five()
+        except IOError:
+            print "Voiceid not exist"
+            return None
         
-        return self.voiceid.get_cluster('S0').get_best_five()
     
-    def get_clusters(self):
+    def _get_cluster(self):
         """ Return all voiceid clusters """
+        try:
+            return self.voiceid.get_cluster('S0')
+        except IOError:
+            print "Voiceid not exist"
+            return None
+
+class ClusterForm(wx.Dialog):
+    def __init__(self, parent, title):
+        print "init"
+        wx.Dialog.__init__(self, parent, 20, title, wx.DefaultPosition, wx.Size(250, 100))
         
-        return self.voiceid.get_clusters()
-    
+        #panel = wx.Panel(self)
+        print " postinit"
+        vbox = wx.BoxSizer(wx.VERTICAL)
+        
+        hbox = wx.BoxSizer(wx.HORIZONTAL)
+        
+        buttonbox = wx.BoxSizer(wx.HORIZONTAL)
+        
+        fgs = wx.FlexGridSizer(3, 2, 9, 25)
+        
+        title = wx.StaticText(self, label="Speaker")
+        
+        self.tc1 = wx.TextCtrl(self, size=(150, 25))
+        
+        fgs.AddMany([(title), (self.tc1, 1, wx.EXPAND)])
+        
+        fgs.AddGrowableRow(2, 1)
+        fgs.AddGrowableCol(1, 1)
+        
+        hbox.Add(fgs, flag=wx.ALL | wx.EXPAND, border=15)
+        self.b_ok = wx.Button(self, label='Ok', id=OK_DIALOG)
+        self.b_cancel = wx.Button(self, label='Cancel', id=CANCEL_DIALOG)
+
+        
+        buttonbox.Add(self.b_ok, 1, border=15)
+        buttonbox.Add(self.b_cancel, 1, border=15)
+        
+        vbox.Add(hbox, flag=wx.ALIGN_CENTER | wx.ALL | wx.EXPAND)
+        vbox.Add(buttonbox, flag=wx.ALIGN_CENTER)
+        self.SetSizer(vbox)    
+        print " preshowt"
 class App(wx.App):
     def __init__(self, *args, **kwargs):
         wx.App.__init__(self, *args, **kwargs)
