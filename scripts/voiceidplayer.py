@@ -1,4 +1,37 @@
 #!/usr/bin/env python
+#############################################################################
+#
+# VoiceID, Copyright (C) 2011, Sardegna Ricerche.
+# Email: labcontdigit@sardegnaricerche.it, michela.fancello@crs4.it, 
+#        mauro.mereu@crs4.it
+# Web: http://code.google.com/p/voiceid
+# Authors: Michela Fancello, Mauro Mereu
+#
+# This program is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation, either version 3 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#############################################################################
+#
+# VoiceID is a speaker recognition/identification system written in Python,
+# based on the LIUM Speaker Diarization framework.
+#
+# VoiceID can process video or audio files to identify in which slices of 
+# time there is a person speaking (diarization); then it examines all those
+# segments to identify who is speaking. To do so you must have a voice models
+# database. To create the database you have to do a "train phase", in
+# interactive mode, by assigning a label to the unknown speakers.
+# You can also build yourself the speaker models and put those in the db
+# using the scripts to create the gmm files.
+#
+
+
 from multiprocessing import Process, cpu_count, active_children
 from pyinotify import Color
 from voiceid import *
@@ -21,6 +54,7 @@ OK_DIALOG = 33
 CANCEL_DIALOG = 34
 TRAIN_ON = 100
 TRAIN_OFF = 101
+
 class Controller:
     def __init__(self, app):
         self.model = Model()
@@ -38,7 +72,7 @@ class Controller:
         
         self.frame.Bind(wx.EVT_MENU, self.on_add_file, self.frame.add_file_menu_item)
         self.frame.Bind(wx.EVT_MENU, self.on_run, self.frame.run_menu_item)
-        self.frame.Bind(wx.EVT_MENU, self.on_test, self.frame.train_menu_item) 
+        self.frame.Bind(wx.EVT_MENU, self.on_save, self.frame.train_menu_item) 
         
         self.player.Bind(wx.EVT_TIMER, self.on_update_playback)
         
@@ -115,10 +149,10 @@ class Controller:
                 #print "offset = %s  end = %s " % (offset, end)
                 if offset >= end :
                     print "n %s" % n
-                    next = len(c._segments) - n
+                    next_ = len(c._segments) - n
                     if  n > 0 :
-                        print "successivo = %s" % next
-                        start = float(c._segments[ next ].get_start()) / 100
+                        print "successivo = %s" % next_
+                        start = float(c._segments[ next_ ].get_start()) / 100
                         print "play at = %s " % start
                         self.player.mpc.Seek(start, 2)
                         #time.sleep(1)
@@ -174,6 +208,13 @@ class Controller:
             self.player.trackCounter.SetLabel(secsPlayed)
         if self.mode == TRAIN_ON:
             self.on_play_segment(event)        
+            
+    def on_save(self,event):
+        wx.CallAfter(Publisher().sendMessage, "update_status", "Saving changes...")
+        self.model.save_changes()
+#        threading.Thread(target=self.model.save_changes).start()
+#        self.model.save_changes()
+        wx.CallAfter(Publisher().sendMessage, "update_status", "Train OFF ...")
             
     def on_run(self, event):
         """
@@ -415,7 +456,7 @@ class Player(wx.Panel):
         self.colorPanel.clear()
         
         for s,e in segs:
-            self.colorPanel.write_slice(float(s)/100,float(e)/100)
+            self.colorPanel.write_slice(float(s) / 100, float(e) / 100)
             
     
     def update_slider(self, event):
@@ -602,7 +643,7 @@ class ClusterInfo():
 class Model:
     def __init__(self):
         self.voiceid = None
-        self.db = GMMVoiceDB('/home/michela/SpeakerRecognition/voiceid/scripts/test_db')
+        self.db = GMMVoiceDB(os.path.expanduser('~/.voiceid/gmm_db'))
         self._clusters = None
         
     def load_video(self, video_path):        
@@ -634,6 +675,8 @@ class Model:
     def get_cluster(self, name):
         return self._clusters[name]
         
+    def save_changes(self):
+        self.voiceid.update_db(4)
     
 class App(wx.App):
     def __init__(self, *args, **kwargs):

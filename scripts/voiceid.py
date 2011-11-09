@@ -131,10 +131,12 @@ class GMMVoiceDB(VoiceDB):
         :param speaker_name the speaker in the wave
         :param gender the gender of the speaker (optional)  
         """
-        try:
-            _silence_segmentation(basepath)
-        except:
-            return False
+        extract_mfcc(basepath)
+        build_gmm(basepath, speaker_name)
+#        try:
+#            _silence_segmentation(basepath)
+#        except:
+#            return False
         if gender == None:
             def _get_gender_from_seg(segfile):
                 g = {'M':0, 'F':0, 'U':0}
@@ -150,15 +152,15 @@ class GMMVoiceDB(VoiceDB):
                     return 'F'
                 else: 
                     return 'U'
-                
-            _gender_detection(basepath)
             gender = _get_gender_from_seg(basepath + '.seg')
-        else:
-            shutil.move(basepath + '.s.seg', basepath + '.seg')
-        ident_seg(basepath, speaker_name)
-        _train_init(basepath)
-        extract_mfcc(basepath)
-        _train_map(basepath)
+                
+#            _gender_detection(basepath)
+#        else:
+#            shutil.move(basepath + '.s.seg', basepath + '.seg')
+#        ident_seg(basepath, speaker_name)
+#        _train_init(basepath)
+#        extract_mfcc(basepath)
+#        _train_map(basepath)
         
         gmm_path = basepath + '.gmm'
         orig_gmm = os.path.join(self.get_path(), 
@@ -636,6 +638,11 @@ class Voiceid:
         detection."""
         if self._single:
             self._to_MFCC()
+            try:
+                os.mkdir(self.get_file_basename())
+            except Exception,e:
+                if e.errno != 17:
+                    raise e
             _silence_segmentation(self._basename)
             _gender_detection(self._basename)
             segname = self._basename + '.seg'
@@ -692,6 +699,8 @@ class Voiceid:
             shutil.copy(self.get_file_basename() + '.mfcc', 
                         os.path.join(self.get_file_basename(), 'S0' + '.mfcc'))
             shutil.move(segname + '.tmp', segname)
+            shutil.copy(self.get_file_basename() + '.seg', 
+                        os.path.join(self.get_file_basename(), 'S0' + '.seg'))
             ensure_file_exists(segname)
         else:
             diarization(self._basename)
@@ -894,7 +903,6 @@ class Voiceid:
                                            self[cluster].gender )
                 self[cluster].set_speaker(new_speaker)
             if not keep_intermediate_files:
-                os.remove("%s.gmm" % wave_b )
                 os.remove("%s.wav" % wave_b )
                 os.remove("%s.seg" % wave_b )
                 os.remove("%s.mfcc" % wave_b )
