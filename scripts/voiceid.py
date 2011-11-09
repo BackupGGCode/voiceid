@@ -89,7 +89,7 @@ class VoiceDB:
     def _read_db(self):
         pass
     
-    def add_model(self, basepath, speaker_name, gender):
+    def add_model(self, basepath, speaker_name, gender=None):
         """
         :param basepath basename including absolulute path of the voice file
         :param speaker_name name or label of the speaker voice in the model
@@ -97,12 +97,12 @@ class VoiceDB:
         """
         pass
     
-    def remove_model(self, mfcc_file, speaker_name, gender, value):
+    def remove_model(self, mfcc_file, speaker_name, value, gender):
         """
         :param mfcc_file the feature(mfcc) file extracted from the wave
         :param speaker_name the name or label of the speaker 
-        :param gender the speaker gender 
         :param value the score obtained in the voice matching
+        :param gender the speaker gender 
         """
         pass 
     
@@ -125,8 +125,36 @@ class GMMVoiceDB(VoiceDB):
                   for f in os.listdir(os.path.join(self._path, g)) 
                   if f.endswith('.gmm') ]
     
-    def add_model(self, basepath, speaker_name, gender):
-        """Add a gmm model to db."""
+    def add_model(self, basepath, speaker_name, gender=None):
+        """Add a gmm model to db.
+        :param basepath the wave file basename and path
+        :param speaker_name the speaker in the wave
+        :param gender the gender of the speaker (optional)  
+        """
+        try:
+            _silence_segmentation(basepath)
+        except:
+            return False
+        if gender == None:
+            def _get_gender_from_seg(segfile):
+                g = {'M':0, 'F':0, 'U':0}
+                f = open(segfile, 'r')
+                for l in f.readlines():
+                    if not l.startswith(';;'):
+                        g[ l.split(' ')[4] ] +=1
+                f.close()    
+                
+                if g['M'] > g['F']:
+                    return 'M'
+                elif g['M'] < g['F']: 
+                    return 'F'
+                else: 
+                    return 'U'
+                
+            _gender_detection(basepath)
+            gender = _get_gender_from_seg(basepath + '.seg')
+        else:
+            shutil.move(basepath + '.s.seg', basepath + '.seg')
         ident_seg(basepath, speaker_name)
         _train_init(basepath)
         extract_mfcc(basepath)
@@ -143,13 +171,17 @@ class GMMVoiceDB(VoiceDB):
         except Exception,e:
             s = "File %s doesn't exist or not correctly created" % orig_gmm
             if str(e) == s:
-                shutil.copy(gmm_path, orig_gmm)
+                shutil.move(gmm_path, orig_gmm)
                 self._read_db()
                 return True
         return False
     
-    def remove_model(self, mfcc_file, speaker_name, gender, value):
-        """Remove a voice model from the db."""
+    def remove_model(self, mfcc_file, speaker_name, value, gender):
+        """Remove a voice model from the db.
+        :param mfcc_file the mfcc file name and path
+        :param speaker_name the speaker in the wave
+        :param value the value of 
+        :param gender the gender of the speaker (optional)"""
         old_s = speaker_name
         
         folder_db_dir = os.path.join(self.get_path(),gender)
@@ -361,7 +393,7 @@ class Cluster:
             else: 
                 return 'F'
         else:
-            return self.gender        
+            return self.gender  
 
     def get_distance(self):
         """Get the distance between the best speaker score and the closest
@@ -858,8 +890,8 @@ class Voiceid:
 #                print "removing model for speaker %s" % (old_speaker)
                 mfcc_name = os.path.join(wave_dir, cluster) + '.mfcc'
                 self.get_db().remove_model(mfcc_name, old_speaker, 
-                                           self[cluster].gender, 
-                                           self[cluster].value )
+                                           self[cluster].value, 
+                                           self[cluster].gender )
                 self[cluster].set_speaker(new_speaker)
             if not keep_intermediate_files:
                 os.remove("%s.gmm" % wave_b )
@@ -1582,13 +1614,13 @@ def diarization(filebasename):
 
 def _train_init(file_basename):
     """Train the initial speaker gmm model."""
-    commandline = 'java -Xmx256m -cp '+lium_jar+' fr.lium.spkDiarization.programs.MTrainInit --help --sInputMask=%s.ident.seg --fInputMask=%s.wav --fInputDesc="audio16kHz2sphinx,1:3:2:0:0:0,13,1:1:300:4"  --emInitMethod=copy --tInputMask='+ubm_path+' --tOutputMask=%s.init.gmm '+file_basename
+    commandline = 'java -Xmx256m -cp '+lium_jar+' fr.lium.spkDiarization.programs.MTrainInit --sInputMask=%s.ident.seg --fInputMask=%s.wav --fInputDesc="audio16kHz2sphinx,1:3:2:0:0:0,13,1:1:300:4" --emInitMethod=copy --tInputMask=' + ubm_path + ' --tOutputMask=%s.init.gmm ' + file_basename
     start_subprocess(commandline)
     ensure_file_exists(file_basename+'.init.gmm')
 
 def _train_map(file_basename):
     """Train the speaker model using a MAP adaptation method."""
-    commandline = 'java -Xmx256m -cp '+lium_jar+' fr.lium.spkDiarization.programs.MTrainMAP --help --sInputMask=%s.ident.seg --fInputMask=%s.mfcc --fInputDesc="audio16kHz2sphinx,1:3:2:0:0:0,13,1:1:300:4"  --tInputMask=%s.init.gmm --emCtrl=1,5,0.01 --varCtrl=0.01,10.0 --tOutputMask=%s.gmm ' + file_basename 
+    commandline = 'java -Xmx256m -cp '+lium_jar+' fr.lium.spkDiarization.programs.MTrainMAP --sInputMask=%s.ident.seg --fInputMask=%s.mfcc --fInputDesc="audio16kHz2sphinx,1:3:2:0:0:0,13,1:1:300:4"  --tInputMask=%s.init.gmm --emCtrl=1,5,0.01 --varCtrl=0.01,10.0 --tOutputMask=%s.gmm ' + file_basename 
     start_subprocess(commandline)
     ensure_file_exists(file_basename+'.gmm')
 
