@@ -47,7 +47,7 @@ import wave
 from multiprocessing import synchronize 
 from threading import Lock
 from wx.lib.pubsub import Publisher
-
+from wx.lib.intctrl import IntCtrl
 #-------------------------------------
 # initializations and global variables
 #-------------------------------------
@@ -55,6 +55,7 @@ dirName = os.path.dirname(os.path.abspath(__file__))
 bitmapDir = os.path.join(dirName, 'bitmaps')
 OK_DIALOG = 33
 CANCEL_DIALOG = 34
+MAX_TIME_TRAIN = 30
 
 class Controller:
     """A class that represents a controller between the views (CentralPanel and MainFrame) and model data management (Models) """
@@ -70,20 +71,18 @@ class Controller:
         
         self.frame.Bind(wx.EVT_MENU, lambda event: self.create_central_panel(event, False), self.frame.training_rec_menu_item)
         self.frame.Bind(wx.EVT_MENU, lambda event: self.create_central_panel(event, True), self.frame.start_rec_menu_item)
+        self.frame.Bind(wx.EVT_MENU, self.create_dialog_max_time, self.frame.setting_menu_item)
         Publisher().subscribe(self.update_status, "update_status")
-        Publisher().subscribe(self.create_dialog, "crea_dialog")
+        Publisher().subscribe(self.create_dialog_speaker_name, "crea_dialog")
 
     def create_central_panel(self,event,test_mode):
         """ Create a central panel for displaying data """
         if not self.central_panel == None:
+            self.sizer.Clear()
             self.sizer.Detach(self.central_panel) 
             
         self.model.set_test_mode(test_mode) 
         
-        if test_mode == False:
-             wx.CallAfter(Publisher().sendMessage, "update_status", "Read the following paragraph ")
-        else:
-             wx.CallAfter(Publisher().sendMessage, "update_status", "Speak in a natural way chanting the words properly ")
         
         self.central_panel = MainPanel(self.frame, test_mode)
         
@@ -91,6 +90,12 @@ class Controller:
 
         self.central_panel.recordButton.Bind(wx.EVT_BUTTON, self.on_rec)
         self.central_panel.pauseButton.Bind(wx.EVT_BUTTON, self.on_pause)
+        if test_mode == False:
+             self.central_panel.time = MAX_TIME_TRAIN
+             wx.CallAfter(Publisher().sendMessage, "update_status", "Read the following paragraph ")
+        else:
+             self.central_panel.pauseButton.Show()
+             wx.CallAfter(Publisher().sendMessage, "update_status", "Speak in a natural way chanting the words properly ")
         
         self.sizer.Layout()
         self.frame.Layout()
@@ -101,6 +106,7 @@ class Controller:
         self.central_panel.timer.Start(1000)
         self.central_panel.toggle_record_button()
         if self.model.get_test_mode() == True:
+            self.central_panel.textList.Clear()
             self.model.start_record(self.on_pause)
         else:
             self.model.start_record(self.on_pause, self.open_dialog)
@@ -122,12 +128,13 @@ class Controller:
         
             self.central_panel.toggle_stop_button()
         
-        self.central_panel.pauseButton.Disable()
+       # self.central_panel.pauseButton.Disable()
         
         if  self.model.get_test_mode() == True:
             self.t = threading.Thread(target=wait_stop, args=(True,))
             self.t.start()
         else:
+            
             self.central_panel.toggle_stop_button()
 
         self.central_panel.timer.Stop()
@@ -138,11 +145,11 @@ class Controller:
         """
         Open input dialog to insert speaker name
         """
-        print "open dialog"
+        
+        wx.CallAfter(Publisher().sendMessage, "update_status", "Insert speaker's name ... ")
         wx.CallAfter(Publisher().sendMessage, "crea_dialog",file)
         
-    def create_dialog(self, file):
-        print "create dialog"
+    def create_dialog_speaker_name(self, file):
         
         self.cluster_form = ClusterForm(self.frame, "Edit cluster speaker")
         
@@ -186,10 +193,32 @@ class Controller:
             for r in result:
                 i+=1
                 self.central_panel.textList.Append(str(i) +"  "+r[0])
+     
+     
+    def create_dialog_max_time(self, file):
+        
+        self.setting_form = ClusterForm(self.frame, "Edit cluster speaker")
+        
+        self.setting_form.Bind(wx.EVT_BUTTON, self.set_max_time_train)
+        self.setting_form.tc1.Hide()
+        self.setting_form.max.Show()
+        self.setting_form.title_tc1.Hide()
+        self.setting_form.title_max.Show()
+        
+        self.setting_form.Layout()
+        self.setting_form.ShowModal()  
            
-
-
-
+    def set_max_time_train(self, event):
+        if event.GetId() == CANCEL_DIALOG:
+            self.setting_form.Destroy()
+            return
+    
+        if event.GetId() == OK_DIALOG:
+            t = self.setting_form.max.GetValue()
+            if t: 
+                 MAX_TIME_TRAIN = t
+                 print t
+            self.setting_form.Destroy()
 
 class Record():
     """
@@ -218,7 +247,6 @@ class Record():
         self.thread_logger.start()
         
     def _rec(self):
-        print "Record"
         """ Record the incoming audio """
         self.stream = self.p.open(format = self.format,
                channels = self.channels,
@@ -294,11 +322,13 @@ class MainFrame(wx.Frame):
         menubar = wx.MenuBar()
         trainingMenu = wx.Menu()
         srMenu = wx.Menu()
-        srSettings = wx.Menu()
+        #settMenu = wx.Menu()
         self.training_rec_menu_item = trainingMenu.Append(wx.NewId(), "&New", "New")
+        self.setting_menu_item = trainingMenu.Append(wx.NewId(), "&Edit max time", "Edit max time")
         self.start_rec_menu_item = srMenu.Append(wx.NewId(), "&Start", "Start")
         menubar.Append(trainingMenu, '&Training')
         menubar.Append(srMenu, '&Speaker Recognition')
+        #menubar.Append(settMenu, '&Settings')
         self.SetMenuBar(menubar)
         
     def set_status_text(self, text):
@@ -369,6 +399,8 @@ class MainPanel(wx.Panel):
         
         self.pauseButton.Disable()
         
+        self.pauseButton.Hide()
+        
         self.timer = wx.Timer(self)
         
         self.Bind(wx.EVT_TIMER, self.OnTimer, self.timer)
@@ -398,8 +430,13 @@ class MainPanel(wx.Panel):
         
     def OnTimer(self, event):
         """ Manage a GUI timer """
-        
-        self.time = self.time+1
+        secsPlayed = 0
+        if self.test_mode:
+            self.time = self.time+1
+            
+        else:
+            self.time = self.time-1
+            
         secsPlayed = time.strftime('     %M:%S', time.gmtime(self.time))
         self.trackCounter.SetLabel(secsPlayed)
       
@@ -431,7 +468,7 @@ class Model:
         self.voiceid = None
         self.db = GMMVoiceDB('/home/michela/SpeakerRecognition/voiceid/scripts/test_db')
         self._cluster = None
-        self._max_record_time = 6
+        self._max_record_time = MAX_TIME_TRAIN
         self._partial_record_time = 5
         self.test_mode = None
         self.queue_processes = []
@@ -474,18 +511,15 @@ class Model:
     def set_speaker_name(self, name, file):
         """ Adds speaker model in db  """
         f = os.path.splitext(file)[0]
-        
-        print f
+
         return self.db.add_model(f,name)
         
             
     def on_process(self):
         """ Extract speakers from each partial recording file """
-        #print self.record.get_thread_status()
-        print "onprocess"
+
         while self.record.get_thread_status() == True:
             index = 0
-#            print self.queue_processes
             for file, result in self.queue_processes:
                 if result == None:
                     print "extract"
@@ -511,7 +545,7 @@ class Model:
         
         self.queue_processes = []
         
-        if self.test_mode == True: #self.frame.set_status_text("Stop recording")
+        if self.test_mode == True:
             self.record = Record(None, self._partial_record_time,True, None,self.save_callback)
         else:
             self.record = Record(self._max_record_time, 0, False, stop_callback,save_callback)
@@ -546,8 +580,6 @@ class Model:
                                 
     def extract_speaker(self, wave):
         """ Extract speaker from a wave """
-        print "extract speaker"
-        print wave
         
         self.voiceid = Voiceid(self.db, wave, single = True)
         self.voiceid.extract_speakers()
@@ -590,11 +622,8 @@ class Model:
 
 class ClusterForm(wx.Dialog):
     def __init__(self, parent, title):
-        print "init"
         wx.Dialog.__init__(self, parent, 20, title, wx.DefaultPosition, wx.Size(250, 100))
         
-        #panel = wx.Panel(self)
-        print " postinit"
         vbox = wx.BoxSizer(wx.VERTICAL)
         
         hbox = wx.BoxSizer(wx.HORIZONTAL)
@@ -603,11 +632,23 @@ class ClusterForm(wx.Dialog):
         
         fgs = wx.FlexGridSizer(3, 2, 9, 25)
         
-        title = wx.StaticText(self, label="Speaker")
+        self.title_tc1 = wx.StaticText(self, label="Speaker")
+        
+        self.title_max = wx.StaticText(self, label="Max time seconds")
         
         self.tc1 = wx.TextCtrl(self, size=(150, 25))
         
-        fgs.AddMany([(title), (self.tc1, 1, wx.EXPAND)])
+        self.max = IntCtrl( self, size=(150, 25) )
+        
+        self.max.Enable( True )
+        
+        self.max.Hide()
+        
+        self.title_max.Hide()
+        
+        fgs.AddMany([(self.title_tc1), (self.tc1, 1, wx.EXPAND)])
+        
+        fgs.AddMany([(self.title_max), (self.max, 1, wx.EXPAND)])
         
         fgs.AddGrowableRow(2, 1)
         fgs.AddGrowableCol(1, 1)
@@ -616,7 +657,6 @@ class ClusterForm(wx.Dialog):
         self.b_ok = wx.Button(self, label='Ok', id=OK_DIALOG)
         self.b_cancel = wx.Button(self, label='Cancel', id=CANCEL_DIALOG)
 
-        
         buttonbox.Add(self.b_ok, 1, border=15)
         buttonbox.Add(self.b_cancel, 1, border=15)
         
@@ -631,7 +671,6 @@ class App(wx.App):
         
     def OnExit(self):
         pass
-        #self.controller.exit()
        
 if __name__ == "__main__":
     app = App(redirect=False)
