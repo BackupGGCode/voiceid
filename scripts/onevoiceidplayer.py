@@ -74,6 +74,7 @@ class Controller:
         self.frame.Bind(wx.EVT_MENU, self.create_dialog_max_time, self.frame.setting_menu_item)
         Publisher().subscribe(self.update_status, "update_status")
         Publisher().subscribe(self.create_dialog_speaker_name, "crea_dialog")
+     
 
     def create_central_panel(self,event,test_mode):
         """ Create a central panel for displaying data """
@@ -140,6 +141,8 @@ class Controller:
         self.central_panel.timer.Stop()
         
         
+    
+    
     
     def open_dialog(self, file):
         """
@@ -219,6 +222,9 @@ class Controller:
                  global MAX_TIME_TRAIN
                  MAX_TIME_TRAIN = t
             self.setting_form.Destroy()
+            
+            
+        
 
 class Record():
     """
@@ -360,6 +366,9 @@ class MainPanel(wx.Panel):
         
         self.staticText = None
         
+        Publisher().subscribe(self.set_time_label, "update_timer")
+       
+        
         self.font = wx.Font(15, wx.SWISS, wx.NORMAL, wx.NORMAL, False, u'Comic Sans MS')
         if not self.test_mode:
              
@@ -451,9 +460,13 @@ class MainPanel(wx.Panel):
         """ Enable record button """
         
         self.time = 0
-        self.trackCounter.SetLabel("     00:00")
+        wx.CallAfter(Publisher().sendMessage, "update_timer", "     00:00")
         self.pauseButton.Disable()
         self.recordButton.Enable()
+    
+    def set_time_label(self, time):
+        t = time.data
+        self.trackCounter.SetLabel(t)
         
     def add_speaker(speaker, score):
         try:
