@@ -216,8 +216,8 @@ class Controller:
         if event.GetId() == OK_DIALOG:
             t = self.setting_form.max.GetValue()
             if t: 
+                 global MAX_TIME_TRAIN
                  MAX_TIME_TRAIN = t
-                 print t
             self.setting_form.Destroy()
 
 class Record():
@@ -468,7 +468,6 @@ class Model:
         self.voiceid = None
         self.db = GMMVoiceDB('/home/michela/SpeakerRecognition/voiceid/scripts/test_db')
         self._cluster = None
-        self._max_record_time = MAX_TIME_TRAIN
         self._partial_record_time = 5
         self.test_mode = None
         self.queue_processes = []
@@ -495,11 +494,6 @@ class Model:
         for observer in self._observers:
             if modifier != observer:
                 observer.update()
-                
-    def get_max_record_time(self):
-        """ Return max time to record in training mode """
-        
-        return self._max_record_time
 
     def save_callback(self, file=None):
         """ Adds a file to the queue after it's been saved """
@@ -548,7 +542,7 @@ class Model:
         if self.test_mode == True:
             self.record = Record(None, self._partial_record_time,True, None,self.save_callback)
         else:
-            self.record = Record(self._max_record_time, 0, False, stop_callback,save_callback)
+            self.record = Record(MAX_TIME_TRAIN, 0, False, stop_callback,save_callback)
             
         self.record.start()
         self._processing_thread = threading.Thread(target=self.on_process)
