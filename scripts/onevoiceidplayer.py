@@ -378,13 +378,13 @@ class MainPanel(wx.Panel):
              self.textRead = wx.TextCtrl(self, size=(450, 320),  style=wx.TE_MULTILINE)
               
              text = """La Sardegna, la seconda isola piu estesa del mar Mediterraneo dopo la Sicilia (ottava in Europa e la quarantottesima 
-             nel mondo) e una regione italiana a statuto speciale denominata Regione Autonoma della Sardegna.
-             Lo Statuto Speciale, sancito nella Costituzione del 1948, garantisce l'autonomia amministrativa delle istituzioni
-             locali a tutela delle peculiarita etno-linguistiche e geografiche.
-             Nonostante l insularita attenuata solo alla vincinanza della Corsica, la posizione strategica al centro del mar
-             Mediterraneo occidentale, ha favorito sin dall'antichita i rapporti commerciali e culturali, come gli interessi economici,
-             militari e strategici. In epoca moderna molti viaggiatori e scrittori hanno esaltato la bellezza della Sardegna,
-             immersa in un ambiente ancora incontaminato con diversi endemismi e in un paesaggio che ospita le vestigia della civilta nuragica."""
+nel mondo) e una regione italiana a statuto speciale denominata Regione Autonoma della Sardegna.
+Lo Statuto Speciale, sancito nella Costituzione del 1948, garantisce l'autonomia amministrativa delle istituzioni
+locali a tutela delle peculiarita etno-linguistiche e geografiche.
+Nonostante l insularita attenuata solo alla vincinanza della Corsica, la posizione strategica al centro del mar
+Mediterraneo occidentale, ha favorito sin dall'antichita i rapporti commerciali e culturali, come gli interessi economici,
+militari e strategici. In epoca moderna molti viaggiatori e scrittori hanno esaltato la bellezza della Sardegna,
+immersa in un ambiente ancora incontaminato con diversi endemismi e in un paesaggio che ospita le vestigia della civilta nuragica."""
              
              
              self.textRead.AppendText(text)
@@ -447,6 +447,7 @@ class MainPanel(wx.Panel):
             self.time = self.time-1
             
         secsPlayed = time.strftime('     %M:%S', time.gmtime(self.time))
+        wx.CallAfter(Publisher().sendMessage, "update_timer", "   "+secsPlayed)
         self.trackCounter.SetLabel(secsPlayed)
       
     def toggle_record_button(self):
