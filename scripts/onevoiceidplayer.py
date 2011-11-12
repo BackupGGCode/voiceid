@@ -40,6 +40,7 @@ import thread
 import threading
 import time
 import wx
+import shutil
 import wx.lib.buttons as buttons
 from wx.lib.pubsub import Publisher
 import pyaudio
@@ -536,9 +537,11 @@ class Model:
 
     def set_speaker_name(self, name, file):
         """ Adds speaker model in db  """
-        f = os.path.splitext(file)[0]
-
-        return self.db.add_model(f,name)
+	
+	shutil.move(file,name+".wav")
+	r = name+".wav"
+        f = os.path.splitext(r)[0]
+        return self.db.add_model(str(f),name)
         
             
     def on_process(self):
@@ -610,7 +613,7 @@ class Model:
         """ Extract speaker from a wave """
         
         self.voiceid = Voiceid(self.db, wave, single = True)
-        self.voiceid.extract_speakers()
+        self.voiceid.extract_speakers(quiet=True)
         
 
     def get_status(self):
