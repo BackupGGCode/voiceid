@@ -74,7 +74,9 @@ class Controller:
         self.frame.Bind(wx.EVT_MENU, self.create_dialog_max_time, self.frame.setting_menu_item)
         Publisher().subscribe(self.update_status, "update_status")
         Publisher().subscribe(self.create_dialog_speaker_name, "crea_dialog")
-     
+        Publisher().subscribe(self.update_speakers_list, "update_speakers_list")
+        Publisher().subscribe(self.clear_speakers_list, "clear_speakers_list")
+	Publisher().subscribe(self.toogle_stop_button, "toogle_button")
 
     def create_central_panel(self,event,test_mode):
         """ Create a central panel for displaying data """
@@ -87,6 +89,7 @@ class Controller:
         
         self.central_panel = MainPanel(self.frame, test_mode)
         
+
         self.sizer.Insert(1,self.central_panel, 5, wx.EXPAND)
 
         self.central_panel.recordButton.Bind(wx.EVT_BUTTON, self.on_rec)
@@ -120,20 +123,22 @@ class Controller:
         def wait_stop(test_mode):
             self.model.stop_record()
             stop_sign = True
+	    #self.central_panel.pauseButton.Disable()
             wx.CallAfter(Publisher().sendMessage, "update_status", "Wait for updates ... ") 
             while not self.model.get_process_status():
                 time.sleep(2)
             best = self.model.get_last_result()[0]
             print best
             wx.CallAfter(Publisher().sendMessage, "update_status", "Best speaker is "+best[0])
-        
-            self.central_panel.toggle_stop_button()
+            wx.CallAfter(Publisher().sendMessage, "toogle_button", "toogle_stop")
+            #self.central_panel.toggle_stop_button()
         
        # self.central_panel.pauseButton.Disable()
         
         if  self.model.get_test_mode() == True:
             self.t = threading.Thread(target=wait_stop, args=(True,))
             self.t.start()
+	    
         else:
             
             self.central_panel.toggle_stop_button()
@@ -141,7 +146,8 @@ class Controller:
         self.central_panel.timer.Stop()
         
         
-    
+    def toogle_stop_button(self,msg):
+	self.central_panel.toggle_stop_button()
     
     
     def open_dialog(self, file):
@@ -163,10 +169,11 @@ class Controller:
 
     def set_speaker_name(self, event, file):
         
-        wx.CallAfter(Publisher().sendMessage, "update_status", "Wait for db updates ... ") 
+        #wx.CallAfter(Publisher().sendMessage, "update_status", "Wait for db updates ... ") 
         
         if event.GetId() == CANCEL_DIALOG:
             self.cluster_form.Destroy()
+	    wx.CallAfter(Publisher().sendMessage, "update_status", "Read the following paragraph")
             return
     
         if event.GetId() == OK_DIALOG:
@@ -192,12 +199,25 @@ class Controller:
         if self.model.get_test_mode() == True:
             result = self.model.get_last_result()
             i = 0
-            self.central_panel.textList.Clear()
+	    #print result
+	    wx.CallAfter(Publisher().sendMessage, "clear_speakers_list", "") 
             for r in result:
                 i+=1
-                self.central_panel.textList.Append(str(i) +"  "+r[0])
+		wx.CallAfter(Publisher().sendMessage, "update_speakers_list", str(i)+"  "+r[0]) 
      
-     
+    
+
+    def clear_speakers_list(self, msg):
+	self.central_panel.textList.Clear()
+        
+    def update_speakers_list(self, data_speaker):
+	text = data_speaker.data
+        try:
+            self.central_panel.textList.Append(text)    
+        except IOError:
+            print "MainPanel is not in testing mode"
+    
+ 
     def create_dialog_max_time(self, file):
         
         self.setting_form = ClusterForm(self.frame, "Edit cluster speaker")
@@ -407,6 +427,9 @@ immersa in un ambiente ancora incontaminato con diversi endemismi e in un paesag
         self.pauseButton =wx.lib.buttons.GenBitmapTextButton(self,1, wx.Bitmap(os.path.join(bitmapDir, "stopred.png")))
         
         self.pauseButton.Disable()
+
+	if not self.test_mode:
+	    self.pauseButton.Hide()
         
         self.pauseButton.Hide()
         
@@ -448,7 +471,7 @@ immersa in un ambiente ancora incontaminato con diversi endemismi e in un paesag
             
         secsPlayed = time.strftime('     %M:%S', time.gmtime(self.time))
         wx.CallAfter(Publisher().sendMessage, "update_timer", "   "+secsPlayed)
-        self.trackCounter.SetLabel(secsPlayed)
+        #self.trackCounter.SetLabel(secsPlayed)
       
     def toggle_record_button(self):
         """ Enable stop button """
@@ -468,19 +491,14 @@ immersa in un ambiente ancora incontaminato con diversi endemismi e in un paesag
     def set_time_label(self, time):
         t = time.data
         self.trackCounter.SetLabel(t)
-        
-    def add_speaker(speaker, score):
-        try:
-            self.textList.Append(speaker + " - " + str(score))    
-        except IOError:
-            print "MainPanel is not in testing mode"
+
             
 class Model:
     """ Represents and manages all data model """
     
     def __init__(self):
         self.voiceid = None
-        self.db = GMMVoiceDB('/home/michela/SpeakerRecognition/voiceid/scripts/test_db')
+        self.db = GMMVoiceDB('/home/michela/.voiceid/gmm_db')
         self._cluster = None
         self._partial_record_time = 5
         self.test_mode = None
@@ -546,6 +564,8 @@ class Model:
         for file, result in p:
             if result != None:
                 return result
+
+	print "None last result!!"
         return None
         
     def start_record(self, stop_callback=None,save_callback = None ):

@@ -130,8 +130,10 @@ class GMMVoiceDB(VoiceDB):
         :param basepath the wave file basename and path
         :param speaker_name the speaker in the wave
         :param gender the gender of the speaker (optional)  
-        """
-        extract_mfcc(basepath)
+        """        
+	extract_mfcc(basepath)
+	
+	ensure_file_exists(basepath+".mfcc")
         build_gmm(basepath, speaker_name)
 #        try:
 #            _silence_segmentation(basepath)
