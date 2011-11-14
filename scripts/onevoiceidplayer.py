@@ -240,6 +240,7 @@ class Controller:
             if t: 
                  global MAX_TIME_TRAIN
                  MAX_TIME_TRAIN = t
+                 self.central_panel.time = MAX_TIME_TRAIN
             self.setting_form.Destroy()
             
             
