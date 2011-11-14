@@ -507,7 +507,8 @@ class Model:
     
     def __init__(self):
         self.voiceid = None
-        self.db = GMMVoiceDB('/home/michela/SpeakerRecognition/voiceid/scripts/test_db/')
+        #self.db = GMMVoiceDB('/home/michela/SpeakerRecognition/voiceid/scripts/test_db/')
+        self.db = GMMVoiceDB(os.path.expanduser('~/.voiceid/gmm_db/'))
         self._cluster = None
         self._partial_record_time = 5
         self.test_mode = None
