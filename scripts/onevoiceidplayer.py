@@ -220,13 +220,12 @@ class Controller:
     def create_dialog_max_time(self, file):
         
         self.setting_form = ClusterForm(self.frame, "Edit cluster speaker")
-        
         self.setting_form.Bind(wx.EVT_BUTTON, self.set_max_time_train)
         self.setting_form.tc1.Hide()
         self.setting_form.max.Show()
         self.setting_form.title_tc1.Hide()
         self.setting_form.title_max.Show()
-        
+        self.setting_form.max.ChangeValue(str(MAX_TIME_TRAIN))
         self.setting_form.Layout()
         self.setting_form.ShowModal()  
            
@@ -240,7 +239,10 @@ class Controller:
             if t: 
                  global MAX_TIME_TRAIN
                  MAX_TIME_TRAIN = t
-                 self.central_panel.time = MAX_TIME_TRAIN
+
+                 if self.central_panel != None:
+                     self.central_panel.time = MAX_TIME_TRAIN
+
             self.setting_form.Destroy()
             
             
