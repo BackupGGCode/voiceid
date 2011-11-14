@@ -77,7 +77,7 @@ class Controller:
         Publisher().subscribe(self.create_dialog_speaker_name, "crea_dialog")
         Publisher().subscribe(self.update_speakers_list, "update_speakers_list")
         Publisher().subscribe(self.clear_speakers_list, "clear_speakers_list")
-	Publisher().subscribe(self.toogle_stop_button, "toogle_button")
+        Publisher().subscribe(self.toogle_stop_button, "toogle_button")
 
     def create_central_panel(self,event,test_mode):
         """ Create a central panel for displaying data """
@@ -87,10 +87,8 @@ class Controller:
             
         self.model.set_test_mode(test_mode) 
         
-        
         self.central_panel = MainPanel(self.frame, test_mode)
         
-
         self.sizer.Insert(1,self.central_panel, 5, wx.EXPAND)
 
         self.central_panel.recordButton.Bind(wx.EVT_BUTTON, self.on_rec)
@@ -170,7 +168,7 @@ class Controller:
 
     def set_speaker_name(self, event, file):
         
-        #wx.CallAfter(Publisher().sendMessage, "update_status", "Wait for db updates ... ") 
+        wx.CallAfter(Publisher().sendMessage, "update_status", "Wait for db updates ... ") 
         
         if event.GetId() == CANCEL_DIALOG:
             self.cluster_form.Destroy()
@@ -350,11 +348,21 @@ class MainFrame(wx.Frame):
         trainingMenu = wx.Menu()
         srMenu = wx.Menu()
         #settMenu = wx.Menu()
+        testsMenu = wx.Menu()
         self.training_rec_menu_item = trainingMenu.Append(wx.NewId(), "&New", "New")
         self.setting_menu_item = trainingMenu.Append(wx.NewId(), "&Edit max time", "Edit max time")
         self.start_rec_menu_item = srMenu.Append(wx.NewId(), "&Start", "Start")
+        self.sett1 = testsMenu.Append(wx.NewId(), "&Configuration1", "Configuration1")
+        self.sett2 = testsMenu.Append(wx.NewId(), "&Configuration2", "Configuration2")
+        self.sett3 = testsMenu.Append(wx.NewId(), "&Configuration3", "Configuration3")
+        
+        self.sett2.Enable(False)
+        self.sett3.Enable(False)
+        
         menubar.Append(trainingMenu, '&Training')
         menubar.Append(srMenu, '&Speaker Recognition')
+        menubar.Append(testsMenu, '&Settings')
+        
         #menubar.Append(settMenu, '&Settings')
         self.SetMenuBar(menubar)
         
@@ -499,7 +507,7 @@ class Model:
     
     def __init__(self):
         self.voiceid = None
-        self.db = GMMVoiceDB('/home/michela/.voiceid/gmm_db')
+        self.db = GMMVoiceDB('/home/michela/SpeakerRecognition/voiceid/scripts/test_db/')
         self._cluster = None
         self._partial_record_time = 5
         self.test_mode = None
