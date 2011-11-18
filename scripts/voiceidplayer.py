@@ -88,9 +88,7 @@ class Controller:
         
         
     def on_add_file(self, event):
-        """
-        Add a Movie and start playing it
-        """
+        """Add a Movie and start playing it"""
         wildcard = "Media Files (*.*)|*.*"
         
         dlg = wx.FileDialog(
@@ -106,6 +104,8 @@ class Controller:
             trackPath = '"%s"' % path.replace("\\", "/")
             self.player.mpc.Loadfile(trackPath)
         self.frame.run_menu_item.Enable(True)
+        self.clusters_list.clean()
+        self.clusters_list.set_info_clusters('')
         
     def on_process(self):
         old_status = self.model.get_status()
@@ -173,9 +173,7 @@ class Controller:
         """
         Receives data from thread and updates the status bar
         """
-        t = msg.data
-        
-        self.frame.set_status_text(t)
+        self.frame.set_status_text( msg.data )
         
     def update_list(self, msg):
         """
@@ -211,8 +209,8 @@ class Controller:
             
     def on_save(self,event):
         wx.CallAfter(Publisher().sendMessage, "update_status", "Saving changes...")
-        self.model.save_changes()
-#        threading.Thread(target=self.model.save_changes).start()
+#        wx.CallAfter(self.model.save_changes)
+        threading.Thread(target=self.model.save_changes).start()
 #        self.model.save_changes()
         wx.CallAfter(Publisher().sendMessage, "update_status", "Train OFF ...")
             
@@ -236,13 +234,15 @@ class Controller:
         first_segments = c._segments[0]
         
         offset = float(first_segments.get_start()) / 100
+        self.player.mpc.Mute(1)
         self.player.mpc.Seek(offset , 2)
+        self.toggle_pause()
+        self.player.mpc.Mute(0)
         
         self.player.playbackSlider.SetValue(offset)
         secsPlayed = time.strftime('%M:%S', time.gmtime(offset))
         self.player.trackCounter.SetLabel(secsPlayed)
         
-        self.toggle_pause()
         
         c = self.get_current_cluster()
         
@@ -325,8 +325,6 @@ class Controller:
                 cmd.SetEventObject(self.clusters_list.list)
                 cmd.SetId(self.clusters_list.list.GetId())
                 self.clusters_list.list.GetEventHandler().ProcessEvent(cmd)
-                
-            
             
             self.cluster_form.Destroy()
             
@@ -584,6 +582,10 @@ class ClustersList(wx.Panel):
     def add_cluster(self, cluster_label, cluster_speaker):
         self.list.Append(cluster_label + " (" + cluster_speaker + ")")
         
+    def clean(self):
+        num = self.list.GetCount()
+        for e in range(num):
+            self.list.Delete(num - e)
         
     def set_info_clusters(self, text):
 
@@ -676,7 +678,7 @@ class Model:
         return self._clusters[name]
         
     def save_changes(self):
-        self.voiceid.update_db(4)
+        self.voiceid.update_db(1)
     
 class App(wx.App):
     def __init__(self, *args, **kwargs):
