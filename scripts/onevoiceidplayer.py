@@ -30,23 +30,15 @@
 # You can also build yourself the speaker models and put those in the db
 # using the scripts to create the gmm files.
 
-from multiprocessing import Process, cpu_count, active_children
-from pyinotify import Color
 from voiceid import *
 import MplayerCtrl as mpc
 import os
-import sched
-import thread
-import threading
 import time
 import wx
 import shutil
 import wx.lib.buttons as buttons
-from wx.lib.pubsub import Publisher
 import pyaudio
 import wave
-from multiprocessing import synchronize 
-from threading import Lock
 from wx.lib.pubsub import Publisher
 from wx.lib.intctrl import IntCtrl
 #-------------------------------------
@@ -57,7 +49,7 @@ bitmapDir = os.path.join(dirName, 'bitmaps')
 OK_DIALOG = 33
 CANCEL_DIALOG = 34
 MAX_TIME_TRAIN = 30
-
+CONFIGURATION = 1
 class Controller:
     """A class that represents a controller between the views (CentralPanel and MainFrame) and model data management (Models) """
     
@@ -94,11 +86,11 @@ class Controller:
         self.central_panel.recordButton.Bind(wx.EVT_BUTTON, self.on_rec)
         self.central_panel.pauseButton.Bind(wx.EVT_BUTTON, self.on_pause)
         if test_mode == False:
-             self.central_panel.time = MAX_TIME_TRAIN
-             wx.CallAfter(Publisher().sendMessage, "update_status", "Read the following paragraph ")
+            self.central_panel.time = MAX_TIME_TRAIN
+            wx.CallAfter(Publisher().sendMessage, "update_status", "Read the following paragraph ")
         else:
-             self.central_panel.pauseButton.Show()
-             wx.CallAfter(Publisher().sendMessage, "update_status", "Speak in a natural way chanting the words properly ")
+            self.central_panel.pauseButton.Show()
+            wx.CallAfter(Publisher().sendMessage, "update_status", "Speak in a natural way chanting the words properly ")
         
         self.sizer.Layout()
         self.frame.Layout()
@@ -110,7 +102,12 @@ class Controller:
         self.central_panel.toggle_record_button()
         if self.model.get_test_mode() == True:
             self.central_panel.textList.Clear()
-            self.model.start_record(self.on_pause)
+            conf = -1
+            if self.frame.sett1.IsChecked():
+                conf = 1
+            elif self.frame.sett2.IsChecked():
+                conf = 2
+            self.model.start_record(self.on_pause, conf = conf)
         else:
             self.model.start_record(self.on_pause, self.open_dialog)
         wx.CallAfter(Publisher().sendMessage, "update_status", "Recording ... ")
@@ -121,8 +118,6 @@ class Controller:
         
         def wait_stop(test_mode):
             self.model.stop_record()
-            stop_sign = True
-	    #self.central_panel.pauseButton.Disable()
             wx.CallAfter(Publisher().sendMessage, "update_status", "Wait for updates ... ") 
             while not self.model.get_process_status():
                 time.sleep(2)
@@ -130,14 +125,10 @@ class Controller:
             print best
             wx.CallAfter(Publisher().sendMessage, "update_status", "Best speaker is "+best[0])
             wx.CallAfter(Publisher().sendMessage, "toogle_button", "toogle_stop")
-            #self.central_panel.toggle_stop_button()
-        
-       # self.central_panel.pauseButton.Disable()
         
         if  self.model.get_test_mode() == True:
             self.t = threading.Thread(target=wait_stop, args=(True,))
             self.t.start()
-	    
         else:
             
             self.central_panel.toggle_stop_button()
@@ -146,39 +137,39 @@ class Controller:
         
         
     def toogle_stop_button(self,msg):
-	self.central_panel.toggle_stop_button()
+        self.central_panel.toggle_stop_button()
     
     
-    def open_dialog(self, file):
+    def open_dialog(self, file_):
         """
         Open input dialog to insert speaker name
         """
         
         wx.CallAfter(Publisher().sendMessage, "update_status", "Insert speaker's name ... ")
-        wx.CallAfter(Publisher().sendMessage, "crea_dialog",file)
+        wx.CallAfter(Publisher().sendMessage, "crea_dialog",file_)
         
-    def create_dialog_speaker_name(self, file):
+    def create_dialog_speaker_name(self, file_):
         
         self.cluster_form = ClusterForm(self.frame, "Edit cluster speaker")
         
-        self.cluster_form.Bind(wx.EVT_BUTTON, lambda event: self.set_speaker_name(event,str(file.data)))
+        self.cluster_form.Bind(wx.EVT_BUTTON, lambda event: self.set_speaker_name(event,str(file_.data)))
         self.cluster_form.Layout()
         self.cluster_form.ShowModal()
 
 
-    def set_speaker_name(self, event, file):
+    def set_speaker_name(self, event, file_):
         
         wx.CallAfter(Publisher().sendMessage, "update_status", "Wait for db updates ... ") 
         
         if event.GetId() == CANCEL_DIALOG:
             self.cluster_form.Destroy()
-	    wx.CallAfter(Publisher().sendMessage, "update_status", "Read the following paragraph")
+            wx.CallAfter(Publisher().sendMessage, "update_status", "Read the following paragraph")
             return
     
         if event.GetId() == OK_DIALOG:
             speaker = self.cluster_form.tc1.GetValue()
             if not len(speaker) == 0: 
-                if self.model.set_speaker_name(speaker, file) == True:
+                if self.model.set_speaker_name(speaker, file_) == True:
                     wx.CallAfter(Publisher().sendMessage, "update_status", "Speaker added in db")
                 else:
                     wx.CallAfter(Publisher().sendMessage, "update_status", "Error adding speaker in db")   
@@ -198,26 +189,25 @@ class Controller:
         if self.model.get_test_mode() == True:
             result = self.model.get_last_result()
             i = 0
-	    #print result
-	    wx.CallAfter(Publisher().sendMessage, "clear_speakers_list", "") 
+            wx.CallAfter(Publisher().sendMessage, "clear_speakers_list", "") 
             for r in result:
                 i+=1
-		wx.CallAfter(Publisher().sendMessage, "update_speakers_list", str(i)+"  "+r[0]) 
+                wx.CallAfter(Publisher().sendMessage, "update_speakers_list", str(i)+"  "+r[0]) 
      
     
 
     def clear_speakers_list(self, msg):
-	self.central_panel.textList.Clear()
+        self.central_panel.textList.Clear()
         
     def update_speakers_list(self, data_speaker):
-	text = data_speaker.data
+        text = data_speaker.data
         try:
             self.central_panel.textList.Append(text)    
         except IOError:
-            print "MainPanel is not in testing mode"
+            print "MainPanel is not in testing multiple_waves_mode"
     
  
-    def create_dialog_max_time(self, file):
+    def create_dialog_max_time(self, event):
         
         self.setting_form = ClusterForm(self.frame, "Edit cluster speaker")
         self.setting_form.Bind(wx.EVT_BUTTON, self.set_max_time_train)
@@ -237,11 +227,11 @@ class Controller:
         if event.GetId() == OK_DIALOG:
             t = self.setting_form.max.GetValue()
             if t: 
-                 global MAX_TIME_TRAIN
-                 MAX_TIME_TRAIN = t
+                global MAX_TIME_TRAIN
+                MAX_TIME_TRAIN = t
 
-                 if self.central_panel != None:
-                     self.central_panel.time = MAX_TIME_TRAIN
+                if self.central_panel != None:
+                    self.central_panel.time = MAX_TIME_TRAIN
 
             self.setting_form.Destroy()
             
@@ -252,18 +242,24 @@ class Record():
     """
     A class that represents the management and the creation of a recording
     """
-    def __init__(self, total_seconds, partial_seconds, mode_partial, stop_callback=None, save_callback=None):
+    def __init__(self, wave_prefix, total_seconds=-1, partial_seconds=None, incremental_mode = True, stop_callback=None, save_callback=None):
         self.chunk = 1600
         self.format = pyaudio.paInt16
         self.channels = 1
         self.rate = 16000
         self.partial_seconds = partial_seconds
         self.record_seconds = total_seconds
-        self.wave_output_filename = "training.wav"
+        self.wave_prefix = wave_prefix
         self.data = None
         self.stream = None
         self.p = pyaudio.PyAudio()
-        self.mode = mode_partial
+        if partial_seconds != None and partial_seconds > 0:
+            self.multiple_waves_mode = True
+            
+        else: self.multiple_waves_mode = False
+        
+        self.incremental_mode = incremental_mode
+
         self._stop_signal = True
         self.stop_callback = stop_callback
         self.save_callback = save_callback
@@ -281,32 +277,33 @@ class Record():
                rate = self.rate,
                input = True,
                frames_per_buffer = self.chunk)
-        all = []
+        all_ = []
         i=0
-        while  self.get_thread_status():
-           try:
-               self.data = self.stream.read(self.chunk)
-               all.append(self.data)
-    
-               current = float(i) * float(self.chunk) / float(self.rate)
-               #test mode
-               if self.mode == True and current>0 and ( current % self.partial_seconds ) == 0:
-                   self.thread_rec = threading.Thread(target=self.save_wave, args =(all,str(int(current))+".wav"))
-                   self.thread_rec.start()
-                   
-               #train mode    
-               if not self.mode  and self.record_seconds != None :
-                   if  current >= self.record_seconds:
-                       self.thread_rec = threading.Thread(target=self.save_wave, args =(all,self.wave_output_filename))
-                       self.thread_rec.start()
-                       self.stop()
-               i += 1
-           except IOError:
+        while  self.is_recording():
+            try:
+                self.data = self.stream.read(self.chunk)
+                all_.append(self.data)
+            
+                current = float(i) * float(self.chunk) / float(self.rate)
+                #multiple mode
+                if self.multiple_waves_mode == True and current>0 and ( current % self.partial_seconds ) == 0:
+                    self.thread_rec = threading.Thread(target=self.save_wave, args =(all_,str(int(current))))
+                    self.thread_rec.start()
+                    if self.record_seconds > 0 and current >= self.record_seconds:
+                        self.stop()
+                #single mode    
+                if not self.multiple_waves_mode  and self.record_seconds != None :
+                    if  current >= self.record_seconds:
+                        self.thread_rec = threading.Thread(target=self.save_wave, args =(all_,""))
+                        self.thread_rec.start()
+                        self.stop()
+                i += 1
+            except IOError:
                 print "warning: dropped frame"
                
          
-    def get_thread_status(self):  
-        """ Return true if the recording is stopped """ 
+    def is_recording(self):  
+        """ Return true if recording """ 
          
         return not self._stop_signal 
     
@@ -320,19 +317,25 @@ class Record():
         self.stream.close()
         self.p.terminate()
     
-    def save_wave(self, all, name):
+    def save_wave(self, all_, suffix):
         """ Write record data to WAVE file """
         
-        print "save_wave ", name
-        data = ''.join(all)
-       
+        print "save_wave ", suffix
+        name = self.wave_prefix + suffix +".wav"
+        if self.incremental_mode:
+            data = ''.join(all_)
+        else: 
+            data = ''.join(all_[-int(float(16000*self.partial_seconds) / float(self.chunk)):])
+        
+        print "data ", len(data)
         wf = wave.open(name, 'wb')
         wf.setnchannels(self.channels)
         wf.setsampwidth(self.p.get_sample_size(self.format))
         wf.setframerate(self.rate)
         wf.writeframes(data)
         wf.close()
-        self.save_callback(name)
+        if self.save_callback:
+            self.save_callback(name)
     
 
 class MainFrame(wx.Frame):
@@ -355,15 +358,18 @@ class MainFrame(wx.Frame):
         self.training_rec_menu_item = trainingMenu.Append(wx.NewId(), "&New", "New")
         self.setting_menu_item = trainingMenu.Append(wx.NewId(), "&Edit max time", "Edit max time")
         self.start_rec_menu_item = srMenu.Append(wx.NewId(), "&Start", "Start")
-        self.sett1 = testsMenu.Append(wx.NewId(), "&Configuration1", "Configuration1")
-        self.sett2 = testsMenu.Append(wx.NewId(), "&Configuration2", "Configuration2")
-        self.sett3 = testsMenu.Append(wx.NewId(), "&Configuration3", "Configuration3")
+        self.sett1 = testsMenu.Append(wx.NewId(), "&Configuration1", "Configuration1",kind=wx.ITEM_RADIO )
+        self.sett2 = testsMenu.Append(wx.NewId(), "&Configuration2", "Configuration2",kind=wx.ITEM_RADIO )
+        self.sett3 = testsMenu.Append(wx.NewId(), "&Configuration3", "Configuration3",kind=wx.ITEM_RADIO )
         
-        self.sett2.Enable(False)
+        self.sett2.Enable(True)
         self.sett3.Enable(False)
         
+        testsMenu.Check(self.sett1.GetId(), True)
+        testsMenu.Check(self.sett2.GetId(), False)
+        
         menubar.Append(trainingMenu, '&Training')
-        menubar.Append(srMenu, '&Speaker Recognition')
+        menubar.Append(srMenu, '&Test')
         menubar.Append(testsMenu, '&Settings')
         
         #menubar.Append(settMenu, '&Settings')
@@ -405,11 +411,11 @@ class MainPanel(wx.Panel):
         if not self.test_mode:
              
              
-             self.staticText = wx.StaticText(self, wx.ID_ANY, label="TRAINING MODE", style=wx.ALIGN_CENTER)
+            self.staticText = wx.StaticText(self, wx.ID_ANY, label="TRAINING MODE", style=wx.ALIGN_CENTER)
+            
+            self.textRead = wx.TextCtrl(self, size=(450, 320),  style=wx.TE_MULTILINE)
              
-             self.textRead = wx.TextCtrl(self, size=(450, 320),  style=wx.TE_MULTILINE)
-              
-             text = """La Sardegna, la seconda isola piu estesa del mar Mediterraneo dopo la Sicilia (ottava in Europa e la quarantottesima 
+            text = """La Sardegna, la seconda isola piu estesa del mar Mediterraneo dopo la Sicilia (ottava in Europa e la quarantottesima 
 nel mondo) e una regione italiana a statuto speciale denominata Regione Autonoma della Sardegna.
 Lo Statuto Speciale, sancito nella Costituzione del 1948, garantisce l'autonomia amministrativa delle istituzioni
 locali a tutela delle peculiarita etno-linguistiche e geografiche.
@@ -417,34 +423,32 @@ Nonostante l insularita attenuata solo alla vincinanza della Corsica, la posizio
 Mediterraneo occidentale, ha favorito sin dall'antichita i rapporti commerciali e culturali, come gli interessi economici,
 militari e strategici. In epoca moderna molti viaggiatori e scrittori hanno esaltato la bellezza della Sardegna,
 immersa in un ambiente ancora incontaminato con diversi endemismi e in un paesaggio che ospita le vestigia della civilta nuragica."""
-             
-             
-             self.textRead.AppendText(text)
-             
-             hbox.Add(self.textRead,5, wx.EXPAND | wx.ALL)
-             hbox.Layout()
+                 
+                 
+            self.textRead.AppendText(text)
+            
+            hbox.Add(self.textRead,5, wx.EXPAND | wx.ALL)
+            hbox.Layout()
         else:
-             print "list"
-             self.staticText = wx.StaticText(self, wx.ID_ANY, label="TEST MODE", style=wx.ALIGN_CENTER)
-             self.textList = wx.ListBox(self, size=(250, 120))
-             hbox.Add(self.textList,5, wx.EXPAND | wx.ALL)
-             hbox.Layout()
+            print "list"
+            self.staticText = wx.StaticText(self, wx.ID_ANY, label="TEST MODE", style=wx.ALIGN_CENTER)
+            self.textList = wx.ListBox(self, size=(250, 120))
+            hbox.Add(self.textList,5, wx.EXPAND | wx.ALL)
+            hbox.Layout()
         
         self.staticText.SetFont(self.font)
         
         self.staticText.CenterOnParent()
         
-        self.recordButton =wx.lib.buttons.GenBitmapTextButton(self,1, wx.Bitmap(os.path.join(bitmapDir, "record.png")))
+        self.recordButton =buttons.GenBitmapTextButton(self,1, wx.Bitmap(os.path.join(bitmapDir, "record.png")))
         
-        self.pauseButton =wx.lib.buttons.GenBitmapTextButton(self,1, wx.Bitmap(os.path.join(bitmapDir, "stopred.png")))
+        self.pauseButton =buttons.GenBitmapTextButton(self,1, wx.Bitmap(os.path.join(bitmapDir, "stopred.png")))
         
         self.pauseButton.Disable()
 
-	if not self.test_mode:
-	    self.pauseButton.Hide()
-        
-        self.pauseButton.Hide()
-        
+        if not self.test_mode:
+            self.pauseButton.Hide()
+            
         self.timer = wx.Timer(self)
         
         self.Bind(wx.EVT_TIMER, self.OnTimer, self.timer)
@@ -474,7 +478,6 @@ immersa in un ambiente ancora incontaminato con diversi endemismi e in un paesag
         
     def OnTimer(self, event):
         """ Manage a GUI timer """
-        secsPlayed = 0
         if self.test_mode:
             self.time = self.time+1
             
@@ -518,6 +521,10 @@ class Model:
         self.queue_processes = []
         self._observers = []
         self._processing_thread = None
+        self._queue_thread = []
+        self.thrd_n = 2
+        self._scores = {}
+        
         
     def attach(self, observer):
         """ Attach a new observer """
@@ -540,61 +547,96 @@ class Model:
             if modifier != observer:
                 observer.update()
 
-    def save_callback(self, file=None):
+    def save_callback(self, file_=None):
         """ Adds a file to the queue after it's been saved """
         if self.test_mode == True:
-            print file
-            self.queue_processes.append((file,None))
+            print file_
+            vid = Voiceid(self.db, file_, single = True)
+            self.queue_processes.append((vid,None))
             
 
-    def set_speaker_name(self, name, file):
+    def set_speaker_name(self, name, file_):
         """ Adds speaker model in db  """
-	
-	shutil.move(file,name+".wav")
-	r = name+".wav"
+        shutil.move(file_,name+".wav")
+        r = name+".wav"
         f = os.path.splitext(r)[0]
         return self.db.add_model(str(f),name)
         
-            
-    def on_process(self):
+    def alive_threads(self, t):
+        """Check how much threads are running and alive in a thread dictionary
+        :param t thread dictionary 
+        """ 
+        num = 0
+        for thr in t:
+            if thr.is_alive():
+                num += 1
+        return num
+        
+    def on_process(self, conf=1):
         """ Extract speakers from each partial recording file """
-
-        while self.record.get_thread_status() == True:
+        while self.record.is_recording() or self.is_process_running():
             index = 0
-            for file, result in self.queue_processes:
+            for vid, result in self.queue_processes:
                 if result == None:
-                    print "extract"
-                    print file
-                    self.extract_speaker(file)
-                    self.queue_processes[index] = ( file, self.get_best_five() )
-                    self.notify()
+                   
+                    if  self.alive_threads(self._queue_thread)  < self.thrd_n :
+                        t = threading.Thread(target=self.extract_speaker, args=(vid,index,conf))
+                        self._queue_thread.append(t)
+                        print index
+                        self.queue_processes[index] = (vid,['running'])
+                        t.start()
+                        print "extract", index
+                    else :
+                        while self.alive_threads(self._queue_thread) >= self.thrd_n:
+                            time.sleep(1)  
+                        t = threading.Thread(target=self.extract_speaker, args=(vid,index,conf))
+                        self._queue_thread.append(t)
+                        print index
+                        self.queue_processes[index] = (vid,['running'])
+                        t.start()
+                        print "extract", index
+                            
                 index += 1
-            time.sleep(.1)
-    
+ 
+            time.sleep(1)
+            print self.queue_processes
+            
+            
+            
+    def is_process_running(self):
+        if len(self.queue_processes) == 0: return True
+        for vid, result in self.queue_processes:
+                if result == None:
+                    return True
+        return False
+        
     def get_last_result(self):
         """ Return last result """
         
         p = self.queue_processes[:]
         p.reverse()
-        for file, result in p:
-            if result != None:
+        for file_, result in p:
+            if result != None and result[0] != "running":
                 return result
 
-	print "None last result!!"
+        print "None last result!!"
         return None
         
-    def start_record(self, stop_callback=None,save_callback = None ):
+    def start_record(self, stop_callback=None,save_callback = None , conf = 1):
         """ start a new record process """
         
         self.queue_processes = []
         
         if self.test_mode == True:
-            self.record = Record(None, self._partial_record_time,True, None,self.save_callback)
+            if conf == 1:
+                self.record = Record('', partial_seconds = self._partial_record_time,incremental_mode =True,save_callback=self.save_callback)
+            elif conf == 2:
+                self.record = Record('', partial_seconds = self._partial_record_time,incremental_mode =False,save_callback=self.save_callback)
         else:
-            self.record = Record(MAX_TIME_TRAIN, 0, False, stop_callback,save_callback)
+            self.record = Record('training',MAX_TIME_TRAIN, stop_callback=stop_callback,save_callback=save_callback)
             
         self.record.start()
-        self._processing_thread = threading.Thread(target=self.on_process)
+        self._processing_thread = threading.Thread(target=self.on_process, args=(conf,))
         if self.test_mode == True: self._processing_thread.start()
         
     def set_test_mode(self, mode):
@@ -616,52 +658,31 @@ class Model:
         
         if self.test_mode == True:
             q = self.queue_processes[:]
-            for file, result in q:
-                if result == None:
+            for file_, result in q:
+                if result == None or result[0]=='running':
                     return False
             return True              
                                 
-    def extract_speaker(self, wave):
+    def extract_speaker(self, vid, index, conf):
         """ Extract speaker from a wave """
+        vid.extract_speakers(quiet=True, thrd_n=8)
+        if conf == 1:
+            self.queue_processes[index] = ( vid, vid.get_cluster('S0').get_best_five() )
+        elif conf == 2:
+            last_scores = vid.get_cluster('S0').speakers
+                
+            for i in last_scores:
+                if i in self._scores: 
+                    self._scores[i] +=  last_scores[i]
+                else: self._scores[i] = last_scores[i]    
+                
+            self.queue_processes[index] = ( vid,sorted(self._scores.iteritems(), key=lambda (k,v): (v,k),
+                          reverse=True)[:5])
         
-        self.voiceid = Voiceid(self.db, wave, single = True)
-        self.voiceid.extract_speakers(quiet=True)
+        print "extract finish",self.queue_processes[index]
         
+        self.notify()
 
-    def get_status(self):
-        """ Return voiceid status """
-        
-        try:
-            return self.voiceid.get_status()
-        except IOError:
-            print "Voiceid not exist"
-            return None
-        
-    def get_working_status(self):
-        """ Return voiceid working status """
-        try:
-            return self.voiceid.get_working_status()
-        except IOError:
-            print "Voiceid not exist"
-            return None
-        
-    
-    def get_best_five(self):
-        """ Return best five speakers """
-        try:
-            return self._get_cluster().get_best_five()
-        except IOError:
-            print "Voiceid not exist"
-            return None
-        
-    
-    def _get_cluster(self):
-        """ Return all voiceid clusters """
-        try:
-            return self.voiceid.get_cluster('S0')
-        except IOError:
-            print "Voiceid not exist"
-            return None
 
 class ClusterForm(wx.Dialog):
     def __init__(self, parent, title):
