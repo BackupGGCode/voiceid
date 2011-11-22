@@ -98,6 +98,7 @@ class Controller:
     def on_rec(self,event):  
         """ Start record process """ 
         
+        self.central_panel.time = MAX_TIME_TRAIN
         self.central_panel.timer.Start(1000)
         self.central_panel.toggle_record_button()
         if self.model.get_test_mode() == True:
@@ -107,9 +108,9 @@ class Controller:
                 conf = 1
             elif self.frame.sett2.IsChecked():
                 conf = 2
-            self.model.start_record(self.on_pause, conf = conf)
+            self.model.start_record(conf = conf)
         else:
-            self.model.start_record(self.on_pause, self.open_dialog)
+            self.model.start_record(total_seconds = MAX_TIME_TRAIN, stop_callback = self.on_pause, save_callback = self.open_dialog)
         wx.CallAfter(Publisher().sendMessage, "update_status", "Recording ... ")
         
         
@@ -127,7 +128,7 @@ class Controller:
             wx.CallAfter(Publisher().sendMessage, "toogle_button", "toogle_stop")
         
         if  self.model.get_test_mode() == True:
-            self.t = threading.Thread(target=wait_stop, args=(True,))
+            self.t = Thread(target=wait_stop, args=(True,))
             self.t.start()
         else:
             
@@ -144,7 +145,7 @@ class Controller:
         """
         Open input dialog to insert speaker name
         """
-        
+        wx.Bell()
         wx.CallAfter(Publisher().sendMessage, "update_status", "Insert speaker's name ... ")
         wx.CallAfter(Publisher().sendMessage, "crea_dialog",file_)
         
@@ -267,7 +268,7 @@ class Record():
     def start(self):
         """ Start a thread to recording """
         self._stop_signal = False
-        self.thread_logger = threading.Thread(target=self._rec)
+        self.thread_logger = Thread(target=self._rec)
         self.thread_logger.start()
         
     def _rec(self):
@@ -287,14 +288,14 @@ class Record():
                 current = float(i) * float(self.chunk) / float(self.rate)
                 #multiple mode
                 if self.multiple_waves_mode == True and current>0 and ( current % self.partial_seconds ) == 0:
-                    self.thread_rec = threading.Thread(target=self.save_wave, args =(all_,str(int(current))))
+                    self.thread_rec = Thread(target=self.save_wave, args =(all_,str(int(current))))
                     self.thread_rec.start()
                     if self.record_seconds > 0 and current >= self.record_seconds:
                         self.stop()
                 #single mode    
                 if not self.multiple_waves_mode  and self.record_seconds != None :
                     if  current >= self.record_seconds:
-                        self.thread_rec = threading.Thread(target=self.save_wave, args =(all_,""))
+                        self.thread_rec = Thread(target=self.save_wave, args =(all_,""))
                         self.thread_rec.start()
                         self.stop()
                 i += 1
@@ -320,14 +321,12 @@ class Record():
     def save_wave(self, all_, suffix):
         """ Write record data to WAVE file """
         
-        print "save_wave ", suffix
         name = self.wave_prefix + suffix +".wav"
         if self.incremental_mode:
             data = ''.join(all_)
         else: 
             data = ''.join(all_[-int(float(16000*self.partial_seconds) / float(self.chunk)):])
         
-        print "data ", len(data)
         wf = wave.open(name, 'wb')
         wf.setnchannels(self.channels)
         wf.setsampwidth(self.p.get_sample_size(self.format))
@@ -415,22 +414,17 @@ class MainPanel(wx.Panel):
             
             self.textRead = wx.TextCtrl(self, size=(450, 320),  style=wx.TE_MULTILINE)
              
-            text = """La Sardegna, la seconda isola piu estesa del mar Mediterraneo dopo la Sicilia (ottava in Europa e la quarantottesima 
-nel mondo) e una regione italiana a statuto speciale denominata Regione Autonoma della Sardegna.
-Lo Statuto Speciale, sancito nella Costituzione del 1948, garantisce l'autonomia amministrativa delle istituzioni
-locali a tutela delle peculiarita etno-linguistiche e geografiche.
-Nonostante l insularita attenuata solo alla vincinanza della Corsica, la posizione strategica al centro del mar
-Mediterraneo occidentale, ha favorito sin dall'antichita i rapporti commerciali e culturali, come gli interessi economici,
-militari e strategici. In epoca moderna molti viaggiatori e scrittori hanno esaltato la bellezza della Sardegna,
-immersa in un ambiente ancora incontaminato con diversi endemismi e in un paesaggio che ospita le vestigia della civilta nuragica."""
+            text = """La Sardegna, la seconda isola piu' estesa del mar Mediterraneo dopo la Sicilia (ottava in Europa e la quarantottesima nel mondo) e' una regione italiana a statuto speciale denominata Regione Autonoma della Sardegna.
+Lo Statuto Speciale, sancito nella Costituzione del 1948, garantisce l'autonomia amministrativa delle istituzioni locali a tutela delle peculiarita' etno-linguistiche e geografiche.
+Nonostante l' insularita attenuata solo alla vincinanza della Corsica, la posizione strategica al centro del mar Mediterraneo occidentale, ha favorito sin dall'antichita' i rapporti commerciali e culturali, come gli interessi economici, militari e strategici. In epoca moderna molti viaggiatori e scrittori hanno esaltato la bellezza della Sardegna,
+immersa in un ambiente ancora incontaminato con diversi endemismi e in un paesaggio che ospita le vestigia della civilta' nuragica."""
                  
-                 
+            font_text = wx.Font(13, wx.SWISS, wx.NORMAL, wx.NORMAL, False, u'Arial')    
             self.textRead.AppendText(text)
-            
+            self.textRead.SetFont(font_text)
             hbox.Add(self.textRead,5, wx.EXPAND | wx.ALL)
             hbox.Layout()
         else:
-            print "list"
             self.staticText = wx.StaticText(self, wx.ID_ANY, label="TEST MODE", style=wx.ALIGN_CENTER)
             self.textList = wx.ListBox(self, size=(250, 120))
             hbox.Add(self.textList,5, wx.EXPAND | wx.ALL)
@@ -511,20 +505,19 @@ immersa in un ambiente ancora incontaminato con diversi endemismi e in un paesag
 class Model:
     """ Represents and manages all data model """
     
-    def __init__(self):
+    def __init__(self, test_mode=None):
         self.voiceid = None
         #self.db = GMMVoiceDB('/home/michela/SpeakerRecognition/voiceid/scripts/test_db/')
         self.db = GMMVoiceDB(os.path.expanduser('~/.voiceid/gmm_db/'))
         self._cluster = None
         self._partial_record_time = 5
-        self.test_mode = None
+        self.test_mode = test_mode
         self.queue_processes = []
         self._observers = []
         self._processing_thread = None
         self._queue_thread = []
         self.thrd_n = 2
         self._scores = {}
-        
         
     def attach(self, observer):
         """ Attach a new observer """
@@ -550,7 +543,6 @@ class Model:
     def save_callback(self, file_=None):
         """ Adds a file to the queue after it's been saved """
         if self.test_mode == True:
-            print file_
             vid = Voiceid(self.db, file_, single = True)
             self.queue_processes.append((vid,None))
             
@@ -580,26 +572,21 @@ class Model:
                 if result == None:
                    
                     if  self.alive_threads(self._queue_thread)  < self.thrd_n :
-                        t = threading.Thread(target=self.extract_speaker, args=(vid,index,conf))
+                        t = Thread(target=self.extract_speaker, args=(vid,index,conf))
                         self._queue_thread.append(t)
-                        print index
                         self.queue_processes[index] = (vid,['running'])
                         t.start()
-                        print "extract", index
                     else :
                         while self.alive_threads(self._queue_thread) >= self.thrd_n:
                             time.sleep(1)  
-                        t = threading.Thread(target=self.extract_speaker, args=(vid,index,conf))
+                        t = Thread(target=self.extract_speaker, args=(vid,index,conf))
                         self._queue_thread.append(t)
-                        print index
                         self.queue_processes[index] = (vid,['running'])
                         t.start()
-                        print "extract", index
                             
                 index += 1
  
             time.sleep(1)
-            print self.queue_processes
             
             
             
@@ -622,21 +609,21 @@ class Model:
         print "None last result!!"
         return None
         
-    def start_record(self, stop_callback=None,save_callback = None , conf = 1):
+    def start_record(self, total_seconds = None, stop_callback=None,save_callback = None , conf = 1):
         """ start a new record process """
         
         self.queue_processes = []
-        
+            
         if self.test_mode == True:
             if conf == 1:
-                self.record = Record('', partial_seconds = self._partial_record_time,incremental_mode =True,save_callback=self.save_callback)
+                self.record = Record('', total_seconds=total_seconds, partial_seconds = self._partial_record_time, stop_callback=stop_callback, incremental_mode =True,save_callback=self.save_callback)
             elif conf == 2:
-                self.record = Record('', partial_seconds = self._partial_record_time,incremental_mode =False,save_callback=self.save_callback)
+                self.record = Record('', total_seconds=total_seconds, partial_seconds = self._partial_record_time, stop_callback=stop_callback, incremental_mode =False,save_callback=self.save_callback)
         else:
-            self.record = Record('training',MAX_TIME_TRAIN, stop_callback=stop_callback,save_callback=save_callback)
+            self.record = Record('training',total_seconds, stop_callback=stop_callback,save_callback=save_callback)
             
         self.record.start()
-        self._processing_thread = threading.Thread(target=self.on_process, args=(conf,))
+        self._processing_thread = Thread(target=self.on_process, args=(conf,))
         if self.test_mode == True: self._processing_thread.start()
         
     def set_test_mode(self, mode):
@@ -673,13 +660,16 @@ class Model:
                 
             for i in last_scores:
                 if i in self._scores: 
-                    self._scores[i] +=  last_scores[i]
-                else: self._scores[i] = last_scores[i]    
+                    self._scores[i] +=  60 +last_scores[i]
+                else: self._scores[i] = 60 +last_scores[i]    
                 
             self.queue_processes[index] = ( vid,sorted(self._scores.iteritems(), key=lambda (k,v): (v,k),
                           reverse=True)[:5])
         
-        print "extract finish",self.queue_processes[index]
+        #print "extract finish",self.queue_processes[index]
+        #c= sorted(self._scores.iteritems(), key=lambda (k,v): (v,k),reverse=True)
+        #print c
+        
         
         self.notify()
 
@@ -727,7 +717,6 @@ class ClusterForm(wx.Dialog):
         vbox.Add(hbox, flag=wx.ALIGN_CENTER | wx.ALL | wx.EXPAND)
         vbox.Add(buttonbox, flag=wx.ALIGN_CENTER)
         self.SetSizer(vbox)    
-        print " preshowt"
 class App(wx.App):
     def __init__(self, *args, **kwargs):
         wx.App.__init__(self, *args, **kwargs)

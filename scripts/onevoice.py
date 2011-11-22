@@ -1,0 +1,113 @@
+#!/usr/bin/env python
+#########################################################################
+#
+# VoiceID, Copyright (C) 2011, Sardegna Ricerche.
+# Email: labcontdigit@sardegnaricerche.it, michela.fancello@crs4.it, 
+#        mauro.mereu@crs4.it
+# Web: http://code.google.com/p/voiceid
+# Authors: Michela Fancello, Mauro Mereu
+#
+# This program is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation, either version 3 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#########################################################################
+#
+# VoiceID is a speaker recognition/identification system written in Python,
+# based on the LIUM Speaker Diarization framework.
+#
+# VoiceID can process video or audio files to identify in which slices of 
+# time there is a person speaking (diarization); then it examines all those
+# segments to identify who is speaking. To do so you must have a voice models
+# database. To create the database you have to do a "train phase", in
+# interactive mode, by assigning a label to the unknown speakers.
+# You can also build yourself the speaker models and put those in the db
+# using the scripts to create the gmm files.
+
+from voiceid import *
+from onevoiceidplayer import Record, Model
+import os
+import time
+import shutil
+import pyaudio
+import wave
+
+
+
+if __name__ == '__main__':
+    usage = """%prog ARGS
+
+examples:
+    speaker model creation
+        %prog [ -a SECONDS]
+        
+    speaker identification test fixed waves
+        %prog [ -t SECONDS]
+        
+    speaker identification test incremental waves
+        %prog [ -i SECONDS]  """
+
+    parser = OptionParser(usage)
+    parser.add_option("-v", "--verbose", dest="verbose", action="store_true", default=False, help="verbose mode")
+    parser.add_option("-q", "--quiet", dest="quiet_mode", action="store_true", default=False, help="suppress prints")
+    parser.add_option("-a", "--train-mode", dest="train_mode", action="store", type="int",help="start training mode")
+    parser.add_option("-t", "--test-mode-fixed",  dest="test_mode_fixed", action="store", type="int", help="start test mode fixed waves")
+    parser.add_option("-i", "--test-mode-incremental",  dest="test_mode_incremental", type="int", action="store", help="start test mode incremental waves")
+
+    (options, args) = parser.parse_args()
+
+    if options.train_mode:
+        train_mode_sec = options.train_mode
+    if options.test_mode_fixed:
+        test_mode_f_sec = options.test_mode_fixed
+    if options.test_mode_incremental:
+        test_mode_i_sec = options.test_mode_incremental
+    if options.quiet_mode:
+        quiet_mode = options.quiet_mode   
+    
+    if options.train_mode:
+        #create Model 
+        model = Model(test_mode = False)
+        
+        def set_speaker():
+            if not quiet_mode:  print "Stop recording..."
+            name = raw_input("Type speaker name: ")
+            v = model.set_speaker_name(name,"training.wav")
+            if not quiet_mode: 
+                if v: print "Speaker added in db"
+                else: print "Error adding speaker in db"
+        
+        if not quiet_mode:  print "Start recording..."
+        
+        model.start_record(total_seconds = train_mode_sec, stop_callback = set_speaker)
+        
+        
+    if options.test_mode_fixed or options.test_mode_incremental:     
+        model = Model(test_mode = True)
+        
+        def get_result():
+            if not quiet_mode:  print "Stop recording..."
+            def wait_stop(test_mode):
+                while not model.get_process_status():
+                    time.sleep(2)
+                best = model.get_last_result()[0]
+                print best[0]
+        
+            t = Thread(target=wait_stop, args=(True,))
+            t.start()
+            
+        if not quiet_mode:  print "Start recording..."
+        if options.test_mode_fixed:
+            model.start_record(total_seconds = test_mode_f_sec, conf = 2, stop_callback = get_result)
+        else:
+            model.start_record(total_seconds = test_mode_i_sec, conf = 1, stop_callback = get_result)
+        
+        
+        
+        
