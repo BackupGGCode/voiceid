@@ -57,9 +57,9 @@ examples:
     parser.add_option("-v", "--verbose", dest="verbose", action="store_true", default=False, help="verbose mode")
     parser.add_option("-q", "--quiet", dest="quiet_mode", action="store_true", default=False, help="suppress prints")
     parser.add_option("-a", "--train-mode", dest="train_mode", action="store", type="int",help="start training mode")
-    parser.add_option("-t", "--test-mode-fixed",  dest="test_mode_fixed", action="store", type="int", help="start test mode fixed waves")
+    parser.add_option("-f", "--test-mode-fixed",  dest="test_mode_fixed", action="store", type="int", help="start test mode fixed waves")
     parser.add_option("-i", "--test-mode-incremental",  dest="test_mode_incremental", type="int", action="store", help="start test mode incremental waves")
-
+    parser.add_option("-t", "--partial-time",  dest="partial_time", type="int", action="store", help="partial time")
     (options, args) = parser.parse_args()
 
     if options.train_mode:
@@ -70,6 +70,8 @@ examples:
         test_mode_i_sec = options.test_mode_incremental
     if options.quiet_mode:
         quiet_mode = options.quiet_mode   
+    if options.partial_time:
+        partial_seconds = options.partial_time
     
     if options.train_mode:
         #create Model 
@@ -104,9 +106,9 @@ examples:
             
         if not quiet_mode:  print "Start recording..."
         if options.test_mode_fixed:
-            model.start_record(total_seconds = test_mode_f_sec, conf = 2, stop_callback = get_result)
+            model.start_record(total_seconds = test_mode_f_sec, partial_seconds = partial_seconds,conf = 2, stop_callback = get_result)
         else:
-            model.start_record(total_seconds = test_mode_i_sec, conf = 1, stop_callback = get_result)
+            model.start_record(total_seconds = test_mode_i_sec, partial_seconds = partial_seconds,conf = 1, stop_callback = get_result)
         
         
         

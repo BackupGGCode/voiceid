@@ -49,6 +49,7 @@ bitmapDir = os.path.join(dirName, 'bitmaps')
 OK_DIALOG = 33
 CANCEL_DIALOG = 34
 MAX_TIME_TRAIN = 30
+PARTIAL_TIME = 5
 CONFIGURATION = 1
 class Controller:
     """A class that represents a controller between the views (CentralPanel and MainFrame) and model data management (Models) """
@@ -64,7 +65,9 @@ class Controller:
         
         self.frame.Bind(wx.EVT_MENU, lambda event: self.create_central_panel(event, False), self.frame.training_rec_menu_item)
         self.frame.Bind(wx.EVT_MENU, lambda event: self.create_central_panel(event, True), self.frame.start_rec_menu_item)
-        self.frame.Bind(wx.EVT_MENU, self.create_dialog_max_time, self.frame.setting_menu_item)
+        self.frame.Bind(wx.EVT_MENU, self.create_dialog_max_time, self.frame.max_time_menu_item)
+        self.frame.Bind(wx.EVT_MENU, self.create_dialog_partial_time, self.frame.partial_time_menu_item)
+        self.frame.Bind(wx.EVT_MENU, self.create_dialog_partial_time, self.frame.sett3)
         Publisher().subscribe(self.update_status, "update_status")
         Publisher().subscribe(self.create_dialog_speaker_name, "crea_dialog")
         Publisher().subscribe(self.update_speakers_list, "update_speakers_list")
@@ -98,19 +101,24 @@ class Controller:
     def on_rec(self,event):  
         """ Start record process """ 
         
-        self.central_panel.time = MAX_TIME_TRAIN
-        self.central_panel.timer.Start(1000)
+ 
         self.central_panel.toggle_record_button()
         if self.model.get_test_mode() == True:
+            self.central_panel.time = 0
             self.central_panel.textList.Clear()
             conf = -1
             if self.frame.sett1.IsChecked():
                 conf = 1
             elif self.frame.sett2.IsChecked():
                 conf = 2
-            self.model.start_record(conf = conf)
+            else:
+                conf = 3
+            self.model.start_record(conf = conf, partial_seconds = PARTIAL_TIME, stop_callback = self.on_pause)
         else:
             self.model.start_record(total_seconds = MAX_TIME_TRAIN, stop_callback = self.on_pause, save_callback = self.open_dialog)
+            self.central_panel.time = MAX_TIME_TRAIN
+            
+        self.central_panel.timer.Start(1000)
         wx.CallAfter(Publisher().sendMessage, "update_status", "Recording ... ")
         
         
@@ -210,16 +218,23 @@ class Controller:
  
     def create_dialog_max_time(self, event):
         
-        self.setting_form = ClusterForm(self.frame, "Edit cluster speaker")
+        self.setting_form = ClusterForm(self.frame, "Edit max time", label = "Set max time:")
         self.setting_form.Bind(wx.EVT_BUTTON, self.set_max_time_train)
         self.setting_form.tc1.Hide()
         self.setting_form.max.Show()
-        self.setting_form.title_tc1.Hide()
-        self.setting_form.title_max.Show()
         self.setting_form.max.ChangeValue(str(MAX_TIME_TRAIN))
         self.setting_form.Layout()
         self.setting_form.ShowModal()  
            
+    def create_dialog_partial_time(self, event):
+        self.partial_time = ClusterForm(self.frame, "Edit partial time", label = "Set partial time:")
+        self.partial_time.Bind(wx.EVT_BUTTON, self.set_partial_time)
+        self.partial_time.tc1.Hide()
+        self.partial_time.max.Show()
+        self.partial_time.max.ChangeValue(str(PARTIAL_TIME))
+        self.partial_time.Layout()
+        self.partial_time.ShowModal()
+    
     def set_max_time_train(self, event):
         if event.GetId() == CANCEL_DIALOG:
             self.setting_form.Destroy()
@@ -236,7 +251,18 @@ class Controller:
 
             self.setting_form.Destroy()
             
-            
+    def set_partial_time(self, event):
+        if event.GetId() == CANCEL_DIALOG:
+            self.partial_time.Destroy()
+            return
+    
+        if event.GetId() == OK_DIALOG:
+            t = self.partial_time.max.GetValue()
+            if t: 
+                global PARTIAL_TIME
+                PARTIAL_TIME = t
+
+            self.partial_time.Destroy()         
         
 
 class Record():
@@ -291,6 +317,7 @@ class Record():
                     self.thread_rec = Thread(target=self.save_wave, args =(all_,str(int(current))))
                     self.thread_rec.start()
                     if self.record_seconds > 0 and current >= self.record_seconds:
+                        print "stoooooooooop"
                         self.stop()
                 #single mode    
                 if not self.multiple_waves_mode  and self.record_seconds != None :
@@ -355,14 +382,15 @@ class MainFrame(wx.Frame):
         #settMenu = wx.Menu()
         testsMenu = wx.Menu()
         self.training_rec_menu_item = trainingMenu.Append(wx.NewId(), "&New", "New")
-        self.setting_menu_item = trainingMenu.Append(wx.NewId(), "&Edit max time", "Edit max time")
+        self.max_time_menu_item = trainingMenu.Append(wx.NewId(), "&Edit max time", "Edit max time")
         self.start_rec_menu_item = srMenu.Append(wx.NewId(), "&Start", "Start")
+        self.partial_time_menu_item = srMenu.Append(wx.NewId(), "&Edit partial time", "Edit partial time")
         self.sett1 = testsMenu.Append(wx.NewId(), "&Configuration1", "Configuration1",kind=wx.ITEM_RADIO )
         self.sett2 = testsMenu.Append(wx.NewId(), "&Configuration2", "Configuration2",kind=wx.ITEM_RADIO )
-        self.sett3 = testsMenu.Append(wx.NewId(), "&Configuration3", "Configuration3",kind=wx.ITEM_RADIO )
+        self.sett3 = testsMenu.Append(wx.NewId(), "&One shot", "One shot",kind=wx.ITEM_RADIO )
         
         self.sett2.Enable(True)
-        self.sett3.Enable(False)
+        self.sett3.Enable(True)
         
         testsMenu.Check(self.sett1.GetId(), True)
         testsMenu.Check(self.sett2.GetId(), False)
@@ -509,8 +537,8 @@ class Model:
         self.voiceid = None
         #self.db = GMMVoiceDB('/home/michela/SpeakerRecognition/voiceid/scripts/test_db/')
         self.db = GMMVoiceDB(os.path.expanduser('~/.voiceid/gmm_db/'))
-        self._cluster = None
-        self._partial_record_time = 5
+        #self._cluster = None
+        #self._partial_record_time = 5
         self.test_mode = test_mode
         self.queue_processes = []
         self._observers = []
@@ -609,16 +637,21 @@ class Model:
         print "None last result!!"
         return None
         
-    def start_record(self, total_seconds = None, stop_callback=None,save_callback = None , conf = 1):
+    def start_record(self, total_seconds = None, partial_seconds = None, stop_callback=None, save_callback = None, conf = 1):
         """ start a new record process """
         
         self.queue_processes = []
-            
+        
+        print partial_seconds
+        
         if self.test_mode == True:
             if conf == 1:
-                self.record = Record('', total_seconds=total_seconds, partial_seconds = self._partial_record_time, stop_callback=stop_callback, incremental_mode =True,save_callback=self.save_callback)
+                self.record = Record('', total_seconds=total_seconds, partial_seconds = partial_seconds, stop_callback=stop_callback, incremental_mode=True, save_callback=self.save_callback)
             elif conf == 2:
-                self.record = Record('', total_seconds=total_seconds, partial_seconds = self._partial_record_time, stop_callback=stop_callback, incremental_mode =False,save_callback=self.save_callback)
+                self.record = Record('', total_seconds=total_seconds, partial_seconds = partial_seconds, stop_callback=stop_callback, incremental_mode=False, save_callback=self.save_callback)
+            else:
+                self.record = Record('', total_seconds=partial_seconds, partial_seconds = partial_seconds, stop_callback=stop_callback, incremental_mode=False, save_callback=self.save_callback)
+        
         else:
             self.record = Record('training',total_seconds, stop_callback=stop_callback,save_callback=save_callback)
             
@@ -675,8 +708,8 @@ class Model:
 
 
 class ClusterForm(wx.Dialog):
-    def __init__(self, parent, title):
-        wx.Dialog.__init__(self, parent, 20, title, wx.DefaultPosition, wx.Size(250, 100))
+    def __init__(self, parent, title, label):
+        wx.Dialog.__init__(self, parent, 20, title, wx.DefaultPosition, wx.Size(300, 140))
         
         vbox = wx.BoxSizer(wx.VERTICAL)
         
@@ -684,11 +717,9 @@ class ClusterForm(wx.Dialog):
         
         buttonbox = wx.BoxSizer(wx.HORIZONTAL)
         
-        fgs = wx.FlexGridSizer(3, 2, 9, 25)
+        fgs = wx.FlexGridSizer(3, 2, 9, 5)
         
-        self.title_tc1 = wx.StaticText(self, label="Speaker")
-        
-        self.title_max = wx.StaticText(self, label="Max time seconds")
+        self.title_tc1 = wx.StaticText(self, label=label)
         
         self.tc1 = wx.TextCtrl(self, size=(150, 25))
         
@@ -698,11 +729,9 @@ class ClusterForm(wx.Dialog):
         
         self.max.Hide()
         
-        self.title_max.Hide()
-        
         fgs.AddMany([(self.title_tc1), (self.tc1, 1, wx.EXPAND)])
         
-        fgs.AddMany([(self.title_max), (self.max, 1, wx.EXPAND)])
+        fgs.AddMany([(self.title_tc1), (self.max, 1, wx.EXPAND)])
         
         fgs.AddGrowableRow(2, 1)
         fgs.AddGrowableCol(1, 1)
