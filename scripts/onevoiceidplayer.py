@@ -101,7 +101,7 @@ class Controller:
     def on_rec(self,event):  
         """ Start record process """ 
         
- 
+        self.total_computing_time = 0
         self.central_panel.toggle_record_button()
         if self.model.get_test_mode() == True:
             self.central_panel.time = 0
@@ -109,11 +109,14 @@ class Controller:
             conf = -1
             if self.frame.sett1.IsChecked():
                 conf = 1
+                self.model.start_record(conf = conf, partial_seconds = PARTIAL_TIME)
             elif self.frame.sett2.IsChecked():
                 conf = 2
+                self.model.start_record(conf = conf, partial_seconds = PARTIAL_TIME)
             else:
                 conf = 3
-            self.model.start_record(conf = conf, partial_seconds = PARTIAL_TIME, stop_callback = self.on_pause)
+                self.model.start_record(conf = conf, partial_seconds = PARTIAL_TIME, stop_callback = self.on_pause)
+            self.total_computing_time = time.time()
         else:
             self.model.start_record(total_seconds = MAX_TIME_TRAIN, stop_callback = self.on_pause, save_callback = self.open_dialog)
             self.central_panel.time = MAX_TIME_TRAIN
@@ -126,15 +129,14 @@ class Controller:
         """ Stop record process """  
         
         def wait_stop(test_mode):
-            self.model.stop_record()
+            if not self.frame.sett3.IsChecked(): self.model.stop_record()
             wx.CallAfter(Publisher().sendMessage, "update_status", "Wait for updates ... ") 
             while not self.model.get_process_status():
                 time.sleep(2)
             best = self.model.get_last_result()[0]
-            print best
-            wx.CallAfter(Publisher().sendMessage, "update_status", "Best speaker is "+best[0])
             wx.CallAfter(Publisher().sendMessage, "toogle_button", "toogle_stop")
-        
+            self.total_computing_time = time.time() - self.total_computing_time    
+            wx.CallAfter(Publisher().sendMessage, "update_status", "Best speaker is "+best[0]+" found in "+str(int(self.total_computing_time))+" seconds")
         if  self.model.get_test_mode() == True:
             self.t = Thread(target=wait_stop, args=(True,))
             self.t.start()
@@ -159,7 +161,7 @@ class Controller:
         
     def create_dialog_speaker_name(self, file_):
         
-        self.cluster_form = ClusterForm(self.frame, "Edit cluster speaker")
+        self.cluster_form = ClusterForm(self.frame, "Edit cluster speaker",label = "Speaker name:" )
         
         self.cluster_form.Bind(wx.EVT_BUTTON, lambda event: self.set_speaker_name(event,str(file_.data)))
         self.cluster_form.Layout()
@@ -197,11 +199,12 @@ class Controller:
         
         if self.model.get_test_mode() == True:
             result = self.model.get_last_result()
-            i = 0
-            wx.CallAfter(Publisher().sendMessage, "clear_speakers_list", "") 
-            for r in result:
-                i+=1
-                wx.CallAfter(Publisher().sendMessage, "update_speakers_list", str(i)+"  "+r[0]) 
+            if result != None:
+                i = 0
+                wx.CallAfter(Publisher().sendMessage, "clear_speakers_list", "") 
+                for r in result:
+                    i+=1
+                    wx.CallAfter(Publisher().sendMessage, "update_speakers_list", str(i)+"  "+r[0]) 
      
     
 
@@ -218,7 +221,7 @@ class Controller:
  
     def create_dialog_max_time(self, event):
         
-        self.setting_form = ClusterForm(self.frame, "Edit max time", label = "Set max time:")
+        self.setting_form = ClusterForm(self.frame, "Set max time", label = "Time:")
         self.setting_form.Bind(wx.EVT_BUTTON, self.set_max_time_train)
         self.setting_form.tc1.Hide()
         self.setting_form.max.Show()
@@ -227,7 +230,7 @@ class Controller:
         self.setting_form.ShowModal()  
            
     def create_dialog_partial_time(self, event):
-        self.partial_time = ClusterForm(self.frame, "Edit partial time", label = "Set partial time:")
+        self.partial_time = ClusterForm(self.frame, "Set time", label = "Time:")
         self.partial_time.Bind(wx.EVT_BUTTON, self.set_partial_time)
         self.partial_time.tc1.Hide()
         self.partial_time.max.Show()
@@ -317,7 +320,6 @@ class Record():
                     self.thread_rec = Thread(target=self.save_wave, args =(all_,str(int(current))))
                     self.thread_rec.start()
                     if self.record_seconds > 0 and current >= self.record_seconds:
-                        print "stoooooooooop"
                         self.stop()
                 #single mode    
                 if not self.multiple_waves_mode  and self.record_seconds != None :
@@ -337,10 +339,9 @@ class Record():
     
     def stop(self):
         """ Stop the record"""
-        
+        self._stop_signal = True
         if self.stop_callback != None:
             self.stop_callback()
-        self._stop_signal = True
         time.sleep(1)
         self.stream.close()
         self.p.terminate()
@@ -385,8 +386,8 @@ class MainFrame(wx.Frame):
         self.max_time_menu_item = trainingMenu.Append(wx.NewId(), "&Edit max time", "Edit max time")
         self.start_rec_menu_item = srMenu.Append(wx.NewId(), "&Start", "Start")
         self.partial_time_menu_item = srMenu.Append(wx.NewId(), "&Edit partial time", "Edit partial time")
-        self.sett1 = testsMenu.Append(wx.NewId(), "&Configuration1", "Configuration1",kind=wx.ITEM_RADIO )
-        self.sett2 = testsMenu.Append(wx.NewId(), "&Configuration2", "Configuration2",kind=wx.ITEM_RADIO )
+        self.sett1 = testsMenu.Append(wx.NewId(), "&Incremental", "Incremental",kind=wx.ITEM_RADIO )
+        self.sett2 = testsMenu.Append(wx.NewId(), "&Fixed", "Fixed",kind=wx.ITEM_RADIO )
         self.sett3 = testsMenu.Append(wx.NewId(), "&One shot", "One shot",kind=wx.ITEM_RADIO )
         
         self.sett2.Enable(True)
@@ -611,7 +612,6 @@ class Model:
                         self._queue_thread.append(t)
                         self.queue_processes[index] = (vid,['running'])
                         t.start()
-                            
                 index += 1
  
             time.sleep(1)
@@ -627,7 +627,6 @@ class Model:
         
     def get_last_result(self):
         """ Return last result """
-        
         p = self.queue_processes[:]
         p.reverse()
         for file_, result in p:
@@ -641,8 +640,6 @@ class Model:
         """ start a new record process """
         
         self.queue_processes = []
-        
-        print partial_seconds
         
         if self.test_mode == True:
             if conf == 1:
@@ -675,7 +672,7 @@ class Model:
         self.record.stop()
         
     def get_process_status(self):
-        
+       
         if self.test_mode == True:
             q = self.queue_processes[:]
             for file_, result in q:
@@ -685,10 +682,10 @@ class Model:
                                 
     def extract_speaker(self, vid, index, conf):
         """ Extract speaker from a wave """
-        vid.extract_speakers(quiet=True, thrd_n=8)
+        vid.extract_speakers(quiet=True, thrd_n=16)
         if conf == 1:
             self.queue_processes[index] = ( vid, vid.get_cluster('S0').get_best_five() )
-        elif conf == 2:
+        elif conf == 2 or conf ==3:
             last_scores = vid.get_cluster('S0').speakers
                 
             for i in last_scores:
@@ -704,7 +701,7 @@ class Model:
         #print c
         
         
-        self.notify()
+            self.notify()
 
 
 class ClusterForm(wx.Dialog):

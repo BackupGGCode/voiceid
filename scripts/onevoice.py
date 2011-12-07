@@ -96,7 +96,7 @@ examples:
         def get_result():
             if not quiet_mode:  print "Stop recording..."
             def wait_stop(test_mode):
-                while not model.get_process_status():
+                while not model.get_process_status() or model.is_process_running():
                     time.sleep(2)
                 best = model.get_last_result()[0]
                 print best[0]
