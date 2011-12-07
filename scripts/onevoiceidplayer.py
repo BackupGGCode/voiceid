@@ -672,7 +672,7 @@ class Model:
         self.record.stop()
         
     def get_process_status(self):
-       
+        if len(self.queue_processes) == 0: return False
         if self.test_mode == True:
             q = self.queue_processes[:]
             for file_, result in q:
