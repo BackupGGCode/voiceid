@@ -41,6 +41,7 @@ import pyaudio
 import wave
 from wx.lib.pubsub import Publisher
 from wx.lib.intctrl import IntCtrl
+
 #-------------------------------------
 # initializations and global variables
 #-------------------------------------
@@ -131,7 +132,7 @@ class Controller:
         def wait_stop(test_mode):
             if not self.frame.sett3.IsChecked(): self.model.stop_record()
             wx.CallAfter(Publisher().sendMessage, "update_status", "Wait for updates ... ") 
-            while not self.model.get_process_status():
+            while not self.model.get_process_status() or self.model.is_process_running():
                 time.sleep(2)
             best = self.model.get_last_result()[0]
             wx.CallAfter(Publisher().sendMessage, "toogle_button", "toogle_stop")
@@ -672,7 +673,6 @@ class Model:
         self.record.stop()
         
     def get_process_status(self):
-        if len(self.queue_processes) == 0: return False
         if self.test_mode == True:
             q = self.queue_processes[:]
             for file_, result in q:
@@ -701,7 +701,7 @@ class Model:
         #print c
         
         
-            self.notify()
+        self.notify()
 
 
 class ClusterForm(wx.Dialog):
