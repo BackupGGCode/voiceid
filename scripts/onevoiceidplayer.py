@@ -52,6 +52,7 @@ CANCEL_DIALOG = 34
 MAX_TIME_TRAIN = 30
 PARTIAL_TIME = 5
 CONFIGURATION = 1
+THRESHOLD = -32.16
 class Controller:
     """A class that represents a controller between the views (CentralPanel and MainFrame) and model data management (Models) """
     
@@ -63,7 +64,7 @@ class Controller:
         self.central_panel = None
         self.frame.SetSizer(self.sizer)
         self.frame.Layout()
-        
+        self.config_check = -1
         self.frame.Bind(wx.EVT_MENU, lambda event: self.create_central_panel(event, False), self.frame.training_rec_menu_item)
         self.frame.Bind(wx.EVT_MENU, lambda event: self.create_central_panel(event, True), self.frame.start_rec_menu_item)
         self.frame.Bind(wx.EVT_MENU, self.create_dialog_max_time, self.frame.max_time_menu_item)
@@ -107,16 +108,16 @@ class Controller:
         if self.model.get_test_mode() == True:
             self.central_panel.time = 0
             self.central_panel.textList.Clear()
-            conf = -1
+            self.config_check = -1
             if self.frame.sett1.IsChecked():
-                conf = 1
-                self.model.start_record(conf = conf, partial_seconds = PARTIAL_TIME)
+                self.config_check = 1
+                self.model.start_record(conf = self.config_check, partial_seconds = PARTIAL_TIME)
             elif self.frame.sett2.IsChecked():
-                conf = 2
-                self.model.start_record(conf = conf, partial_seconds = PARTIAL_TIME)
+                self.config_check = 2
+                self.model.start_record(conf = self.config_check, partial_seconds = PARTIAL_TIME)
             else:
-                conf = 3
-                self.model.start_record(conf = conf, partial_seconds = PARTIAL_TIME, stop_callback = self.on_pause)
+                self.config_check = 3
+                self.model.start_record(conf = self.config_check, partial_seconds = PARTIAL_TIME, stop_callback = self.on_pause)
             self.total_computing_time = time.time()
         else:
             self.model.start_record(total_seconds = MAX_TIME_TRAIN, stop_callback = self.on_pause, save_callback = self.open_dialog)
@@ -205,7 +206,11 @@ class Controller:
                 wx.CallAfter(Publisher().sendMessage, "clear_speakers_list", "") 
                 for r in result:
                     i+=1
-                    wx.CallAfter(Publisher().sendMessage, "update_speakers_list", str(i)+"  "+r[0]) 
+                    if self.config_check == 1:
+                        name = r[0]
+                        if r[1] < THRESHOLD:
+                            name = "Unknown"
+                    wx.CallAfter(Publisher().sendMessage, "update_speakers_list", str(i)+" "+name+" score: "+str(r[1])) 
      
     
 
@@ -548,6 +553,7 @@ class Model:
         self._queue_thread = []
         self.thrd_n = 2
         self._scores = {}
+        self.threshold = -32.160
         
     def attach(self, observer):
         """ Attach a new observer """
@@ -685,7 +691,7 @@ class Model:
         vid.extract_speakers(quiet=True, thrd_n=16)
         if conf == 1:
             self.queue_processes[index] = ( vid, vid.get_cluster('S0').get_best_five() )
-        elif conf == 2 or conf ==3:
+        elif conf == 2 or conf == 3:
             last_scores = vid.get_cluster('S0').speakers
                 
             for i in last_scores:
@@ -693,6 +699,7 @@ class Model:
                     self._scores[i] +=  60 +last_scores[i]
                 else: self._scores[i] = 60 +last_scores[i]    
                 
+            
             self.queue_processes[index] = ( vid,sorted(self._scores.iteritems(), key=lambda (k,v): (v,k),
                           reverse=True)[:5])
         
