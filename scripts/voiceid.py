@@ -24,12 +24,12 @@ based on the `LIUM Speaker Diarization <http://lium3.univ-lemans.fr/diarization/
 
 VoiceID can process video or audio files to identify in which slices of 
 time there is a person speaking (diarization); then it examines all those
-segments to identify who is speaking. To do so you must have a voice models
+segments to identify who is speaking. To do so uses a voice models
 database. 
 
 To create the database you have to do a "train phase", in
 interactive mode, by assigning a label to the "unknown" speakers.
-You can also build yourself the speaker models and put in the db
+You can also build yourself manually the speaker models and put in the db
 using the scripts to create the gmm files.
 
 """
@@ -48,7 +48,6 @@ from threading import Thread
 # initializations and global variables
 #-------------------------------------
 
-# http://lium3.univ-lemans.fr/diarization/doku.php
 lium_jar = os.path.expanduser('~/.voiceid/lib/LIUM_SpkDiarization-4.7.jar')  
 ubm_path  = os.path.expanduser('~/.voiceid/lib/ubm.gmm')
 test_path  = os.path.expanduser('~/.voiceid/test')
@@ -57,21 +56,29 @@ gender_gmms = os.path.expanduser('~/.voiceid/lib/gender.gmms')
 sms_gmms = os.path.expanduser('~/.voiceid/lib/sms.gmms')
 output_format = 'srt' #default output format
 quiet_mode = False
-
 verbose = False
 keep_intermediate_files = False
 
 output_redirect = open('/dev/null','w')
 if verbose:
-        output_redirect = open('/dev/stdout','w')
-#        output_redirect = None
+    output_redirect = open('/dev/stdout','w')
+
+"""
+voiceid
+        __init__.py
+        db.py
+        gmm.py
+"""        
+        
+        
 
 #-------------------------------------
 #   classes
 #-------------------------------------
 class VoiceDB:
-    """A class that represent a generic voices db.
+    """A class that represent a generic voice models db.
     
+    :type path: string
     :param path: the voice db path"""
     def __init__(self, path):
         """        
@@ -83,34 +90,38 @@ class VoiceDB:
         self._read_db()
 
     def get_path(self):
-        """Get the base path of the voices db, where are stored the voice model 
-        files, splitted in 3 directories according to the gender (F, M, U)."""
+        """Get the base path of the voice models db, where are stored the voice model 
+        files, splitted in 3 directories according to the gender (F, M, U).
+        
+        :rtype: string
+        :returns: the path of the voice db
+        """
         return self._path
     
     def get_speakers(self):
         """Return a dictionary where the keys are the genders and the values 
         are a list for every gender with the available speakers models."""
-        pass
+        raise NotImplementedError()
     
     def _read_db(self):
-        pass
+        raise NotImplementedError()
     
-    def add_model(self, basefilename, speaker_name, gender=None):
+    def add_model(self, basefilename, identifier, gender=None):
         """
         Add a voice model to the database.
         
         :type basefilename: string
         :param basefilename: basename including absolulute path of the voice file
         
-        :type speaker_name: string
-        :param speaker_name: name or label of the speaker voice in the model, in a single word without special characters
+        :type identifier: string
+        :param identifier: name or label of the speaker voice in the model, in a single word without special characters
         
         :type gender: char F, M or U
         :param gender: the gender of the speaker in the model 
         """
-        pass
+        raise NotImplementedError()
     
-    def remove_model(self, mfcc_file, speaker_name, value, gender):
+    def remove_model(self, mfcc_file, identifier, score, gender):
         """
         Remove a speaker model from the database according to the score it gets
         by matching vs the given feature file 
@@ -118,31 +129,31 @@ class VoiceDB:
         :type mfcc_file: string
         :param mfcc_file: the feature(mfcc) file extracted from the wave
         
-        :type speaker_name: string
-        :param speaker_name: the name or label of the speaker
+        :type identifier: string
+        :param identifier: the name or label of the speaker
         
-        :type value: float 
-        :param value: the score obtained in the voice matching
+        :type score: float 
+        :param score: the score obtained in the voice matching
         
         :type gender: char F, M or U
         :param gender: the speaker gender 
         """
-        pass 
+        raise NotImplementedError() 
     
-    def match_voice(self, mfcc_file, speaker_name, gender):
+    def match_voice(self, mfcc_file, identifier, gender):
         """
         Match the given feature file vs the specified speaker model.
 
         :type mfcc_file: string         
         :param mfcc_file: the feature(mfcc) file extracted from the wave
         
-        :type speaker_name: string
-        :param speaker_name: the name or label of the speaker
+        :type identifier: string
+        :param identifier: the name or label of the speaker
         
         :type gender: char F, M or U
         :param gender: the speaker gender 
         """
-        pass
+        raise NotImplementedError()
     
     def voice_lookup(self, mfcc_file, gender):
         """
@@ -154,7 +165,7 @@ class VoiceDB:
         :type gender: char F, M or U
         :param gender: the speaker gender 
         """
-        pass 
+        raise NotImplementedError() 
     
 class GMMVoiceDB(VoiceDB):
     """A Gaussian Mixture Model voices database.
@@ -169,7 +180,7 @@ class GMMVoiceDB(VoiceDB):
         self.__maxthreads = thrd_n
     
     def set_maxthreads(self, t):
-        """Set the max number of threads running together.
+        """Set the max number of threads running together for the lookup task.
         
         :type t: integer
         :param t: max number of threads allowed to run at the same time.
@@ -185,14 +196,14 @@ class GMMVoiceDB(VoiceDB):
                   for f in os.listdir(os.path.join(self._path, g)) 
                   if f.endswith('.gmm') ]
     
-    def add_model(self, basefilename, speaker_name, gender=None):
+    def add_model(self, basefilename, identifier, gender=None):
         """Add a gmm model to db.
         
         :type basefilename: string
         :param basefilename: the wave file basename and path
 
-        :type speaker_name: string
-        :param speaker_name: the speaker in the wave
+        :type identifier: string
+        :param identifier: the speaker in the wave
 
         :type gender: char F, M or U
         :param gender: the gender of the speaker (optional)"""
@@ -200,7 +211,7 @@ class GMMVoiceDB(VoiceDB):
         extract_mfcc(basefilename)
         
         ensure_file_exists(basefilename+".mfcc")
-        build_gmm(basefilename, speaker_name)
+        build_gmm(basefilename, identifier)
 #        try:
 #            _silence_segmentation(basefilename)
 #        except:
@@ -225,20 +236,20 @@ class GMMVoiceDB(VoiceDB):
 #            _gender_detection(basefilename)
 #        else:
 #            shutil.move(basefilename + '.s.seg', basefilename + '.seg')
-#        ident_seg(basefilename, speaker_name)
+#        ident_seg(basefilename, identifier)
 #        _train_init(basefilename)
 #        extract_mfcc(basefilename)
 #        _train_map(basefilename)
         
         gmm_path = basefilename + '.gmm'
         orig_gmm = os.path.join(self.get_path(), 
-                                    gender, speaker_name + '.gmm')
+                                    gender, identifier + '.gmm')
         try:
             ensure_file_exists(orig_gmm)
             merge_gmms([orig_gmm, gmm_path], orig_gmm)
             self._read_db()
             return True
-        except Exception,e:
+        except IOError,e:
             s = "File %s doesn't exist or not correctly created" % orig_gmm
             if str(e) == s:
                 shutil.move(gmm_path, orig_gmm)
@@ -246,21 +257,21 @@ class GMMVoiceDB(VoiceDB):
                 return True
         return False
     
-    def remove_model(self, mfcc_file, speaker_name, value, gender):
+    def remove_model(self, mfcc_file, identifier, score, gender):
         """Remove a voice model from the db.
 
         :type mfcc_file: string
         :param mfcc_file: the mfcc file name and path
         
-        :type speaker_name: string
-        :param speaker_name: the speaker in the wave
+        :type identifier: string
+        :param identifier: the speaker in the wave
         
-        :type value: float
-        :param value: the value of
+        :type score: float
+        :param score: the value of
 
         :type gender: char F, M or U         
         :param gender: the gender of the speaker (optional)"""
-        old_s = speaker_name
+        old_s = identifier
         
         folder_db_dir = os.path.join(self.get_path(),gender)
         
@@ -273,7 +284,7 @@ class GMMVoiceDB(VoiceDB):
                       folder_tmp)
             listgmms = os.listdir(folder_tmp)
             filebasename = os.path.splitext(mfcc_file)[0]
-            value_old_s = value
+            value_old_s = score
             
             if len(listgmms) != 1:
                 for gmm in listgmms:
@@ -299,26 +310,26 @@ class GMMVoiceDB(VoiceDB):
             shutil.rmtree(folder_tmp)
             self._read_db()
              
-    def match_voice(self, mfcc_file, speaker_name, gender):
+    def match_voice(self, mfcc_file, identifier, gender):
         """Match the voice (mfcc file) versus the gmm model of 
-        'speaker_name' in db.
+        'identifier' in db.
         
         :type mfcc_file: string
         :param mfcc_file: the feature(mfcc) file extracted from the wave
 
-        :type speaker_name: string
-        :param speaker_name: the speaker in the wave
+        :type identifier: string
+        :param identifier: the speaker in the wave
         
         :type gender: char F, M or U         
         :param gender: the gender of the speaker (optional)"""
         
         mfcc_basename = os.path.splitext(mfcc_file)[0]
                 
-        mfcc_vs_gmm( mfcc_basename , speaker_name + '.gmm', 
+        mfcc_vs_gmm( mfcc_basename , identifier + '.gmm', 
                      gender, self.get_path() )
         cls = {}
         manage_ident( mfcc_basename, 
-                      gender + '.' + speaker_name + '.gmm', cls )
+                      gender + '.' + identifier + '.gmm', cls )
         s = {}
         for c in cls:
             s.update( cls[ c ].speakers )
@@ -340,7 +351,10 @@ class GMMVoiceDB(VoiceDB):
         :param mfcc_file: the feature(mfcc) file extracted from the wave
 
         :type gender: char F, M or U         
-        :param gender: the speaker gender 
+        :param gender: the speaker gender
+        
+        :rtype: dictionary
+        :returns: a dictionary having a computed score for every voice model in the db 
         """
         speakers =  self.get_speakers()[gender]
         res = {}
@@ -395,6 +409,16 @@ class Segment:
         self._u = str(line[6])
         self._speaker = str(line[7])
         self._line = line[:]
+        
+    def __cmp__(self, other):
+        if self._start < other._start:
+            return -1
+        if self._start > other._start:
+            return 1
+        return 0
+    
+    def rename(self, identifier):
+        self._line[7] = self._speaker = identifier
 
     def get_basename(self):
         return self._basename
@@ -424,8 +448,8 @@ class Cluster:
     """A Cluster object, representing a computed cluster for a single
     speaker, with gender, a number of frames and environment.
 
-    :type name: string
-    :param name: the cluster identifier
+    :type identifier: string
+    :param identifier: the cluster identifier
     
     :type gender: char F, M or U                   
     :param gender: the gender of the cluster
@@ -437,10 +461,10 @@ class Cluster:
     :param dirname: the directory where is the cluster wave file"""
 
     
-    def __init__(self, name, gender, frames, dirname ):
+    def __init__(self, identifier, gender, frames, dirname ):
         """
-        :type name: string
-        :param name: the cluster identifier
+        :type identifier: string
+        :param identifier: the cluster identifier
         
         :type gender: char F, M or U                   
         :param gender: the gender of the cluster
@@ -454,7 +478,7 @@ class Cluster:
         self.gender = gender
         self._frames = frames
         self._e = None #environment (studio, telephone, unknown)
-        self._name = name
+        self._name = identifier
         self._speaker = None
         self._segments = []
         self._seg_header = None
@@ -467,22 +491,22 @@ class Cluster:
     def __str__(self):
         return "%s (%s)" % (self._name, self._speaker)
 
-    def add_speaker(self, name, value):
+    def add_speaker(self, identifier, score):
         """Add a speaker with a computed score for the cluster, if a better 
-        value is already present the new value will be ignored.
+        score is already present the new score will be ignored.
         
-        :type name: string
-        :param name: the speaker name
+        :type identifier: string
+        :param identifier: the speaker identifier
         
-        :type value: float
-        :param value: score computed between the cluster wave and speaker model
+        :type score: float
+        :param score: score computed between the cluster wave and speaker model
         """
-        v = float(value)
-        if self.speakers.has_key( name ) == False:
-            self.speakers[ name ] = v
+        v = float(score)
+        if self.speakers.has_key( identifier ) == False:
+            self.speakers[ identifier ] = v
         else:
-            if self.speakers[ name ] < v:
-                self.speakers[ name ] = v
+            if self.speakers[ identifier ] < v:
+                self.speakers[ identifier ] = v
 
     def get_speaker(self):
         """Set the right speaker for the cluster if not set and returns
@@ -491,14 +515,14 @@ class Cluster:
             self._speaker = self.get_best_speaker()
         return self._speaker
     
-    def set_speaker(self, speaker):
-        """Set the cluster speaker 'by hand'.
+    def set_speaker(self, identifier):
+        """Set the cluster speaker identifier 'by hand'.
         
-        :type speaker: string
-        :param speaker: the speaker name or identifier 
+        :type identifier: string
+        :param identifier: the speaker name or identifier 
         """
         self.up_to_date = False
-        self._speaker = speaker
+        self._speaker = identifier
 
     def get_mean(self):
         """Get the mean of all the scores of all the tested speakers for
@@ -513,7 +537,11 @@ class Cluster:
         """Get the best speaker for the cluster according to the scores.
          If the speaker's score is lower than a fixed threshold or is too
          close to the second best matching voice, 
-         then it is set as "unknown"."""
+         then it is set as "unknown".
+         
+         :rtype: string
+         :returns: the best speaker matching the cluster wav
+         """
         max_val = -33.0
         try:
             self.value = max(self.speakers.values())
@@ -526,18 +554,26 @@ class Cluster:
                 if self.speakers[s] == self.value:
                     self._speaker = s
                     break
-        if distance < .09:
+        if distance < .07:
             self._speaker = 'unknown'
         return self._speaker
     
     def get_best_five(self):
-        """Return an array of five most probable speakers represented by 
-        ordered tuples of the form (speaker, score) ordered by score."""
+        """Get the best five speakers in the db for the cluster.
+        
+        :rtype: array of tuple
+        :returns: an array of five most probable speakers represented by 
+        ordered tuples of the form (speaker, score) ordered by score.
+        """
         return sorted(self.speakers.iteritems(), key=lambda (k,v): (v,k),
                       reverse=True)[:5]
     
     def get_gender(self):
-        """Get the computed gender of the Cluster."""
+        """Get the computed gender of the Cluster.
+        
+        :rtype: char
+        :returns: the gender of the cluster
+        """
         g = {'M':0, 'F':0, 'U':0}
         differ = False
         for s in self._segments:
@@ -578,24 +614,43 @@ class Cluster:
         """
         self._generate_a_seg_file(filename, self.wave[:-4])
 
-    def _generate_a_seg_file(self, filename, name):
+    def _generate_a_seg_file(self, filename, identifier):
         """Generate a segmentation file for the given showname.
 
         :type filename: string
         :param filename: the name of the seg file
         
-        :type name: string
-        :param name: the name in the first column of the seg file,
+        :type identifier: string
+        :param identifier: the name in the first column of the seg file,
                in fact the name and path of the corresponding wave file
         """
         f = open(filename, 'w')
         f.write(self._seg_header)
-        line = self._segments[0].get_line()
-        line[0] = name
+        line = self._segments[0].get_line()[:]
+        line[0] = identifier
         line[2] = 0
         line[3] = self._frames - 1
         f.write("%s %s %s %s %s %s %s %s\n" % tuple(line) )
         f.close()
+        
+    def merge(self, other):
+        """Merge the Cluster with another.
+        
+        :type other: Cluster
+        :param other: the cluster to be merged with"""
+        self._segments.extend(other._segments)
+        self._segments.sort()
+        #TODO: merge in the same
+
+    def rename(self, identifier):
+        """Rename the cluster and all the relative segments.
+        
+        :type identifier: string
+        :param identifier: the new name of the cluster"""
+        self._seg_header = self._seg_header.replace(self._name, identifier)
+        self._name = identifier
+        for s in self._segments:
+            s.rename(identifier)
         
     def merge_waves(self, dirname):
         """Take all the wave of a cluster and build a single wave.
@@ -617,7 +672,7 @@ class Cluster:
         merge_waves(listw, self.wave)      
         try:
             ensure_file_exists(file_basename + '.mfcc')
-        except Exception:
+        except IOError:
             extract_mfcc(file_basename)
             
     def to_dict(self):
@@ -638,6 +693,15 @@ class Cluster:
         for s in self._segments:
             print "%s to %s" % ( humanize_time( float(s.get_start()) / 100 ),
                                  humanize_time( float(s.get_end()) / 100 ) )
+            
+    def _get_seg_repr(self):
+        result = str(self._seg_header)
+        for s in self._segments:
+            line = s.get_line()
+            line[-1] = self._name
+            result += "%s %s %s %s %s %s %s %s\n" % tuple(line)
+        return result
+            
 
 class Voiceid:
     """The main object that represents the file audio/video to manage.
@@ -821,6 +885,16 @@ class Voiceid:
          convert to wave."""
         file2wav(self.get_filename())
         
+    def generate_seg_file(self):
+        """Generate a seg file according to the information acquired about the speech clustering"""
+        result = ''
+        for c in self._clusters:
+            result += self._clusters[c]._get_seg_repr()
+            
+        f = open(self.get_file_basename() + '.seg', 'w')
+        f.write(result)
+        f.close()
+        
     def diarization(self):
         """Run the diarization process. In case of single mode (single speaker 
         in the input file) just create the seg file with silence and gender 
@@ -829,7 +903,7 @@ class Voiceid:
             self._to_MFCC()
             try:
                 os.mkdir(self.get_file_basename())
-            except Exception,e:
+            except OSError,e:
                 if e.errno != 17:
                     raise e
             _silence_segmentation(self._basename)
@@ -871,7 +945,7 @@ class Voiceid:
             newfile.write(h)
             
             if differ: #in case the gender of the single segments differ 
-                       #then set the prevailing
+#                       then set the prevailing
 #                print 'transgender :-D'
                 if gg[ 'M' ] > gg[ 'F' ]:
                     basic = 'M'
@@ -902,10 +976,82 @@ class Voiceid:
     def _to_trim(self):
         """Trim the wave input file according to the segmentation in the seg
         file. Run after diarization."""
-        seg2trim(self._basename+'.seg')
+        seg2trim(self._basename)
         
     def _extract_clusters(self):
         extract_clusters(self._basename+'.seg', self._clusters)
+        
+    def _match_clusters(self, interactive=False, quiet=False):
+        basename = self.get_file_basename()
+        #merging segments wave files for every cluster
+        for cluster in self._clusters:
+            self[cluster].merge_waves(basename)
+            self[cluster].generate_seg_file(os.path.join(basename, 
+                                                         cluster + ".seg"))
+        
+        for cluster in self._clusters:            
+            filebasename = os.path.join(basename, cluster)
+            results = self.get_db().voice_lookup(filebasename + '.mfcc', 
+                                                 self[cluster].gender)
+            for r in results:
+                self[cluster].add_speaker(r, results[r])
+            
+        if not quiet: 
+            print ""
+        speakers = {}
+        
+        for c in self._clusters:
+            if not quiet: 
+                if interactive: 
+                    print "**********************************"
+                    print "speaker ", c
+                    self[c].print_segments()
+            speakers[c] = self[c].get_best_speaker()
+            """
+            if not interactive: 
+                for speaker in self[c].speakers:
+                    if not quiet: 
+                        print "\t %s %s" % (speaker, self[c].speakers[speaker])
+                if not quiet: 
+                    print '\t ------------------------'
+                    
+            """
+            
+             
+            if interactive == True:
+                self.set_interactive( True )
+                
+                speakers[c] = best = _interactive_training(basename, 
+                                                          c, speakers[c])
+                self[c].set_speaker(best)
+    
+    def _rename_clusters(self):
+        all_clusters = []
+        temp_clusters = self._clusters.copy() 
+        for c in temp_clusters:
+            all_clusters.append( self._clusters.pop(c) )
+        i = 0
+        for c in all_clusters:
+            label = 'S'+str(i)
+            c.rename(label)
+            self._clusters[label] = c
+            i += 1
+    
+    def _merge_clusters(self, c1, c2):
+        
+        label = ''
+        to_delete = ''
+        if c1 < c2:
+            label = c1
+            to_delete = c2
+        else:
+            label = c2
+            to_delete = c1
+            
+        to_keep = self.get_cluster(label)
+        to_remove = self._clusters.pop(to_delete)
+            
+        to_keep.merge(to_remove)
 
     def extract_speakers(self, interactive=False, quiet=False, thrd_n=1):
         """Identify the speakers in the audio wav according to a speakers
@@ -958,57 +1104,27 @@ class Voiceid:
             print self.get_working_status()
         self._extract_clusters()
         
-        #merging segments wave files for every cluster
-        for cluster in self._clusters:
-            self[cluster].merge_waves(basename)
-            self[cluster].generate_seg_file(os.path.join(basename, 
-                                                         cluster + ".seg"))
-       
-        for cluster in self._clusters:            
-            filebasename = os.path.join(basename, cluster)
-            results = self.get_db().voice_lookup(filebasename + '.mfcc', 
-                                                 self[cluster].gender)
-            for r in results:
-                self[cluster].add_speaker(r, results[r])
-            
-        if not quiet: 
-            print ""
-        speakers = {}
+        self._match_clusters(interactive, quiet)
         
-        for c in self._clusters:
-            if not quiet: 
-                print "**********************************"
-                print "speaker ", c
-                if interactive: self[c].print_segments()
-            speakers[c] = self[c].get_best_speaker()
-            if not interactive: 
-                for speaker in self[c].speakers:
-                    if not quiet: 
-                        print "\t %s %s" % (speaker, self[c].speakers[speaker])
-                if not quiet: 
-                    print '\t ------------------------'
-                
-            distance = self[c].get_distance()
-            
-            try:
-                mean = self[c].get_mean()
-                m_distance = self[c].get_m_distance()
-            except:
-                mean = 0
-                m_distance = 0
-    
-            if interactive == True:
-                self.set_interactive( True )
-                
-                speakers[c] = best = _interactive_training(basename, 
-                                                          c, speakers[c])
-                self[c].set_speaker(best)
-                
-            if not interactive:
-                if not quiet:
-                    print """\t best speaker: %s (distance from 2nd %f - mean %f - distance from mean %f ) """ % (speakers[c],
-                                                                                                                  distance, 
-                                                                                                                  mean, m_distance)    
+        
+        #merging
+        all_clusters = self.get_clusters().copy()
+        
+        if not self._single :
+            changed = False
+            for c1 in all_clusters:
+                c_c1 = all_clusters[c1]
+                for c2 in all_clusters:
+                    c_c2 = all_clusters[c2]
+                    if c1 != c2 and c_c1.get_speaker() != 'unknown' and c_c1.get_speaker() == c_c2.get_speaker() and self._clusters.has_key(c1) and self._clusters.has_key(c2):
+                        changed = True 
+                        self._merge_clusters(c1, c2)
+            if changed:            
+                self._rename_clusters()
+                shutil.rmtree(self.get_file_basename())
+                self.generate_seg_file()
+                self._to_trim()                
+   
         sec = wave_duration( basename+'.wav' )
         total_time = time.time() - start_time
         self.set_time( total_time )
@@ -1020,6 +1136,26 @@ class Voiceid:
 
         if not interactive:
             if not quiet: 
+                for c in self._clusters:
+                    print "**********************************"
+                    print "speaker ", c
+                    for speaker in self[c].speakers:
+                        print "\t %s %s" % (speaker, self[c].speakers[speaker])
+                    print '\t ------------------------'
+                    distance = self[c].get_distance()
+                        
+                    try:
+                        mean = self[c].get_mean()
+                        m_distance = self[c].get_m_distance()
+                    except:
+                        mean = 0
+                        m_distance = 0
+            
+                    print """\t best speaker: %s (distance from 2nd %f - mean %f - distance from mean %f ) """ % (self[c],
+                                                                                                              distance,
+                                                                                                                  mean, m_distance)         
+    
+                
                 speakers_in_db = self.get_db().get_speakers()
                 tot_voices = len(speakers_in_db['F']) + \
                     len(speakers_in_db['M'])+len(speakers_in_db['U'])
@@ -1034,7 +1170,7 @@ class Voiceid:
                                                                                                                                                   tot_voices, 
                                                                                                                                                   t_f_s)
             
-    def _match_voice_wrapper(self, cluster, mfcc_name, db_entry, gender ):
+    def _match_voice_wrapper(self, cluster, mfcc_name, db_entry, gender):
         """A wrapper to match the voices each in a different Thread."""
         results = self.get_db().match_voice(mfcc_name, db_entry, gender)
         for r in results:
@@ -1286,6 +1422,7 @@ class Voiceid:
 def alive_threads(t):
     """Check how much threads are running and alive in a thread dictionary
 
+    :type t: dictionary
     :param t: thread dictionary like  { key : thread_obj, ... }
     """ 
     num = 0
@@ -1301,33 +1438,35 @@ def start_subprocess(commandline):
     :type commandline: string
     :param commandline: the command to run in a subprocess 
     """
-    #print commandline
     args = shlex.split(commandline)
-    try:
-        p = subprocess.Popen(args, stdin=output_redirect, stdout=output_redirect, 
-                             stderr=output_redirect)
-        retval = p.wait()
-    except:
-        args = commandline.split(' ')
-        p = subprocess.Popen(args, stdin=output_redirect, stdout=output_redirect, 
-                             stderr=output_redirect)
-        retval = p.wait()        
+#    try:
+    p = subprocess.Popen(args, stdin=output_redirect, stdout=output_redirect, 
+                         stderr=output_redirect)
+    retval = p.wait()
+#    except:
+#        print "except 1327"
+#        args = commandline.split(' ')
+#        p = subprocess.Popen(args, stdin=output_redirect, stdout=output_redirect, 
+#                             stderr=output_redirect)
+#        retval = p.wait()        
         
         
     if retval != 0:
-        raise Exception("Subprocess %s closed unexpectedly [%s]" % (str(p), 
+        e = OSError("Subprocess %s closed unexpectedly [%s]" % (str(p), 
                                                                     commandline))
+        e.errno = retval
+        raise e
 
 def ensure_file_exists(filename):
-    """Ensure file exists and is not empty, otherwise raise an Exception.
+    """Ensure file exists and is not empty, otherwise raise an IOError.
     
     :type filename: string
     :param filename: file to check 
     """
     if not os.path.exists(filename):
-        raise Exception("File %s doesn't exist or not correctly created" % filename)
+        raise IOError("File %s doesn't exist or not correctly created" % filename)
     if not (os.path.getsize(filename) > 0):
-        raise Exception("File %s empty"  % filename)
+        raise IOError("File %s empty"  % filename)
 
 def check_deps():
     """Check for dependencies."""
@@ -1338,7 +1477,7 @@ def check_deps():
     dir_u = os.path.join(db_dir, "U")
     ensure_file_exists(ubm_path)
     if not os.path.exists(db_dir):
-        raise Exception("No gmm db directory found in %s (take a look to the configuration, db_dir parameter)" % db_dir )
+        raise IOError("No gmm db directory found in %s (take a look to the configuration, db_dir parameter)" % db_dir )
     if os.listdir(db_dir) == []:
         print "WARNING: Gmm db directory found in %s is empty" % db_dir
     if not os.path.exists(dir_m):
@@ -1377,8 +1516,10 @@ def wave_duration(wavfile):
 def merge_waves(input_waves, wavename):
     """Take a list of waves and append them to a brend new destination wave.
      
-    :type input_waves: 
+    :type input_waves: list 
     :param input_waves: the wave files list
+    
+    :type wavename: string
     :param wavename: the output wave file to be generated
     """
     #if os.path.exists(wavename):
@@ -1394,6 +1535,7 @@ def file2wav(filename):
     mono 16000 Hz" wave file using gstreamer. If you call it passing a wave it
     checks if in good format, else it converts the wave in the good format.
     
+    :type filename: string
     :param filename: the input audio/video file to convert 
     """
     def is_bad_wave(filename):
@@ -1404,7 +1546,7 @@ def file2wav(filename):
             w = wave.open(filename)
             par = w.getparams()
             w.close()
-        except Exception,e:
+        except wave.Error,e:
             print e
             return True
         if par[:3] == (1,2,16000) and par[-1:] == ('not compressed',):
@@ -1423,7 +1565,10 @@ def file2wav(filename):
 def merge_gmms(input_files, output_file):
     """Merge two or more gmm files to a single gmm file with more voice models.
     
+    :type input_files: list
     :param input_files: the gmm file list to merge
+    
+    :type output_file: string
     :param output_file: the merged gmm output file
     """
     num_gmm = 0
@@ -1455,6 +1600,9 @@ def merge_gmms(input_files, output_file):
     
 def get_gender(input_file):
     """Return gender of a given gmm file.
+    
+    :type input_file: string
+    :param input_file: the gmm file
     """
     gmm = open(input_file,'r')
 
@@ -1478,6 +1626,12 @@ def get_gender(input_file):
     
 def split_gmm(input_file, output_dir=None):
     """Split a gmm file into gmm files with a single voice model.
+    
+    :type input_file: string
+    :param input_file: the gmm file containing various voice models
+    
+    :type output_dir: string
+    :param output_dir: the directory where is splitted the gmm input file
     """
     def read_gaussian(f):
         g_key = f.read(8)     #read string of 8bytes kind
@@ -1520,8 +1674,7 @@ def split_gmm(input_file, output_dir=None):
         ck = f.read(8)    #read string of 8bytes
         if ck != "GAUSSVEC":
             raise Exception("Error: the gaussian container is not of GAUSSVEC kind %s" % ck)
-        cs = f.read(4)    #readint 4bytes representing the size of the gaussian 
-                          #container
+        cs = f.read(4)    #readint 4bytes representing the size of the gaussian container
         stuff = ck + cs
         for index in range( int( struct.unpack( '>i', cs )[0] ) ):
             stuff += read_gaussian(f)
@@ -1576,8 +1729,15 @@ def split_gmm(input_file, output_dir=None):
         index += 1
         
 
-def rename_gmm(input_file,new_name_gmm_file):
-    """Rename a gmm with a new speaker identifier(name) associated.""" 
+def rename_gmm(input_file, identifier):
+    """Rename a gmm with a new speaker identifier(name) associated.
+    
+    :type input_file: string
+    :param input_file: the gmm file to rename
+    
+    :type identifier: string
+    :param identifier: the new name or identifier of the gmm model 
+    """ 
     
     gmm = open(input_file,'r')
     new_gmm = open(input_file+'.new','w')
@@ -1602,11 +1762,11 @@ def rename_gmm(input_file,new_name_gmm_file):
 
     str_len = struct.unpack('>i', gmm.read(4) )
     name = gmm.read(str_len[0])
-    print new_name_gmm_file
-    new_len = struct.pack('>i', len(new_name_gmm_file) )
+    print identifier
+    new_len = struct.pack('>i', len(identifier) )
 
     new_gmm.write(new_len)
-    new_gmm.write(new_name_gmm_file)
+    new_gmm.write(identifier)
 
     all_other = gmm.read()
 
@@ -1615,13 +1775,20 @@ def rename_gmm(input_file,new_name_gmm_file):
     new_gmm.close()
     
 
-def build_gmm(filebasename,name):
+def build_gmm(filebasename, identifier):
     """Build a gmm (Gaussian Mixture Model) file from a given wave with a 
-    speaker identifier (name) associated."""
+    speaker identifier  associated.
+    
+    :type filebasename: string
+    :param filebasename: the input file basename
+    
+    :type identifier: string
+    :param identifier: the name or identifier of the speaker
+    """
 
     diarization(filebasename)
 
-    ident_seg(filebasename,name)
+    ident_seg(filebasename, identifier)
 
     extract_mfcc(filebasename)
     
@@ -1632,10 +1799,14 @@ def build_gmm(filebasename,name):
 #-------------------------------------
 #   seg files and trim functions
 #-------------------------------------
-def seg2trim(segfile):
+def seg2trim(filebasename):
     """Take a wave and splits it in small waves in this directory structure
-    <file base name>/<cluster>/<cluster>_<start time>.wav """
-    basename = os.path.splitext(segfile)[0]
+    <file base name>/<cluster>/<cluster>_<start time>.wav 
+    
+    :type filebasename: string
+    :param filebasename: filebasename of the seg and wav input files
+    """
+    segfile = filebasename + '.seg'
     s = open(segfile,'r')
     for line in s.readlines():
         if not line.startswith(";;"):
@@ -1644,24 +1815,28 @@ def seg2trim(segfile):
             st = float(arr[2]) / 100
             end = float(arr[3]) / 100
             try:
-                mydir = os.path.join(basename, clust)
+                mydir = os.path.join(filebasename, clust)
                 os.makedirs( mydir )
             except os.error, e:
                 if e.errno == 17:
                     pass
                 else:
                     raise os.error
-            wave_path = os.path.join(basename, clust, 
+            wave_path = os.path.join(filebasename, clust, 
                                      "%s_%07d.%07d.wav" % (clust, int(st), 
                                                            int(end)))
-            commandline = "sox %s.wav %s trim  %s %s" % (basename, wave_path, 
+            commandline = "sox %s.wav %s trim  %s %s" % (filebasename, wave_path, 
                                                          st, end)
             start_subprocess(commandline)
             ensure_file_exists( wave_path )
     s.close()
 
 def seg2srt(segfile):
-    """Take a seg file and convert it in a subtitle file (srt)."""
+    """Take a seg file and convert it in a subtitle file (srt).
+    
+    :type segfile: string
+    :param segfile: the segmentation file to convert
+    """
     def readtime(aline):
         return int(aline[2])
 
@@ -1692,17 +1867,19 @@ def seg2srt(segfile):
 
 def extract_mfcc(filebasename):
     """Extract audio features from the wave file, in particular the 
-    mel-frequency cepstrum using a sphinx tool."""
+    mel-frequency cepstrum using a sphinx tool.
+    
+    """
     commandline = "sphinx_fe -verbose no -mswav yes -i %s.wav -o %s.mfcc" %  ( filebasename, filebasename )
     start_subprocess(commandline)
     ensure_file_exists(filebasename + '.mfcc')
 
-def ident_seg(filebasename, name):
+def ident_seg(filebasename, identifier):
     """Substitute cluster names with speaker names ang generate a
     "<filebasename>.ident.seg" file."""
-    ident_seg_rename(filebasename, name, filebasename + '.ident')
+    ident_seg_rename(filebasename, identifier, filebasename + '.ident')
  
-def ident_seg_rename(filebasename, name, outputname):
+def ident_seg_rename(filebasename, identifier, outputname):
     """Take a seg file and substitute the clusters with a given name or 
     identifier."""
     f = open(filebasename + '.seg', 'r')
@@ -1718,7 +1895,7 @@ def ident_seg_rename(filebasename, name, outputname):
     clusters.reverse()
     for line in lines:
         for c in clusters:
-            line = line.replace(c,name)
+            line = line.replace(c,identifier)
         output.write(line)
     output.close()
     ensure_file_exists(outputname + '.seg')
@@ -1747,16 +1924,16 @@ def manage_ident(filebasename, gmm, clusters):
     if not keep_intermediate_files:
         os.remove("%s.ident.%s.seg" % (filebasename, gmm ) )
 
-def extract_clusters(filename, clusters):
+def extract_clusters(segfilename, clusters):
     """Read _clusters from segmentation file."""
-    f = open(filename, "r")
+    f = open(segfilename, "r")
     last_cluster = None
     for l in f:
         if l.startswith(";;"):
             speaker_id = l.split()[1].split(':')[1]
-            clusters[ speaker_id ] = Cluster(name=speaker_id, gender='U', 
+            clusters[ speaker_id ] = Cluster(identifier=speaker_id, gender='U', 
                                              frames=0, 
-                                             dirname=os.path.splitext(filename)[0])
+                                             dirname=os.path.splitext(segfilename)[0])
             last_cluster = clusters[ speaker_id ]
             last_cluster._seg_header = l
         else:
@@ -1797,7 +1974,11 @@ def srt2subnames(filebasename, key_value):
 
 def file2trim(filename):
     """Take a video or audio file and converts it into smaller waves according
-    to the diarization process."""
+    to the diarization process.
+    
+    :type filename: string
+    :param filename: the input file audio/video 
+    """
     if not quiet_mode: 
         print "*** converting video to wav ***"
     file2wav(filename)
@@ -1807,16 +1988,18 @@ def file2trim(filename):
     diarization(file_basename)
     if not quiet_mode: 
         print "*** trim ***"
-    seg2trim(file_basename+'.seg')
+    seg2trim(file_basename)
 
 #--------------------------------------------
 #   diarization and voice matching functions
 #--------------------------------------------
-def _silence_segmentation(filebasename): 
+def _silence_segmentation(filebasename):
+    """Make a basic segmentation file for the wave file, cutting off the silence.""" 
     start_subprocess( 'java -Xmx2024m -cp '+lium_jar+' fr.lium.spkDiarization.programs.MSegInit --fInputMask=%s.mfcc --fInputDesc=audio16kHz2sphinx,1:1:0:0:0:0,13,0:0:0 --sInputMask= --sOutputMask=%s.s.seg ' +  filebasename )
     ensure_file_exists(filebasename+'.s.seg')
     
 def _gender_detection(filebasename):
+    """Build a segmentation file where for every segment is identified the gender of the voice."""
     start_subprocess( 'java -Xmx2024m -cp '+lium_jar+' fr.lium.spkDiarization.programs.MDecode  --fInputMask=%s.wav --fInputDesc=audio2sphinx,1:3:2:0:0:0,13,0:0:0 --sInputMask=%s.s.seg --sOutputMask=%s.g.seg --dPenality=10,10,50 --tInputMask=' + sms_gmms + ' ' + filebasename )
     ensure_file_exists(filebasename+'.g.seg')
     cmd = 'java -Xmx2024m -cp '+lium_jar+' fr.lium.spkDiarization.programs.MScore --help  --sGender --sByCluster --fInputDesc=audio16kHz2sphinx,1:3:2:0:0:0,13,1:1:0:0 --fInputMask=%s.mfcc --sInputMask=%s.g.seg --sOutputMask=%s.seg --tInputMask=' + gender_gmms + ' ' + filebasename
@@ -1826,24 +2009,40 @@ def _gender_detection(filebasename):
 def diarization(filebasename):
     """Take a wave file in the correct format and build a segmentation file. 
     The seg file shows how much speakers are in the audio and when they talk.
+    
+    :type filebasename: string
+    :param filebasename: the basename of the wav file to process
     """
     start_subprocess( 'java -Xmx2024m -jar '+lium_jar+' --fInputMask=%s.wav --sOutputMask=%s.seg --doCEClustering ' +  filebasename )
     ensure_file_exists(filebasename+'.seg')
 
 def _train_init(filebasename):
     """Train the initial speaker gmm model."""
-    commandline = 'java -Xmx256m -cp '+lium_jar+' fr.lium.spkDiarization.programs.MTrainInit --sInputMask=%s.ident.seg --fInputMask=%s.wav --fInputDesc=audio16kHz2sphinx,1:3:2:0:0:0,13,1:1:300:4 --emInitMethod=copy --tInputMask=' + ubm_path + ' --tOutputMask=%s.init.gmm ' + file_basename
+    commandline = 'java -Xmx256m -cp '+lium_jar+' fr.lium.spkDiarization.programs.MTrainInit --sInputMask=%s.ident.seg --fInputMask=%s.wav --fInputDesc=audio16kHz2sphinx,1:3:2:0:0:0,13,1:1:300:4 --emInitMethod=copy --tInputMask=' + ubm_path + ' --tOutputMask=%s.init.gmm ' + filebasename
     start_subprocess(commandline)
     ensure_file_exists(filebasename+'.init.gmm')
 
 def _train_map(filebasename):
     """Train the speaker model using a MAP adaptation method."""
-    commandline = 'java -Xmx256m -cp '+lium_jar+' fr.lium.spkDiarization.programs.MTrainMAP --sInputMask=%s.ident.seg --fInputMask=%s.mfcc --fInputDesc=audio16kHz2sphinx,1:3:2:0:0:0,13,1:1:300:4 --tInputMask=%s.init.gmm --emCtrl=1,5,0.01 --varCtrl=0.01,10.0 --tOutputMask=%s.gmm ' + file_basename 
+    commandline = 'java -Xmx256m -cp '+lium_jar+' fr.lium.spkDiarization.programs.MTrainMAP --sInputMask=%s.ident.seg --fInputMask=%s.mfcc --fInputDesc=audio16kHz2sphinx,1:3:2:0:0:0,13,1:1:300:4 --tInputMask=%s.init.gmm --emCtrl=1,5,0.01 --varCtrl=0.01,10.0 --tOutputMask=%s.gmm ' + filebasename 
     start_subprocess(commandline)
     ensure_file_exists(filebasename+'.gmm')
 
 def mfcc_vs_gmm(filebasename, gmm, gender, custom_db_dir=None):
-    """Match a mfcc file and a given gmm model file."""
+    """Match a mfcc file and a given gmm model file and produce a segmentation file containing the score obtained. 
+    
+    :type filebasename: string
+    :param filebasename: the basename of the mfcc file to process
+    
+    :type gmm: string
+    :param gmm: the path of the gmm file containing the voice model
+    
+    :type gender: char
+    :param gender: F, M or U, the gender of the voice model
+    
+    :type custom_db_dir: None or string
+    :param custom_db_dir: the voice models database to use 
+    """
     database = db_dir
     if custom_db_dir != None:
         database = custom_db_dir
@@ -1867,15 +2066,15 @@ def mfcc_vs_gmm(filebasename, gmm, gender, custom_db_dir=None):
 #    manage_ident(filebasename,gender+'.'+gmm,clusters)
 #    return clusters['S0'].speakers['mrarkadin']
 
-def _interactive_training(filebasename, cluster, speaker):
+def _interactive_training(filebasename, cluster, identifier):
     """A user interactive way to set the name to an unrecognized voice of a 
     given cluster."""
     info = None
     p = None
-    if speaker == "unknown":
+    if identifier == "unknown":
         info = """The system has not identified this speaker!"""
     else:
-        info = "The system has identified this speaker as '"+speaker+"'!"
+        info = "The system has identified this speaker as '"+identifier+"'!"
 
     print info
 
@@ -1923,7 +2122,7 @@ def _interactive_training(filebasename, cluster, speaker):
                     print "Yes, no or menu, please!"  
             continue
         if char == "":
-            return speaker
+            return identifier
         print "Type 1, 2 or enter to skip, please"
 
 #----------------------------------
