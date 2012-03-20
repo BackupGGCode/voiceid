@@ -1,0 +1,138 @@
+#!/usr/bin/env python
+#############################################################################
+#
+# VoiceID, Copyright (C) 2011, Sardegna Ricerche.
+# Email: labcontdigit@sardegnaricerche.it, michela.fancello@crs4.it, 
+#        mauro.mereu@crs4.it
+# Web: http://code.google.com/p/voiceid
+# Authors: Michela Fancello, Mauro Mereu
+#
+# This program is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation, either version 3 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#############################################################################
+
+import os
+import shutil
+from voiceid import db_dir, lium_jar, ubm_path
+from voiceid.db import GMMVoiceDB
+from multiprocessing import cpu_count
+from optparse import OptionParser
+from voiceid.sr import Voiceid
+from voiceid.utils import check_deps
+from voiceid.wav import merge_waves, file2wav, build_gmm
+
+def _multiargs_callback(option, opt_str, value, parser):
+    """ Create an array from multiple args"""
+    if len(parser.rargs) == 0:
+        parser.error("incorrect number of arguments")
+    args=[]
+    for arg in parser.rargs:
+        if arg[0] != "-":
+            args.append(arg)
+        else:
+            del parser.rargs[:len(args)]
+            break
+    if getattr(parser.values, option.dest):
+        args.extend(getattr(parser.values, option.dest))
+    setattr(parser.values, option.dest, args)
+
+if __name__ == '__main__':
+    usage = """%prog ARGS
+
+examples:
+    speaker identification
+        %prog [ -d GMM_DB ] [ -j JAR_PATH ] [ -b UBM_PATH ] -i INPUT_FILE
+    
+        user interactive mode
+        %prog [ -d GMM_DB ] [ -j JAR_PATH ] [ -b UBM_PATH ] -i INPUT_FILE -u    
+
+    speaker model creation
+        %prog [ -j JAR_PATH ] [ -b UBM_PATH ] -s SPEAKER_ID -g INPUT_FILE
+        %prog [ -j JAR_PATH ] [ -b UBM_PATH ] -s SPEAKER_ID -g WAVE WAVE ... WAVE  MERGED_WAVES """
+
+    parser = OptionParser(usage)
+    parser.add_option("-v", "--verbose", dest="verbose", action="store_true", default=False, help="verbose mode")
+    parser.add_option("-q", "--quiet", dest="quiet_mode", action="store_true", default=False, help="suppress prints")
+    parser.add_option("-k", "--keep-intermediatefiles", dest="keep_intermediate_files", action="store_true", help="keep all the intermediate files")
+    parser.add_option("-i", "--identify",  dest="file_input", metavar="FILE", help="identify speakers in video or audio file")
+    parser.add_option("-g", "--gmm", action="callback", callback=_multiargs_callback, dest="waves_for_gmm", help="build speaker model ")
+    parser.add_option("-s", "--speaker", dest="speakerid", help="speaker identifier for model building")
+    parser.add_option("-d", "--db",type="string", dest="dir_gmm", metavar="PATH",help="set the speakers models db path (default: %s)" % db_dir )
+    parser.add_option("-j", "--jar",type="string", dest="jar", metavar="PATH",help="set the LIUM_SpkDiarization jar path (default: %s)" % lium_jar )
+    parser.add_option("-b", "--ubm",type="string", dest="ubm", metavar="PATH",help="set the gmm UBM model path (default: %s)" % ubm_path)
+    parser.add_option("-u", "--user-interactive", dest="interactive", action="store_true", help="User interactive training")
+    parser.add_option("-f", "--output-format", dest="output_format",action="store", type="string", help="output file format [ srt | json | xmp ] (default srt)")
+
+    (options, args) = parser.parse_args()
+
+    if options.keep_intermediate_files:
+        keep_intermediate_files = options.keep_intermediate_files
+    if options.quiet_mode:
+        quiet_mode = options.quiet_mode
+    if options.dir_gmm:
+        db_dir = options.dir_gmm
+    if options.output_format:
+        if options.output_format not in ('srt', 'json', 'xmp'):
+            print 'output format (%s) wrong or not available' % options.output_format
+            parser.print_help()
+            exit(0)
+        output_format = options.output_format
+    if options.jar:
+        lium_jar = options.jar
+    if options.ubm:
+        ubm_path = options.ubm      
+
+    check_deps()
+           
+    if options.file_input:
+        
+        #create db istance
+        default_db = GMMVoiceDB(path=db_dir)
+        
+        #create voiceid instance
+        cmanager = Voiceid(db=default_db, filename=options.file_input)
+        
+        #extract the speakers
+        cmanager.extract_speakers(interactive=options.interactive, 
+                                  quiet=quiet_mode, thrd_n=cpu_count() * 5)
+        
+        #write the output according to the given output format
+        cmanager.write_output( output_format )
+        
+        if not keep_intermediate_files:
+            os.remove(cmanager.get_file_basename() + '.seg')            
+            os.remove(cmanager.get_file_basename() + '.mfcc')
+            w = cmanager.get_file_basename() + '.wav'
+            if cmanager.get_filename() != w:
+                os.remove(w)
+            shutil.rmtree(cmanager.get_file_basename())
+        exit(0)
+        
+    if options.waves_for_gmm and options.speakerid:
+        file_basename = None
+        waves = options.waves_for_gmm
+        speaker = options.speakerid
+        if not speaker.isalnum():
+            print 'error: SPEAKER_ID must be alphanumeric'
+            exit(1)
+        w = None
+        if len(waves)>1:
+            merge_waves(waves[:-1], waves[-1])
+            w = waves[-1]
+        else:
+            w = waves[0]
+        basename, extension = os.path.splitext(w)
+        file_basename = basename
+        file2wav(w)
+        build_gmm(file_basename, speaker)
+        exit(0)
+
+    parser.print_help()

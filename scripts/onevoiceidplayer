@@ -30,22 +30,25 @@
 # You can also build yourself the speaker models and put those in the db
 # using the scripts to create the gmm files.
 
-from voiceid import *
-import MplayerCtrl as mpc
-import os
-import time
-import wx
-import shutil
-import wx.lib.buttons as buttons
+import os.path
 import pyaudio
+import shutil
+import sys
+import time
 import wave
-from wx.lib.pubsub import Publisher
+import wx
+import wx.lib.buttons as buttons
+from threading import Thread
+from voiceid.db import GMMVoiceDB
+from voiceid.sr import Voiceid
 from wx.lib.intctrl import IntCtrl
+from wx.lib.pubsub import Publisher
 
 #-------------------------------------
 # initializations and global variables
 #-------------------------------------
-dirName = os.path.dirname(os.path.abspath(__file__))
+#dirName = os.path.dirname(os.path.abspath(__file__))
+dirName = os.path.join(sys.prefix, 'local/share/voiceid')
 bitmapDir = os.path.join(dirName, 'bitmaps')
 OK_DIALOG = 33
 CANCEL_DIALOG = 34
