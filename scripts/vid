@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 #############################################################################
 #
-# VoiceID, Copyright (C) 2011, Sardegna Ricerche.
+# VoiceID, Copyright (C) 2011-2012, Sardegna Ricerche.
 # Email: labcontdigit@sardegnaricerche.it, michela.fancello@crs4.it, 
 #        mauro.mereu@crs4.it
 # Web: http://code.google.com/p/voiceid
@@ -19,15 +19,15 @@
 #
 #############################################################################
 
-import os
-import shutil
-from voiceid import db_dir, lium_jar, ubm_path
-from voiceid.db import GMMVoiceDB
 from multiprocessing import cpu_count
 from optparse import OptionParser
+from voiceid import DB_DIR, LIUM_JAR, UBM_PATH
+from voiceid.db import GMMVoiceDB
 from voiceid.sr import Voiceid
 from voiceid.utils import check_deps
-from voiceid.wav import merge_waves, file2wav, build_gmm
+from voiceid.fm import merge_waves, file2wav, build_gmm
+import os
+import shutil
 
 def _multiargs_callback(option, opt_str, value, parser):
     """ Create an array from multiple args"""
@@ -65,9 +65,9 @@ examples:
     parser.add_option("-i", "--identify",  dest="file_input", metavar="FILE", help="identify speakers in video or audio file")
     parser.add_option("-g", "--gmm", action="callback", callback=_multiargs_callback, dest="waves_for_gmm", help="build speaker model ")
     parser.add_option("-s", "--speaker", dest="speakerid", help="speaker identifier for model building")
-    parser.add_option("-d", "--db",type="string", dest="dir_gmm", metavar="PATH",help="set the speakers models db path (default: %s)" % db_dir )
-    parser.add_option("-j", "--jar",type="string", dest="jar", metavar="PATH",help="set the LIUM_SpkDiarization jar path (default: %s)" % lium_jar )
-    parser.add_option("-b", "--ubm",type="string", dest="ubm", metavar="PATH",help="set the gmm UBM model path (default: %s)" % ubm_path)
+    parser.add_option("-d", "--db",type="string", dest="dir_gmm", metavar="PATH",help="set the speakers models db path (default: %s)" % DB_DIR )
+    parser.add_option("-j", "--jar",type="string", dest="jar", metavar="PATH",help="set the LIUM_SpkDiarization jar path (default: %s)" % LIUM_JAR )
+    parser.add_option("-b", "--ubm",type="string", dest="ubm", metavar="PATH",help="set the gmm UBM model path (default: %s)" % UBM_PATH)
     parser.add_option("-u", "--user-interactive", dest="interactive", action="store_true", help="User interactive training")
     parser.add_option("-f", "--output-format", dest="output_format",action="store", type="string", help="output file format [ srt | json | xmp ] (default srt)")
 
@@ -78,7 +78,7 @@ examples:
     if options.quiet_mode:
         quiet_mode = options.quiet_mode
     if options.dir_gmm:
-        db_dir = options.dir_gmm
+        DB_DIR = options.dir_gmm
     if options.output_format:
         if options.output_format not in ('srt', 'json', 'xmp'):
             print 'output format (%s) wrong or not available' % options.output_format
@@ -86,16 +86,16 @@ examples:
             exit(0)
         output_format = options.output_format
     if options.jar:
-        lium_jar = options.jar
+        LIUM_JAR = options.jar
     if options.ubm:
-        ubm_path = options.ubm      
+        UBM_PATH = options.ubm      
 
     check_deps()
            
     if options.file_input:
         
         #create db istance
-        default_db = GMMVoiceDB(path=db_dir)
+        default_db = GMMVoiceDB(path=DB_DIR)
         
         #create voiceid instance
         cmanager = Voiceid(db=default_db, filename=options.file_input)

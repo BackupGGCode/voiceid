@@ -327,7 +327,7 @@ class Controller:
             self.cluster_form.Destroy()
             
 
-    def exit(self):
+    def exit_(self):
         self.player.mpc.Quit()
 
 class ClusterForm(wx.Dialog):
@@ -685,7 +685,7 @@ class App(wx.App):
         
     def OnExit(self):
         pass
-        #self.controller.exit()
+        #self.controller.exit_()
        
 if __name__ == "__main__":
     app = App(redirect=False)

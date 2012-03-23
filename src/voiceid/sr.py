@@ -1,6 +1,6 @@
 #############################################################################
 #
-# VoiceID, Copyright (C) 2011, Sardegna Ricerche.
+# VoiceID, Copyright (C) 2011-2012, Sardegna Ricerche.
 # Email: labcontdigit@sardegnaricerche.it, michela.fancello@crs4.it, 
 #        mauro.mereu@crs4.it
 # Web: http://code.google.com/p/voiceid
@@ -23,10 +23,10 @@ import shlex
 import shutil
 import subprocess
 import time
-from __init__ import keep_intermediate_files, output_redirect
+from __init__ import KEEP_INTERMEDIATE_FILES, output_redirect
 from threading import Thread
 from utils import ensure_file_exists, humanize_time
-from wav import merge_waves, extract_mfcc, file2wav, _silence_segmentation, \
+from fm import merge_waves, extract_mfcc, file2wav, _silence_segmentation, \
     _gender_detection, diarization, seg2trim, wave_duration, seg2srt, srt2subnames
 
 
@@ -864,7 +864,7 @@ class Voiceid:
                                            self[cluster].value, 
                                            self[cluster].gender )
                 self[cluster].set_speaker(new_speaker)
-            if not keep_intermediate_files:
+            if not KEEP_INTERMEDIATE_FILES:
                 try:
                     os.remove("%s.seg" % wave_b )
                     os.remove("%s.mfcc" % wave_b )
@@ -1082,7 +1082,7 @@ def manage_ident(filebasename, gmm, clusters):
                     _clusters[ cluster ][ speaker ] = float(value)
             """
     f.close()
-    if not keep_intermediate_files:
+    if not KEEP_INTERMEDIATE_FILES:
         os.remove("%s.ident.%s.seg" % (filebasename, gmm ) )
 
 def extract_clusters(segfilename, clusters):

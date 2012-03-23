@@ -18,17 +18,10 @@
 #
 #########################################################################
 
-from optparse import OptionParser
-from multiprocessing import Process, cpu_count, active_children
+from voiceid.fm import merge_gmms
 import os
-import shlex, subprocess
-import sys, signal
-import time
-import re
-import string
 import shutil
 import struct
-from voiceid import merge_gmms
 
 def get_speaker(input_file):
     #input_file = sys.argv[1]

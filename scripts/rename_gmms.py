@@ -19,10 +19,11 @@
 #########################################################################
 
 
+from voiceid.fm import split_gmm, rename_gmm, merge_gmms
+import os
+import shutil
 import struct
 import sys
-import os, shutil
-from voiceid import split_gmm, merge_gmms, rename_gmm
 
 
 

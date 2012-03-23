@@ -1,6 +1,6 @@
 #############################################################################
 #
-# VoiceID, Copyright (C) 2011, Sardegna Ricerche.
+# VoiceID, Copyright (C) 2011-2012, Sardegna Ricerche.
 # Email: labcontdigit@sardegnaricerche.it, michela.fancello@crs4.it, 
 #        mauro.mereu@crs4.it
 # Web: http://code.google.com/p/voiceid
@@ -39,17 +39,17 @@ import sys
 # initializations and global variables
 #-------------------------------------
 
-lium_jar = os.path.join(sys.prefix,'local/share/voiceid/LIUM_SpkDiarization-4.7.jar')  
-ubm_path  = os.path.join(sys.prefix,'local/share/voiceid/ubm.gmm')
-test_path  = os.path.expanduser('~/.voiceid/test')
-db_dir = os.path.expanduser('~/.voiceid/gmm_db')
-gender_gmms = os.path.join(sys.prefix,'local/share/voiceid/gender.gmms')
-sms_gmms = os.path.join(sys.prefix,'local/share/voiceid/sms.gmms')
+QUIET_MODE = False
+VERBOSE = False
+KEEP_INTERMEDIATE_FILES = False
+LIUM_JAR = os.path.join(sys.prefix,'local/share/voiceid/LIUM_SpkDiarization-4.7.jar')  
+UBM_PATH  = os.path.join(sys.prefix,'local/share/voiceid/ubm.gmm')
+DB_DIR = os.path.expanduser('~/.voiceid/gmm_db')
+GENDER_GMMS = os.path.join(sys.prefix,'local/share/voiceid/gender.gmms')
+SMS_GMMS = os.path.join(sys.prefix,'local/share/voiceid/sms.gmms')
 output_format = 'srt' #default output format
-quiet_mode = False
-verbose = False
-keep_intermediate_files = False
+test_path  = os.path.expanduser('~/.voiceid/test')
 
 output_redirect = open('/dev/null','w')
-if verbose:
+if VERBOSE:
     output_redirect = open('/dev/stdout','w')

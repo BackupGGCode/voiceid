@@ -18,9 +18,9 @@
 #
 #########################################################################
 
-from voiceid import split_gmm
 
-import sys, struct
+from voiceid.fm import split_gmm
+import sys
 
 
 if __name__ == '__main__':

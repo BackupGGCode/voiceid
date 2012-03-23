@@ -1,6 +1,6 @@
 #############################################################################
 #
-# VoiceID, Copyright (C) 2011, Sardegna Ricerche.
+# VoiceID, Copyright (C) 2011-2012, Sardegna Ricerche.
 # Email: labcontdigit@sardegnaricerche.it, michela.fancello@crs4.it, 
 #        mauro.mereu@crs4.it
 # Web: http://code.google.com/p/voiceid
@@ -24,7 +24,7 @@ import time
 from threading import Thread
 from sr import manage_ident
 from utils import ensure_file_exists, alive_threads
-from wav import extract_mfcc, build_gmm, merge_gmms, split_gmm, \
+from fm import extract_mfcc, build_gmm, merge_gmms, split_gmm, \
     mfcc_vs_gmm
 
 #-------------------------------------
@@ -147,13 +147,13 @@ class GMMVoiceDB(VoiceDB):
         """Read for any changes the db voice models files."""
         self._speakermodels = {}
         for g in self._genders:
-            dir = None
+            dir_ = None
             path = os.path.join(self._path, g)
             try:
-                dir = os.listdir(path)
+                dir_ = os.listdir(path)
             except:
                 os.makedirs(path)
-            self._speakermodels[g] = [ f for f in dir if f.endswith('.gmm') ]
+            self._speakermodels[g] = [ f for f in dir_ if f.endswith('.gmm') ]
     
     def add_model(self, basefilename, identifier, gender=None):
         """Add a gmm model to db.

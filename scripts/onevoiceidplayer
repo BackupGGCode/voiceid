@@ -629,7 +629,8 @@ class Model:
             
             
     def is_process_running(self):
-        if len(self.queue_processes) == 0: return True
+        if len(self.queue_processes) == 0: 
+            return True
         for vid, result in self.queue_processes:
                 if result == None:
                     return True

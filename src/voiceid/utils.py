@@ -1,6 +1,6 @@
 #############################################################################
 #
-# VoiceID, Copyright (C) 2011, Sardegna Ricerche.
+# VoiceID, Copyright (C) 2011-2012, Sardegna Ricerche.
 # Email: labcontdigit@sardegnaricerche.it, michela.fancello@crs4.it, 
 #        mauro.mereu@crs4.it
 # Web: http://code.google.com/p/voiceid
@@ -21,7 +21,7 @@
 import os
 import shlex
 import subprocess
-from __init__ import output_redirect, lium_jar, db_dir, ubm_path
+from __init__ import output_redirect, LIUM_JAR, DB_DIR, UBM_PATH
 
 
 def alive_threads(t):
@@ -75,16 +75,16 @@ def ensure_file_exists(filename):
 
 def check_deps():
     """Check for dependencies."""
-    ensure_file_exists(lium_jar)
+    ensure_file_exists(LIUM_JAR)
 
-    dir_m = os.path.join(db_dir, "M")
-    dir_f = os.path.join(db_dir, "F")
-    dir_u = os.path.join(db_dir, "U")
-    ensure_file_exists(ubm_path)
-    if not os.path.exists(db_dir):
-        raise IOError("No gmm db directory found in %s (take a look to the configuration, db_dir parameter)" % db_dir )
-    if os.listdir(db_dir) == []:
-        print "WARNING: Gmm db directory found in %s is empty" % db_dir
+    dir_m = os.path.join(DB_DIR, "M")
+    dir_f = os.path.join(DB_DIR, "F")
+    dir_u = os.path.join(DB_DIR, "U")
+    ensure_file_exists(UBM_PATH)
+    if not os.path.exists(DB_DIR):
+        raise IOError("No gmm db directory found in %s (take a look to the configuration, DB_DIR parameter)" % DB_DIR )
+    if os.listdir(DB_DIR) == []:
+        print "WARNING: Gmm db directory found in %s is empty" % DB_DIR
     if not os.path.exists(dir_m):
         os.makedirs(dir_m)
     if not os.path.exists(dir_f):

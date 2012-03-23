@@ -30,14 +30,10 @@
 # You can also build yourself the speaker models and put those in the db
 # using the scripts to create the gmm files.
 
-from voiceid import *
-from onevoiceidplayer import Record, Model
-import os
+from onevoiceidplayer import Model
+from optparse import OptionParser
+from threading import Thread
 import time
-import shutil
-import pyaudio
-import wave
-
 
 
 if __name__ == '__main__':

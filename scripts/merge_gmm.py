@@ -18,10 +18,9 @@
 #
 #########################################################################
 
+from voiceid.fm import merge_gmms
 import shutil
-import struct
 import sys
-from voiceid import merge_gmms
 
 
 if __name__ == '__main__':
