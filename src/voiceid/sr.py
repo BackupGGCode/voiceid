@@ -61,30 +61,42 @@ class Segment:
         return 0
     
     def rename(self, identifier):
+        """Change the identifier of the segment.
+        
+        :type identifier: string
+        :param identifier: the identifier of the speaker in the segment"""
         self._line[7] = self._speaker = identifier
 
     def get_basename(self):
+        """Get the basename of the original file which belong the segment."""
         return self._basename
 
     def get_start(self):
+        """Get the start frame index of the segment."""
         return self._start
     
     def get_end(self):
+        """Get the end frame index of the segment."""
         return self._start + self._duration 
     
     def get_duration(self):
+        """Get the duration of the segment in frames."""
         return self._duration
 
     def get_gender(self):
+        """Get the gender of the segment."""
         return self._gender
 
     def get_environment(self):
+        """Get the environment of the segment."""
         return self._environment
 
     def get_speaker(self):
+        """Get the speaker identifier of the segment."""
         return self._speaker
 
     def get_line(self):
+        """Get the line of the segment in the original seg file.""" 
         return self._line
 
 class Cluster:
@@ -416,32 +428,51 @@ class Voiceid:
         return self._clusters.__iter__()
     
     def get_status(self):
+        """Get the status of the computation.
+            0:'file_loaded', 
+            1:'file_converted', 
+            2:'diarization_done', 
+            3:'trim_done', 
+            4:'mfcc extracted', 
+            5:'speakers matched'
+        """
         return self._status
 
     def get_working_status(self):
+        """
+        Get a string representation of the working status.
+            0:'converting_file', 
+            1:'diarization',
+            2:'trimming', 
+            3:'mfcc extraction',
+            4:'voice matching', 
+            5:'extraction finished'"""
         #TODO: fix some issue on restarting and so on about current status
         return self.working_map[ self.get_status() ]  
     
     def get_db(self):
+        """Get the VoiceDB instance used."""
         return self._db
     
     #setters and getters
-    def get_interactive(self):
+    def _get_interactive(self):
         return self._interactive
 
-    def set_interactive(self, value):
+    def _set_interactive(self, value):
         self._interactive = value
 
     def get_clusters(self):
+        """Get the clusters recognized in the processed file.
+        """
         return self._clusters
 
-    def set_clusters(self, value):
+    def _set_clusters(self, value):
         self._clusters = value
 
-    def get_time(self):
+    def _get_time(self):
         return self._time
 
-    def set_time(self, value):
+    def _set_time(self, value):
         self._time = value
     
     def _set_filename(self, filename):
@@ -662,7 +693,7 @@ class Voiceid:
             
              
             if interactive == True:
-                self.set_interactive( True )
+                self._set_interactive( True )
                 
                 speakers[c] = best = _interactive_training(basename, 
                                                           c, speakers[c])
@@ -770,7 +801,7 @@ class Voiceid:
    
         sec = wave_duration( basename+'.wav' )
         total_time = time.time() - start_time
-        self.set_time( total_time )
+        self._set_time( total_time )
         self._status = 5
         if not quiet: print self.get_working_status()
         if interactive:

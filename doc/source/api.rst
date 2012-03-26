@@ -1,9 +1,9 @@
 API documentation
-=================
+=======================================================
 
 
 :mod:`voiceid` --- Voice diarization and identification module
-=======================================================
+================================================================
 
 .. automodule:: voiceid 
    :members: 
@@ -22,7 +22,7 @@ API documentation
    :members: 
 
 :mod:`voiceid.fm` --- Low level Wave and Gmm files manipulation
-=======================================================
+================================================================
 
 .. automodule:: voiceid.fm
    :members: 

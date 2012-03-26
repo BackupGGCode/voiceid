@@ -40,6 +40,13 @@ except:
     print "ERROR: CMU-sphinx not installed"
     exit(0)
     
+try:
+    sphinx = check_output('which gst-launch')
+except:
+    print "ERROR: GStreamer not installed"
+    exit(0)
+
+doc_files = []    
 if sys.argv[1] == 'clean':
     check_output('cd doc; make clean')
 elif sys.argv[1].startswith('bdist'):
@@ -49,11 +56,10 @@ elif sys.argv[1].startswith('bdist'):
     except:
         print "ERROR: documentation not correctly created"
         exit(0)
-
-doc_dir = os.path.join(basedir, 'doc/build/html')
+    doc_dir = os.path.join(basedir, 'doc/build/html')
+    doc_files = [ os.path.join(doc_dir, f) for f in os.listdir(doc_dir) if not os.path.isdir( os.path.join(doc_dir, f) ) ]
+    
 image_dir = os.path.join(basedir, 'share/bitmaps')
-
-doc_files = [ os.path.join(doc_dir, f) for f in os.listdir(doc_dir) if not os.path.isdir( os.path.join(doc_dir, f) ) ]
 image_files = [ os.path.join(image_dir, f) for f in os.listdir(image_dir) if not os.path.isdir( os.path.join(image_dir, f) ) ]
 
 setup(name='voiceid',
