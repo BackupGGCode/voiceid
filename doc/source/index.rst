@@ -12,7 +12,6 @@ Voiceid's documentation
    abstract
    intro
    architecture
-   database
    tests
    application
    conclusion
