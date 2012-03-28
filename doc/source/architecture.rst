@@ -39,7 +39,7 @@ Una volta ottenuto il file **seg** abbiamo cercato di identificare i singoli spe
 Una volta ottenuti i differenti spezzoni audio per ogni speaker, si è potuto procedere con l'estrazione delle *features* MFCC attraverso *Sphinx* [#]_.
 
 .. figure::  /img-latex/diar_mfcc.png
-   :align:   center
+   :align:  center
 
    Nel diagramma riportato sopra viene schematizzato il processo di acquisizione dati ed elaborazione mediante diarization.
 
@@ -65,10 +65,17 @@ La parte più interessante del sistema è quella relativa al riconoscimento dell
 .. figure::  /img-latex/Mscore2.png
    :align:   center
 
+   Un MFCC viene confrontato con n GMM attraverso l'MScore producendo una serie di scores; il maggiore di essi sarà considerata lo score migliore.
+
 Per ottimizzare i tempi di processazione è possibile generare una serie di thread che in concorrenza si dividono i confronti da fare tra i file GMM del database e i file MFCC dei singoli cluster; la scelta di mantenere distinti i modelli vocali dei differenti *speakers* nasce anche da questa esigenza. 
 
-Una volta ottenuto il nome dello speaker con lo score più alto (*best score*) è necessario verificare se il risultato è attendibile: per prima cosa bisogna accertarsi che lo score sia “sufficientemente” alto per poter essere escludere la possibilità che lo speaker non sia presente nel database. Per fare questo è stato individuata una soglia in modo empirico, convergendo alla fine sul valore -33: se il *best score* risulta essere minore di tale soglia, ciò indica che probabilmente lo speaker ricercato non è presente nel database. In caso contrario verrà effettuato un altro controllo per accertare che il *best score* sia “sufficientemente” indicativo ovvero che la distanza dal secondo score classificato sia maggiore di una certa quantità: tale valore è stato ottenuto mediante differenti tests, portando a ritenere accettabile una distanza non minore a 0,07.
-Nel caso in cui la distanza tra il primo e il secondo risultasse minore, si ritiene inattendibile il risultato, pertanto la voce viene considerata sconosciuta.
+Una volta ottenuto il nome dello speaker con lo score più alto (*best score*) è necessario verificare se il risultato è attendibile: per prima cosa bisogna accertarsi che lo score sia “sufficientemente” alto per poter escludere la possibilità che lo speaker non sia presente nel database. Per fare questo è stato individuata una soglia in modo empirico, convergendo alla fine sul valore -33: se il *best score* risulta essere minore di tale soglia, ciò indica che probabilmente lo speaker ricercato non è presente nel database. In caso contrario verrà effettuato un altro controllo per accertare che il *best score* sia “sufficientemente” indicativo ovvero che la distanza dal secondo score classificato sia maggiore di una certa quantità: tale valore è stato ottenuto mediante differenti tests, portando a ritenere accettabile una distanza non minore a 0,07.
+Nel caso in cui la distanza tra il primo e il secondo risultasse minore, si ritiene inattendibile il risultato, pertanto la voce viene considerata sconosciuta, in caso contrario alla voce verrà assegnato  lo speaker che ha prodotto il *best score* .
+
+.. figure::  /img-latex/best_speaker.png
+   :align:   center
+
+   Una volta ottenuto il *best score*,  verrà verificata l'attendibilità del potenziale riconoscimento.
 
 
 .. [#] Sphinx-4 è un sistema di riconoscimento vocale scritto interamentenel linguaggio di programmazione JavaTM. E' stato creato attraverso una collaborazione tra il gruppo Sfinge presso la Carnegie Mellon University, SunMicrosystems Laboratories, Mitsubishi Electric Research Labs (MERL), e HewlettPackard (HP), con il contributo dell'Università della California a Santa Cruz (UCSC) e il Massachusetts Institute of Technology (MIT).
