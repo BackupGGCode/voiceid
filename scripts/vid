@@ -21,7 +21,7 @@
 
 from multiprocessing import cpu_count
 from optparse import OptionParser
-from voiceid import DB_DIR, LIUM_JAR, UBM_PATH
+from voiceid import DB_DIR, LIUM_JAR, UBM_PATH, QUIET_MODE, KEEP_INTERMEDIATE_FILES, OUTPUT_FORMAT
 from voiceid.db import GMMVoiceDB
 from voiceid.sr import Voiceid
 from voiceid.utils import check_deps
@@ -74,9 +74,9 @@ examples:
     (options, args) = parser.parse_args()
 
     if options.keep_intermediate_files:
-        keep_intermediate_files = options.keep_intermediate_files
+        KEEP_INTERMEDIATE_FILES = options.keep_intermediate_files
     if options.quiet_mode:
-        quiet_mode = options.quiet_mode
+        QUIET_MODE = options.quiet_mode
     if options.dir_gmm:
         DB_DIR = options.dir_gmm
     if options.output_format:
@@ -84,7 +84,7 @@ examples:
             print 'output format (%s) wrong or not available' % options.output_format
             parser.print_help()
             exit(0)
-        output_format = options.output_format
+        OUTPUT_FORMAT = options.output_format
     if options.jar:
         LIUM_JAR = options.jar
     if options.ubm:
@@ -102,12 +102,12 @@ examples:
         
         #extract the speakers
         cmanager.extract_speakers(interactive=options.interactive, 
-                                  quiet=quiet_mode, thrd_n=cpu_count() * 5)
+                                  quiet=QUIET_MODE, thrd_n=cpu_count() * 5)
         
         #write the output according to the given output format
-        cmanager.write_output( output_format )
+        cmanager.write_output( OUTPUT_FORMAT )
         
-        if not keep_intermediate_files:
+        if not KEEP_INTERMEDIATE_FILES:
             os.remove(cmanager.get_file_basename() + '.seg')            
             os.remove(cmanager.get_file_basename() + '.mfcc')
             w = cmanager.get_file_basename() + '.wav'

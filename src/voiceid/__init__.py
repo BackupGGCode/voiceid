@@ -47,7 +47,7 @@ UBM_PATH  = os.path.join(sys.prefix,'local/share/voiceid/ubm.gmm')
 DB_DIR = os.path.expanduser('~/.voiceid/gmm_db')
 GENDER_GMMS = os.path.join(sys.prefix,'local/share/voiceid/gender.gmms')
 SMS_GMMS = os.path.join(sys.prefix,'local/share/voiceid/sms.gmms')
-output_format = 'srt' #default output format
+OUTPUT_FORMAT = 'srt' #default output format
 test_path  = os.path.expanduser('~/.voiceid/test')
 
 output_redirect = open('/dev/null','w')

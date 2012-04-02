@@ -167,14 +167,14 @@ htmlhelp_basename = 'Voiceiddoc'
 #latex_paper_size = 'letter'
 
 # The font size ('10pt', '11pt' or '12pt').
-#latex_font_size = '10pt'
+latex_font_size = '12pt'
 
 # Grouping the document tree into LaTeX files. List of tuples
 # (source start file, target name, title, author, documentclass [howto/manual]).
 latex_documents = [
   ('index', 'Voiceid.tex', u'Voiceid Documentation',
    u'''Michela Fancello \\textless{}michela.fancello@crs4.it\\textgreater{}, 
-   Mauro Mereu \\textless{}mauro.mereu@crs4.it\\textgreater{}''', 'manual'),
+   Mauro~Mereu \\textless{}mauro.mereu@crs4.it\\textgreater{}''', 'manual'),
 ]
 
 # The name of an image file (relative to this directory) to place at the top of

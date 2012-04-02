@@ -136,11 +136,11 @@ class Cluster:
         self._name = identifier
         self._speaker = None
         self._segments = []
-        self._seg_header = None
+        self._seg_header = ";; cluster:%s [ score:FS = 0.0 ] [ score:FT = 0.0 ] [ score:MS = 0.0 ] [ score:MT = 0.0 ]\n" % identifier
         self.speakers = {}
         self.up_to_date = True
-        self.wave = None
-        self.mfcc = None
+        self.wave = dirname + '.wav'
+        self.mfcc = dirname + '.mfcc'
         self.dirname = dirname
         
     def __str__(self):
@@ -371,26 +371,40 @@ class Voiceid:
     :param single: set to True to force to avoid diarization (a faster 
            approach) only in case you have just a single speaker in the file      
     """
+    @staticmethod 
+    def from_json_file(db, json_filename):
+        """Build a Voiceid object from json file.
+        
+        :type json_filename: string
+        :param json_filename: the file containing a json style python dictionary representing a Voiceid object instance
+        """
+        of = open(json_filename, 'r')
+        jdict = eval(of.read())
+        of.close()
+        return Voiceid.from_dict(db, jdict)
 
-#    @staticmethod 
-#    def from_dict(db, json_dict):
-#        """Build a Voiceid object from json dictionary. 
-#        :param json_dict the json style python dictionary representing
-#               a Voiceid object instance
-#        """
-#        v = Voiceid(db, json_dict['url'])
-#        dirname = os.path.splitext(json_dict['url'])
-#        
-#        for e in json_dict['selections']:            
-#            c = v.get_cluster(e['speakerLabel'])
-#            if not c:
-#                c = Cluster(e['speaker'], e['gender'], 0, dirname)
-#            s = Segment([dirname, 1, int(e['startTime'] * 100), 
-#                         int( 100 * (e['endTime'] - e['startTime']) ), 
-#                         e['gender'], 'U', 'U', e['speaker'] ])
-#            c._segments.append(s)
-#            v.add_update_cluster(e['speakerLabel'], c)
-#        return v
+    @staticmethod 
+    def from_dict(db, json_dict):
+        """Build a Voiceid object from json dictionary.
+        
+        :type json_dict: dictionary
+        :param json_dict: the json style python dictionary representing a Voiceid object instance
+        """
+        v = Voiceid(db, json_dict['url'])
+        dirname = os.path.splitext(json_dict['url'])[0]
+        try:
+            for e in json_dict['selections']:            
+                c = v.get_cluster(e['speakerLabel'])
+                if not c:
+                    c = Cluster(e['speaker'], e['gender'], 0, dirname)
+                s = Segment([dirname, 1, int(e['startTime'] * 100), 
+                             int( 100 * (e['endTime'] - e['startTime']) ), 
+                             e['gender'], 'U', 'U', e['speaker'] ])
+                c._segments.append(s)
+                v.add_update_cluster(e['speakerLabel'], c)
+        except:
+            raise Exception('ERROR: Failed to load the dictionary, maybe is in wrong format!')
+        return v
 
     def __init__(self, db, filename, single=False ):
         """ 
