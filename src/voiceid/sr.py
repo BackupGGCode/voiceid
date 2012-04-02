@@ -116,7 +116,7 @@ class Cluster:
     :param dirname: the directory where is the cluster wave file"""
 
     
-    def __init__(self, identifier, gender, frames, dirname ):
+    def __init__(self, identifier, gender, frames, dirname, name=''):
         """
         :type identifier: string
         :param identifier: the cluster identifier
@@ -133,8 +133,8 @@ class Cluster:
         self.gender = gender
         self._frames = frames
         self._e = None #environment (studio, telephone, unknown)
-        self._name = identifier
-        self._speaker = None
+        self._name = name
+        self._speaker = identifier
         self._segments = []
         self._seg_header = ";; cluster:%s [ score:FS = 0.0 ] [ score:FT = 0.0 ] [ score:MS = 0.0 ] [ score:MT = 0.0 ]\n" % identifier
         self.speakers = {}
@@ -142,6 +142,7 @@ class Cluster:
         self.wave = dirname + '.wav'
         self.mfcc = dirname + '.mfcc'
         self.dirname = dirname
+        self.add_speaker(identifier, -32.99)
         
     def __str__(self):
         return "%s (%s)" % (self._name, self._speaker)
@@ -182,8 +183,11 @@ class Cluster:
     def get_mean(self):
         """Get the mean of all the scores of all the tested speakers for
          the cluster."""
-        return sum(self.speakers.values()) / len(self.speakers) 
-
+        try:
+            return sum(self.speakers.values()) / len(self.speakers)
+        except:
+            return 0.0
+            
     def get_name(self):
         """Get the cluster name assigned by the diarization process."""
         return self._name
@@ -396,7 +400,7 @@ class Voiceid:
             for e in json_dict['selections']:            
                 c = v.get_cluster(e['speakerLabel'])
                 if not c:
-                    c = Cluster(e['speaker'], e['gender'], 0, dirname)
+                    c = Cluster(e['speaker'], e['gender'], 0, dirname, e['speakerLabel'])
                 s = Segment([dirname, 1, int(e['startTime'] * 100), 
                              int( 100 * (e['endTime'] - e['startTime']) ), 
                              e['gender'], 'U', 'U', e['speaker'] ])
