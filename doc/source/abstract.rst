@@ -1,8 +1,11 @@
 ﻿Abstract
 ========
 
+In this paper is presented a *speaker diarization/identification system*, which works *offline* to identify different speakers in a video/audio track. The application can be used mainly for automatic video segmentation and indexing; the audio information can be very useful to look for specific video segments (i.e. video news) where there are different speakers that speak alternatively.
 
-In questo articolo viene presentato un sistema di riconoscimento vocale *Speaker Identification* che opera in modalità *offline* per l'individuazione dei differenti speakers presenti all'interno di una traccia video/audio. Il contesto di applicazione è in generale quello della segmentazione e indicizzazione automatica di video; l'impiego dell'informazione audio può dare un contributo non indifferente nella ricerca di specifici segmenti video (es. telegiornali) in cui sono presenti differenti speakers che si alternano nel parlato. 
-L'applicazione si basa principalmente sul sistema di *Speaker Diarization* facente parte del progetto *LIUM*, realizzato dal Laboratorio d'Informatica dell'Università di Maine in Francia: si avvale di un tipo di classificazione *text-indipendent* ed estrae le *features* nel dominio della frequenza mentre la classificazione viene effettuata utilizzando i modelli gaussiani *Gaussian Mixture Models*. Il nostro contributo è stato principalmente quello di affiancare al sistema di classificazione un database di voci con la possibilità di identificare lo speaker solo se presente nel database stesso; allo stesso modo ci ha consentito di correggere eventuali errori conseguentemente ad una imprecisa diarization.
-La parte di sperimentazione è stata condotta sulla base di tre differenti dataset: uno costituito da differenti segmenti video tratti da telegiornali nazionali, il secondo costruito su registrazioni ad hoc e l'altro costituito da segmenti audio estratti dal database *VOXFORGE* in lingua inglese. I test hanno dimostrato che ...
+The application relies heavily on the *Speaker Diarization LIUM* project, designed by the Laboratory of Computer Science University of Maine in France: it uses a type of classification *Text-independent* and extracts audio *features* in the frequency domain while the classification is carried out using *Gaussian Mixture models*. 
+
+Our contribution was primarily to add a voice database to the classification system, to allow the identification of the speaker only if present in the database, and it has also allowed us to correct any errors due to a imprecise diarization.
+
+The experiments were conducted on three different datasets: the first is a set video clips from national news (TG La7), the second is a recording of voices using a microphone, and the other is a set of audio clips taken from the *VOXFORGE* database of english voices. Tests have shown that ...
 

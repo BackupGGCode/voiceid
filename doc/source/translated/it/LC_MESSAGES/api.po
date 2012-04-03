@@ -1,0 +1,504 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) 2012,  Michela Fancello <michela.fancello@crs4.it>, Mauro Mereu <mauro.mereu@crs4.it>
+# This file is distributed under the same license as the voiceid package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2012-04-03 14:51\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: Translate Toolkit 1.5.3\n"
+
+# 9699203cdee74bd79a94dd963567fa74
+#: ../source/api.rst:2
+msgid "API documentation"
+msgstr "Documentazione Api"
+
+# 360b5f5413454b11bac1f11e2531f986
+#: ../source/api.rst:6
+msgid ":mod:`voiceid` --- Voice diarization and identification module"
+msgstr ":mod:`voiceid` --- Modulo di Voice diarization e identification"
+
+# 759f4f380be0408f862b6d0a4bcbbdeb
+#: ../../src/voiceid/__init__.py:docstring of voiceid:1
+msgid "VoiceID is a speaker recognition/identification system written in Python, based on the `LIUM Speaker Diarization <http://lium3.univ-lemans.fr/diarization/doku.php>`_ framework."
+msgstr "VoiceID è un sistema di speaker recognition/identification, scritto in Python, basato sul framework `LIUM Speaker Diarization <http://lium3.univ-lemans.fr/diarization/doku.php>`_"
+
+# 4db2d2813b904899bcb91202de4b6946
+#: ../../src/voiceid/__init__.py:docstring of voiceid:4
+msgid "VoiceID can process video or audio files to identify in which slices of  time there is a person speaking (diarization); then it examines all those segments to identify who is speaking. To do so uses a voice models database."
+msgstr ""
+
+# 785ec443dec34f7885fcdc9080b077db
+#: ../../src/voiceid/__init__.py:docstring of voiceid:9
+msgid "To create the database you have to do a \"train phase\", in interactive mode, by assigning a label to the \"unknown\" speakers. You can also build yourself manually the speaker models and put in the db using the scripts to create the gmm files."
+msgstr ""
+
+# 7b51fd80cac5465ca34bafbc3bdd55f9
+#: ../source/api.rst:12
+msgid ":mod:`voiceid.db` --- Voice model database classes"
+msgstr ""
+
+# 1423a5e49de74371b84942a08e42821d
+#: ../../src/voiceid/db.py:docstring of voiceid.db.GMMVoiceDB:1
+msgid "A Gaussian Mixture Model voices database."
+msgstr ""
+
+# 1f2d1f1fee70456280c94065d2aad4ff
+#: ../../src/voiceid/db.py:docstring of voiceid.db.GMMVoiceDB.add_model:1
+msgid "Add a gmm model to db."
+msgstr ""
+
+# aed6640692c5415a84c3cf93af69b1aa
+#: ../../src/voiceid/db.py:docstring of voiceid.db.GMMVoiceDB.get_speakers:1
+msgid "Return a dictionary where the keys are the genders and the values are a list of the available speakers models for every gender."
+msgstr ""
+
+# 50a2574a70934d07ba25fb396e1eda26
+#: ../../src/voiceid/db.py:docstring of voiceid.db.GMMVoiceDB.match_voice:1
+msgid "Match the voice (mfcc file) versus the gmm model of  'identifier' in db."
+msgstr ""
+
+# 5112795e89b34647beda3f56240d6592
+#: ../../src/voiceid/db.py:docstring of voiceid.db.GMMVoiceDB.remove_model:1
+msgid "Remove a voice model from the db."
+msgstr ""
+
+# 5b61d824a3cd4df590f82369d80f6b60
+#: ../../src/voiceid/db.py:docstring of voiceid.db.GMMVoiceDB.set_maxthreads:1
+msgid "Set the max number of threads running together for the lookup task."
+msgstr ""
+
+# a78d0b34eadf47dda95606ba3d04ffa9
+# c0c9a36d44d04729959a4c3ecc886a37
+#: ../../src/voiceid/db.py:docstring of voiceid.db.GMMVoiceDB.voice_lookup:1
+#: ../../src/voiceid/db.py:docstring of voiceid.db.VoiceDB.voice_lookup:1
+msgid "Look for the best matching speaker in the db for the given features file."
+msgstr ""
+
+# e79c319cc8694b57be3c34d45d27aa35
+#: ../../src/voiceid/db.py:docstring of voiceid.db.VoiceDB:1
+msgid "A class that represent a generic voice models db."
+msgstr ""
+
+# ec01cf6a279e4b638e504f5c90324d3b
+#: ../../src/voiceid/db.py:docstring of voiceid.db.VoiceDB.add_model:1
+msgid "Add a voice model to the database."
+msgstr ""
+
+# 0241517d101e4465a56e2cc3f95847f1
+#: ../../src/voiceid/db.py:docstring of voiceid.db.VoiceDB.get_path:1
+msgid "Get the base path of the voice models db, where are stored the voice model  files, splitted in 3 directories according to the gender (F, M, U)."
+msgstr ""
+
+# fc89721ed5d74df09e6075a93e522af3
+#: ../../src/voiceid/db.py:docstring of voiceid.db.VoiceDB.get_speakers:1
+msgid "Return a dictionary where the keys are the genders and the values  are a list for every gender with the available speakers models."
+msgstr ""
+
+# d809bf218b6b450c90cac08af9ed5290
+#: ../../src/voiceid/db.py:docstring of voiceid.db.VoiceDB.match_voice:1
+msgid "Match the given feature file vs the specified speaker model."
+msgstr ""
+
+# b9f23cec76e8467bb6a333af724d4fb4
+#: ../../src/voiceid/db.py:docstring of voiceid.db.VoiceDB.remove_model:1
+msgid "Remove a speaker model from the database according to the score it gets by matching vs the given feature file"
+msgstr ""
+
+# eaa263469f454f519ab75d6927515ce5
+#: ../source/api.rst:19
+msgid ":mod:`voiceid.sr` --- Speaker recognition classes"
+msgstr ""
+
+# 3eff04b2172649e5a0130803e6d96c03
+#: ../../src/voiceid/sr.py:docstring of voiceid.sr.Cluster:1
+msgid "A Cluster object, representing a computed cluster for a single speaker, with gender, a number of frames and environment."
+msgstr ""
+
+# 69ce007ef3ff4b98bf76a67b39956780
+#: ../../src/voiceid/sr.py:docstring of voiceid.sr.Cluster.add_speaker:1
+msgid "Add a speaker with a computed score for the cluster, if a better  score is already present the new score will be ignored."
+msgstr ""
+
+# 014216844ab54248a0e501d05b91f01d
+#: ../../src/voiceid/sr.py:docstring of voiceid.sr.Cluster.generate_seg_file:1
+msgid "Generate a segmentation file for the cluster."
+msgstr ""
+
+# 6d881835e21e4bf99ae6168a4641796b
+#: ../../src/voiceid/sr.py:docstring of voiceid.sr.Cluster.get_best_five:1
+msgid "Get the best five speakers in the db for the cluster."
+msgstr ""
+
+# 0b501858c9914dc4be2911746594b4c9
+#: ../../src/voiceid/sr.py:docstring of voiceid.sr.Cluster.get_best_five:5
+msgid "ordered tuples of the form (speaker, score) ordered by score."
+msgstr ""
+
+# 50788a8b695f41fca660a107a6f1426d
+#: ../../src/voiceid/sr.py:docstring of voiceid.sr.Cluster.get_best_speaker:1
+msgid "Get the best speaker for the cluster according to the scores. If the speaker's score is lower than a fixed threshold or is too close to the second best matching voice,  then it is set as \"unknown\"."
+msgstr ""
+
+# fdbc708f9c92440bbf41623a34dae2e0
+#: ../../src/voiceid/sr.py:docstring of voiceid.sr.Cluster.get_distance:1
+msgid "Get the distance between the best speaker score and the closest speaker score."
+msgstr ""
+
+# d88a8daaa5d74020924d590c7f0b96b7
+#: ../../src/voiceid/sr.py:docstring of voiceid.sr.Cluster.get_gender:1
+msgid "Get the computed gender of the Cluster."
+msgstr ""
+
+# bbc82fbad7794ff09faec5130ec6a115
+#: ../../src/voiceid/sr.py:docstring of voiceid.sr.Cluster.get_m_distance:1
+msgid "Get the distance between the best speaker score and the mean of all the speakers' scores."
+msgstr ""
+
+# c5c9decffdb649d69566b3f0d7dd34c5
+#: ../../src/voiceid/sr.py:docstring of voiceid.sr.Cluster.get_mean:1
+msgid "Get the mean of all the scores of all the tested speakers for the cluster."
+msgstr ""
+
+# a7911f686b634acd9e8c147fef29f472
+#: ../../src/voiceid/sr.py:docstring of voiceid.sr.Cluster.get_name:1
+msgid "Get the cluster name assigned by the diarization process."
+msgstr ""
+
+# 466ed8e1190149a9be6ea38948897760
+#: ../../src/voiceid/sr.py:docstring of voiceid.sr.Cluster.get_speaker:1
+msgid "Set the right speaker for the cluster if not set and returns its name."
+msgstr ""
+
+# 311156c2f24946039b1985536d697584
+#: ../../src/voiceid/sr.py:docstring of voiceid.sr.Cluster.merge:1
+msgid "Merge the Cluster with another."
+msgstr ""
+
+# c647fa03bc684ee19cb70b1c7e68140f
+#: ../../src/voiceid/sr.py:docstring of voiceid.sr.Cluster.merge_waves:1
+msgid "Take all the wave of a cluster and build a single wave."
+msgstr ""
+
+# a27f99e47b49465a937b46d648be10ed
+#: ../../src/voiceid/sr.py:docstring of voiceid.sr.Cluster.print_segments:1
+msgid "Print cluster timing."
+msgstr ""
+
+# 7d601ef0d61148ce9fab311eb6b5abb9
+#: ../../src/voiceid/sr.py:docstring of voiceid.sr.Cluster.rename:1
+msgid "Rename the cluster and all the relative segments."
+msgstr ""
+
+# fffefc6c3096402aa2ca0d9a5054440c
+#: ../../src/voiceid/sr.py:docstring of voiceid.sr.Cluster.set_speaker:1
+msgid "Set the cluster speaker identifier 'by hand'."
+msgstr ""
+
+# 4dce6b342acb496d821f3657222adab4
+#: ../../src/voiceid/sr.py:docstring of voiceid.sr.Cluster.to_dict:1
+msgid "A dictionary representation of a Cluster."
+msgstr ""
+
+# 0e20ba9f11284d99b760df57fc3943e4
+#: ../../src/voiceid/sr.py:docstring of voiceid.sr.Segment:2
+msgid "voice time slice."
+msgstr ""
+
+# 79aa92d2a372452c97241cee32b10113
+#: ../../src/voiceid/sr.py:docstring of voiceid.sr.Segment.get_basename:1
+msgid "Get the basename of the original file which belong the segment."
+msgstr ""
+
+# 5647c1b781744497abb3adbefb8c4c5f
+#: ../../src/voiceid/sr.py:docstring of voiceid.sr.Segment.get_duration:1
+msgid "Get the duration of the segment in frames."
+msgstr ""
+
+# fd75a61c52874acfab8308e10b18679a
+#: ../../src/voiceid/sr.py:docstring of voiceid.sr.Segment.get_end:1
+msgid "Get the end frame index of the segment."
+msgstr ""
+
+# 94756ffeaed744f0871abf4c87896daa
+#: ../../src/voiceid/sr.py:docstring of voiceid.sr.Segment.get_environment:1
+msgid "Get the environment of the segment."
+msgstr ""
+
+# 73d4c8f4d51b4d1e9b077dea2eb5f531
+#: ../../src/voiceid/sr.py:docstring of voiceid.sr.Segment.get_gender:1
+msgid "Get the gender of the segment."
+msgstr ""
+
+# 7ac209e31f0e4d93b1b843188428a920
+#: ../../src/voiceid/sr.py:docstring of voiceid.sr.Segment.get_line:1
+msgid "Get the line of the segment in the original seg file."
+msgstr ""
+
+# e9964bf874fc45afa8ccf9f3d72297b4
+#: ../../src/voiceid/sr.py:docstring of voiceid.sr.Segment.get_speaker:1
+msgid "Get the speaker identifier of the segment."
+msgstr ""
+
+# 015b23f08283449c80bc29ca20ca69a4
+#: ../../src/voiceid/sr.py:docstring of voiceid.sr.Segment.get_start:1
+msgid "Get the start frame index of the segment."
+msgstr ""
+
+# 9088cea0f8124a238029d25e35217797
+#: ../../src/voiceid/sr.py:docstring of voiceid.sr.Segment.rename:1
+msgid "Change the identifier of the segment."
+msgstr ""
+
+# 8b0166639def411db89820b81d46f63e
+#: ../../src/voiceid/sr.py:docstring of voiceid.sr.Voiceid:1
+msgid "The main object that represents the file audio/video to manage."
+msgstr ""
+
+# cda8aa99494741ed88d530c6afffdbe3
+#: ../../src/voiceid/sr.py:docstring of voiceid.sr.Voiceid.add_update_cluster:1
+msgid "Add a cluster or update an existing cluster."
+msgstr ""
+
+# b91146aa39f24825b60f47c0559fbca9
+#: ../../src/voiceid/sr.py:docstring of voiceid.sr.Voiceid.diarization:1
+msgid "Run the diarization process. In case of single mode (single speaker  in the input file) just create the seg file with silence and gender  detection."
+msgstr ""
+
+# 219b0812df2e4dc1af397cce4df6b455
+#: ../../src/voiceid/sr.py:docstring of voiceid.sr.Voiceid.extract_speakers:1
+msgid "Identify the speakers in the audio wav according to a speakers database. If a speaker doesn't match any speaker in the database then sets it as unknown. In interactive mode it asks the user to set speakers' names."
+msgstr ""
+
+# 8033510305184872a2d0a3b279fca576
+#: ../../src/voiceid/sr.py:docstring of voiceid.sr.Voiceid.from_dict:1
+msgid "Build a Voiceid object from json dictionary."
+msgstr ""
+
+# 24b1be546e3547c082dba7baa5786f19
+#: ../../src/voiceid/sr.py:docstring of voiceid.sr.Voiceid.from_json_file:1
+msgid "Build a Voiceid object from json file."
+msgstr ""
+
+# c0e83133db874582a55dc1637f82b157
+#: ../../src/voiceid/sr.py:docstring of voiceid.sr.Voiceid.generate_seg_file:1
+msgid "Generate a seg file according to the information acquired about the speech clustering"
+msgstr ""
+
+# a655c51e578d4e7784d14995a192e89c
+#: ../../src/voiceid/sr.py:docstring of voiceid.sr.Voiceid.get_cluster:1
+msgid "Get a the cluster by a given identifier."
+msgstr ""
+
+# 7de5e21315c64bdfa58bcbb85677bc5b
+#: ../../src/voiceid/sr.py:docstring of voiceid.sr.Voiceid.get_clusters:1
+msgid "Get the clusters recognized in the processed file."
+msgstr ""
+
+# c29ddedd1d994d07ae454c00edd8df77
+#: ../../src/voiceid/sr.py:docstring of voiceid.sr.Voiceid.get_db:1
+msgid "Get the VoiceDB instance used."
+msgstr ""
+
+# 683d4f94fed84a99a69283ece442dc7e
+#: ../../src/voiceid/sr.py:docstring of voiceid.sr.Voiceid.get_file_basename:1
+msgid "Get the basename of the current working file."
+msgstr ""
+
+# 8c0ded42394a442c88a5260fee8b6be4
+#: ../../src/voiceid/sr.py:docstring of voiceid.sr.Voiceid.get_file_extension:1
+msgid "Get the extension of the current working file."
+msgstr ""
+
+# f3c2637f08ca43178e1838b10f21ee03
+#: ../../src/voiceid/sr.py:docstring of voiceid.sr.Voiceid.get_filename:1
+msgid "Get the name of the current working file."
+msgstr ""
+
+# 3f3418223bd64f3aa8bd74a282588916
+#: ../../src/voiceid/sr.py:docstring of voiceid.sr.Voiceid.get_speakers_map:1
+msgid "A dictionary map between speaker label and speaker name."
+msgstr ""
+
+# e2ffb66730e14b8693c6f6318d9e90a9
+#: ../../src/voiceid/sr.py:docstring of voiceid.sr.Voiceid.get_status:1
+msgid "Get the status of the computation. 0:'file_loaded',  1:'file_converted',  2:'diarization_done',  3:'trim_done',  4:'mfcc extracted',  5:'speakers matched'"
+msgstr ""
+
+# 2cb0aef9767e4ce9abf8ae1797fcb397
+#: ../../src/voiceid/sr.py:docstring of voiceid.sr.Voiceid.get_time_slices:1
+msgid "Return the time slices with all the information about start time, duration, speaker name or \"unknown\", gender and sound quality (studio/phone)."
+msgstr ""
+
+# b759c05b01b540c28825c4fde8c14fa8
+#: ../../src/voiceid/sr.py:docstring of voiceid.sr.Voiceid.get_working_status:1
+msgid "Get a string representation of the working status. 0:'converting_file',  1:'diarization', 2:'trimming',  3:'mfcc extraction', 4:'voice matching',  5:'extraction finished'"
+msgstr ""
+
+# 8f2aaa27483f43b6b65ece71e6124d76
+#: ../../src/voiceid/sr.py:docstring of voiceid.sr.Voiceid.remove_cluster:1
+msgid "Remove and delete a cluster."
+msgstr ""
+
+# 272272e3d9bf43cda1377a88bccfb944
+#: ../../src/voiceid/sr.py:docstring of voiceid.sr.Voiceid.to_XMP_string:1
+msgid "Return the Adobe XMP representation of the information about who is speaking and when. The tags used are Tracks and Markers, the ones used  by Adobe Premiere for speech-to-text information."
+msgstr ""
+
+# 75c7000e46aa4974a8801335e93b5204
+#: ../../src/voiceid/sr.py:docstring of voiceid.sr.Voiceid.to_dict:1
+msgid "Return a JSON representation for the clustering information."
+msgstr ""
+
+# 888810336f3944a3916e5cc56259fdca
+#: ../../src/voiceid/sr.py:docstring of voiceid.sr.Voiceid.update_db:1
+msgid "Update voice db after some changes, for example after a train  session."
+msgstr ""
+
+# 4bfa263bd0954420a71f1a437a6bab32
+#: ../../src/voiceid/sr.py:docstring of voiceid.sr.Voiceid.write_json:1
+msgid "Write to file the json dictionary representation of the Clusters."
+msgstr ""
+
+# fc506b03864742639e7eb61705880c1c
+#: ../../src/voiceid/sr.py:docstring of voiceid.sr.Voiceid.write_output:1
+msgid "Write to file (basename.extension, for example: myfile.srt) the  output of the recognition process."
+msgstr ""
+
+# b62d2caee05f4b35bea4aca4fa0d5077
+#: ../../src/voiceid/sr.py:docstring of voiceid.sr.extract_clusters:1
+msgid "Read _clusters from segmentation file."
+msgstr ""
+
+# 884d15ac8502452ba5e8b5ed03f66a9c
+#: ../../src/voiceid/sr.py:docstring of voiceid.sr.manage_ident:1
+msgid "Take all the files created by the call of mfcc_vs_gmm() on the whole  speakers db and put all the results in a bidimensional dictionary."
+msgstr ""
+
+# a591d52eb1614cf491fdc0685a41cbb9
+#: ../source/api.rst:25
+msgid ":mod:`voiceid.fm` --- Low level Wave and Gmm files manipulation"
+msgstr ""
+
+# 607166ebcf5b40e2afd80d2a826ea9b0
+#: ../../src/voiceid/fm.py:docstring of voiceid.fm.build_gmm:1
+msgid "Build a gmm (Gaussian Mixture Model) file from a given wave with a  speaker identifier  associated."
+msgstr ""
+
+# 37b1725344094039b1886e2a5fec370b
+#: ../../src/voiceid/fm.py:docstring of voiceid.fm.diarization:1
+msgid "Take a wave file in the correct format and build a segmentation file.  The seg file shows how much speakers are in the audio and when they talk."
+msgstr ""
+
+# d38600be74e647c191559af12d05c29e
+#: ../../src/voiceid/fm.py:docstring of voiceid.fm.extract_mfcc:1
+msgid "Extract audio features from the wave file, in particular the  mel-frequency cepstrum using a sphinx tool."
+msgstr ""
+
+# d71bc759bec440a7a5ce1d5f6d02cc73
+#: ../../src/voiceid/fm.py:docstring of voiceid.fm.file2trim:1
+msgid "Take a video or audio file and converts it into smaller waves according to the diarization process."
+msgstr ""
+
+# 39ccc32042ce4742b3f5fb961f9836f8
+#: ../../src/voiceid/fm.py:docstring of voiceid.fm.file2wav:1
+msgid "Take any kind of video or audio and convert it to a  \"RIFF (little-endian) data, WAVE audio, Microsoft PCM, 16 bit,  mono 16000 Hz\" wave file using gstreamer. If you call it passing a wave it checks if in good format, else it converts the wave in the good format."
+msgstr ""
+
+# 3cb9b3cb4ad0413f8e1ffcb743834d51
+#: ../../src/voiceid/fm.py:docstring of voiceid.fm.get_gender:1
+msgid "Return gender of a given gmm file."
+msgstr ""
+
+# ea471f3b89384283b74faa89f41aaa4d
+#: ../../src/voiceid/fm.py:docstring of voiceid.fm.ident_seg:1
+msgid "Substitute cluster names with speaker names ang generate a \"<filebasename>.ident.seg\" file."
+msgstr ""
+
+# af1e330f27d24f69a25fa543e4ee025e
+#: ../../src/voiceid/fm.py:docstring of voiceid.fm.ident_seg_rename:1
+msgid "Take a seg file and substitute the clusters with a given name or  identifier."
+msgstr ""
+
+# 31dd8fa6a8f6407fba5720ea776befc0
+#: ../../src/voiceid/fm.py:docstring of voiceid.fm.merge_gmms:1
+msgid "Merge two or more gmm files to a single gmm file with more voice models."
+msgstr ""
+
+# 97e1c75f0d3f47e9ac0960b2ba45879f
+#: ../../src/voiceid/fm.py:docstring of voiceid.fm.merge_waves:1
+msgid "Take a list of waves and append them to a brend new destination wave."
+msgstr ""
+
+# 1ac04dd733834663be43fcfccabd4ffb
+#: ../../src/voiceid/fm.py:docstring of voiceid.fm.mfcc_vs_gmm:1
+msgid "Match a mfcc file and a given gmm model file and produce a segmentation file containing the score obtained."
+msgstr ""
+
+# 816bf0d4fe634706879c1bb745151404
+#: ../../src/voiceid/fm.py:docstring of voiceid.fm.rename_gmm:1
+msgid "Rename a gmm with a new speaker identifier(name) associated."
+msgstr ""
+
+# 6963f663bb8249328c126eaedcc5955b
+#: ../../src/voiceid/fm.py:docstring of voiceid.fm.seg2srt:1
+msgid "Take a seg file and convert it in a subtitle file (srt)."
+msgstr ""
+
+# 4e9be982f41642819ce7c86e36a0d31c
+#: ../../src/voiceid/fm.py:docstring of voiceid.fm.seg2trim:1
+msgid "Take a wave and splits it in small waves in this directory structure <file base name>/<cluster>/<cluster>_<start time>.wav"
+msgstr ""
+
+# e9b5a27d51e547a195a5e9d83503242d
+#: ../../src/voiceid/fm.py:docstring of voiceid.fm.split_gmm:1
+msgid "Split a gmm file into gmm files with a single voice model."
+msgstr ""
+
+# 4940764bde90488187409e8482e9264e
+#: ../../src/voiceid/fm.py:docstring of voiceid.fm.srt2subnames:1
+msgid "Substitute cluster names with real names in subtitles."
+msgstr ""
+
+# 97df8b1e70b546499d8de4ed19724c34
+#: ../../src/voiceid/fm.py:docstring of voiceid.fm.wave_duration:1
+msgid "Extract the duration of a wave file in sec."
+msgstr ""
+
+# 3919836f33904b63851bfdfcfd7ebca2
+#: ../source/api.rst:32
+msgid ":mod:`voiceid.utils` --- Utilities"
+msgstr ""
+
+# b8268ef2c5014fb39599dab05ddef556
+#: ../../src/voiceid/utils.py:docstring of voiceid.utils.alive_threads:1
+msgid "Check how much threads are running and alive in a thread dictionary"
+msgstr ""
+
+# 3ce241ab97194a63b66c2267346126f0
+#: ../../src/voiceid/utils.py:docstring of voiceid.utils.check_deps:1
+msgid "Check for dependencies."
+msgstr ""
+
+# b62049335d7749aea698afa69177b79f
+#: ../../src/voiceid/utils.py:docstring of voiceid.utils.ensure_file_exists:1
+msgid "Ensure file exists and is not empty, otherwise raise an IOError."
+msgstr ""
+
+# 8c96805ee957470ebf2e38d511147fa2
+#: ../../src/voiceid/utils.py:docstring of voiceid.utils.humanize_time:1
+msgid "Convert seconds into time format."
+msgstr ""
+
+# c0332e5bb4904b38a48739f4462fc843
+#: ../../src/voiceid/utils.py:docstring of voiceid.utils.start_subprocess:1
+msgid "Start a subprocess using the given commandline and check for correct termination."
+msgstr ""
