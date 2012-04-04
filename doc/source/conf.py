@@ -171,11 +171,14 @@ htmlhelp_basename = 'voiceiddoc'
 
 # -- Options for LaTeX output --------------------------------------------------
 
+# The paper size ('letter' or 'a4').
+#latex_paper_size = 'a4'
 latex_elements = {
 # The paper size ('letterpaper' or 'a4paper').
 #'papersize': 'letterpaper',
 
 # The font size ('10pt', '11pt' or '12pt').
+latex_font_size = '11pt'
 #'pointsize': '10pt',
 
 # Additional stuff for the LaTeX preamble.

@@ -70,7 +70,7 @@ Analizzando la lunghezza dei campioni analizzati, si è potuto notare un miglior
  
   Sopra i 5 secondi si può notare una netta superiorità di classificazioni corrette rispetto ai compioni non correttamente riconosciuti.
 
-Nella Figura 4.4 vengono riassunti i risultati del test.
+Nella Figura 4.7 vengono riassunti i risultati del test.
 
 .. figure::  /img-latex/resume_table.png
    :align:   center
