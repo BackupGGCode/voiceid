@@ -1,15 +1,15 @@
-﻿Flusso di elaborazione
-===================
- 
-In questa sezione si vuole provare a descrivere con l'utilizzo di diagrammi, i vari stadi che costituiscono l'intero processo di classificazione e identificazione dello *speaker*. Inizialmente viene fatta una breve descrizione dell' acquisizione del dato audio o video in input e la sua successiva elaborazione tramite diarization, di seguito la creazione del database attraverso i modelli GMM e il conseguente processo di *matching score* tra MFCC e GMM per il riconoscimento o meno di un eventuale *speaker*.
+Processing flow
+﻿===================
+
+In this section are described by diagrams the various stages that make the whole process of classification and identification of the *speaker*. First ​​a brief description of the capture of audio or video data input and the diarization process, then the creation of the database of GMM models and the process of *matching score* between MFCC and GMM for recognition of a probable *speaker*. 
 
 Diarization
 --------------
 
-Il sistema supporta in input sia tracce audio che video; nel caso di un flusso video in ingresso, verrà estratto l'audio attraverso l'utilizzo della libreria **GStreamer** con le seguenti caratteristiche: WAVE file, RIFF little-endian data, Microsoft PCM, 16 bit, mono 16000 Hz.
+The system handles audio and video files; in case the input is a video file or compressed audio, **GStreamer** is used to extract a audio track as WAVE file, RIFF little-endian data, Microsoft PCM, 16 bit, mono 16000 Hz.
 
-Tramite il tool *LiumSpkrDiarization*  è possibile effettuare la segmentazione della traccia audio ripulita attraverso il *silence detector* di eventuali pause nel parlato; più precisamente la diarization restituisce un file denominato **seg**, in cui vengono elencati degli intervalli temporali etichettati attraverso una stessa label (S0, S1..Sn) ad indicare la medesima voce ed, una lettera (F, M, U) ad indicare il genere. 
-Come si può notare dall'esempio sottostante estratto da un file *seg*, la diarization fornisce informazioni anche sulla qualità del wave ( S = studio, T=telefono ). Per ogni segmento viene inoltre specificato l'istante di inizio e la durata complessiva.
+The *LiumSpkrDiarization* tool can segment the audio track and the output is cleaned from non spoken segments by the *silence detector*; more in deep the diarization produces a **seg** file, where are listed all the time intervals labeled with the same label (S0, S1, ... , Sn) that identify the same voice, and a char (F, M, U) for the gender.
+As can be seen in the following example taken from a *seg* file, the diarization process gives also information about audio quality (S = studio, T = telephone). For each segment is also specified the start time and the duration.
 
 	cluster:S0
 
@@ -35,26 +35,26 @@ Come si può notare dall'esempio sottostante estratto da un file *seg*, la diari
 
 	…
 
-Una volta ottenuto il file **seg** abbiamo cercato di identificare i singoli speaker individuati dalla segmentazione, tagliando l'wave originale in singoli wave, uno per ogni segmento. 
-Una volta ottenuti i differenti spezzoni audio per ogni speaker, si è potuto procedere con l'estrazione delle *features* MFCC attraverso *Sphinx* [#]_.
+Having the **seg** file we tried to identify the speakers found in the diarization process, cutting the original wave in several waves, one for each segment.
+With this audio slices for each speaker, we extract the *MFCC* audio features using *Sphinx* [#]_.
+
 
 .. figure::  /img-latex/diar_mfcc.png
    :align:  center
 
-   Nel diagramma riportato sopra viene schematizzato il processo di acquisizione dati ed elaborazione mediante diarization.
+   In the diagram above the data acquisition and diarization processing.
 
 Database
 -----------
 
-Il database del sistema è costituito da modelli GMM suddivisi per genere in cartelle denominate F (genere femminile), M (genere maschile), U (genere non riconosciuto). Ogni file GMM può essere esteso con differenti modelli di uno stesso speaker: questo è utile  perché non essendoci vincoli sul canale di acquisizione dell’audio, è facile che il sistema, basandosi su un unico modello, non riconosca lo speaker che parla in ambienti o tramite mezzi molto diversi tra loro. I differenti modelli contribuiscono quindi ad una maggiore possibilità di riconoscimento sulla varietà di campioni  candidati.
+The system database is composed of the GMM models files organized by gender in three folders: F (female), M (male), U (not recognized). Every GMM file can be extended with different models of the same speaker: that is really useful because the system does not impose constraints about the way the audio is recorded; with just one model for every speaker it's possible that in some cases the speaker is not recognized when speaking in different environments and with different recording equipments. Different models allow more probabilities to recognized the speaker for a wide samples sets.
 
-Per la creazione del modello è  necessario poter usufruire del file MFCC contenente le *features* e il file **seg** del wave che ci interessa inserire nel db. 
+To build the gmm model it is used the MFCC with the *features* and the *seg* file of the original wave of the voice.
 
 .. figure::  /img-latex/build_gmm.png
    :align:   center
    
-   L'elaborazione del modello GMM e l'inserimento nel database sulla base del genere del relativo speaker. 
-
+   The GMM model processing and db add according to the gender.
 
 
 Speaker recognition
@@ -79,3 +79,4 @@ Nel caso in cui la distanza tra il primo e il secondo risultasse minore, si riti
 
 
 .. [#] Sphinx-4 è un sistema di riconoscimento vocale scritto interamentenel linguaggio di programmazione JavaTM. E' stato creato attraverso una collaborazione tra il gruppo Sfinge presso la Carnegie Mellon University, SunMicrosystems Laboratories, Mitsubishi Electric Research Labs (MERL), e HewlettPackard (HP), con il contributo dell'Università della California a Santa Cruz (UCSC) e il Massachusetts Institute of Technology (MIT).
+

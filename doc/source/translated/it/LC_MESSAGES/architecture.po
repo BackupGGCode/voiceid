@@ -1,0 +1,147 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) 2012,  Michela Fancello <michela.fancello@crs4.it>, Mauro Mereu <mauro.mereu@crs4.it>
+# This file is distributed under the same license as the voiceid package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2012-04-04 17:34\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: Translate Toolkit 1.5.3\n"
+
+# 36d42a7bfd2044cb9224df39f4b1b600
+#: ../../source/architecture.rst:1
+msgid "Processing flow ﻿==================="
+msgstr "﻿Flusso di elaborazione"
+
+# 19d6881dd13c4b4ba284d899c21f0917
+#: ../../source/architecture.rst:4
+msgid "In this section are described by diagrams the various stages that make the whole process of classification and identification of the *speaker*. First ​​a brief description of the capture of audio or video data input and the diarization process, then the creation of the database of GMM models and the process of *matching score* between MFCC and GMM for recognition of a probable *speaker*."
+msgstr "In questa sezione si vuole provare a descrivere con l'utilizzo di diagrammi, i vari stadi che costituiscono l'intero processo di classificazione e identificazione dello *speaker*. Inizialmente viene fatta una breve descrizione dell' acquisizione del dato audio o video in input e la sua successiva elaborazione tramite diarization, di seguito la creazione del database attraverso i modelli GMM e il conseguente processo di *matching score* tra MFCC e GMM per il riconoscimento o meno di un eventuale *speaker*."
+
+# d6b8b86971554f6d89ad84e058d92a78
+#: ../../source/architecture.rst:7
+msgid "Diarization"
+msgstr "Diarization"
+
+# ca4cc0c048ed4c9fa8add038a15fc50b
+#: ../../source/architecture.rst:9
+msgid "The system handles audio and video files; in case the input is a video file or compressed audio, **GStreamer** is used to extract a audio track as WAVE file, RIFF little-endian data, Microsoft PCM, 16 bit, mono 16000 Hz."
+msgstr "Il sistema supporta in input sia tracce audio che video; nel caso di un flusso video in ingresso, verrà estratto l'audio attraverso l'utilizzo della libreria **GStreamer** con le seguenti caratteristiche: WAVE file, RIFF little-endian data, Microsoft PCM, 16 bit, mono 16000 Hz."
+
+# 5398b6721aa14f2384b4615e218a587a
+#: ../../source/architecture.rst:11
+msgid "The *LiumSpkrDiarization* tool can segment the audio track and the output is cleaned from non spoken segments by the *silence detector*; more in deep the diarization produces a **seg** file, where are listed all the time intervals labeled with the same label (S0, S1, ... , Sn) that identify the same voice, and a char (F, M, U) for the gender. As can be seen in the following example taken from a *seg* file, the diarization process gives also information about audio quality (S = studio, T = telephone). For each segment is also specified the start time and the duration."
+msgstr "Tramite il tool *LiumSpkrDiarization*  è possibile effettuare la segmentazione della traccia audio ripulita attraverso il *silence detector* di eventuali pause nel parlato; più precisamente la diarization restituisce un file denominato **seg**, in cui vengono elencati degli intervalli temporali etichettati attraverso una stessa label (S0, S1..Sn) ad indicare la medesima voce ed, una lettera (F, M, U) ad indicare il genere. Come si può notare dall'esempio sottostante estratto da un file *seg*, la diarization fornisce informazioni anche sulla qualità del wave ( S = studio, T=telefono ). Per ogni segmento viene inoltre specificato l'istante di inizio e la durata complessiva."
+
+# 33a87e7303d246c6b8f8b42c9b69dd84
+#: ../../source/architecture.rst:14
+msgid "cluster:S0"
+msgstr ""
+
+# decb2bb0c34b4df0bd0a9e287d87e6a0
+#: ../../source/architecture.rst:16
+msgid "Enrico_Mentana_a_Invasioni_Barbariche 1 0 435 F S U S0"
+msgstr ""
+
+# 5dcb9a82a926458c9c3c853b0eb911be
+#: ../../source/architecture.rst:18
+msgid "Enrico_Mentana_a_Invasioni_Barbariche 1 507 207 F S U S0"
+msgstr ""
+
+# 09c48d9cf5514c31bfeb4ae24a5eb6a6
+#: ../../source/architecture.rst:20
+msgid "cluster:S10"
+msgstr ""
+
+# c7624abcecc84144bf75f654a2c8ecee
+#: ../../source/architecture.rst:22
+msgid "Enrico_Mentana_a_Invasioni_Barbariche 1 714 1076 F S U S10"
+msgstr ""
+
+# 314b244cc77f47d5b97919d9bba9d3b3
+#: ../../source/architecture.rst:24
+msgid "Enrico_Mentana_a_Invasioni_Barbariche 1 3154 444 F S U S10"
+msgstr ""
+
+# 7433c4002873441cbc8c7565de487b74
+#: ../../source/architecture.rst:26
+msgid "Enrico_Mentana_a_Invasioni_Barbariche 1 3598 431 F S U S10"
+msgstr ""
+
+# 6d04924c81d6417faaae5432e8aaeecd
+#: ../../source/architecture.rst:28
+msgid "cluster:S102"
+msgstr ""
+
+# 625b3886ec7242f485753d7c40a9ee69
+#: ../../source/architecture.rst:30
+msgid "Enrico_Mentana_a_Invasioni_Barbariche 1 4836 163 F S U S102"
+msgstr ""
+
+# 7684a18ccefb46138ae6b61e6f8cf492
+#: ../../source/architecture.rst:32
+msgid "Enrico_Mentana_a_Invasioni_Barbariche 1 30977 260 F S U S102"
+msgstr ""
+
+# 10ebdbb099a5455e961f160502b0c3e7
+#: ../../source/architecture.rst:34
+msgid "Enrico_Mentana_a_Invasioni_Barbariche 1 49615 219 F S U S102"
+msgstr ""
+
+# d342c3b98c834958aef89e17c94642bd
+#: ../../source/architecture.rst:36
+msgid "…"
+msgstr ""
+
+# b7171ea45982453594db1878ed42c2f5
+#: ../../source/architecture.rst:38
+msgid "Having the **seg** file we tried to identify the speakers found in the diarization process, cutting the original wave in several waves, one for each segment. With this audio slices for each speaker, we extract the *MFCC* audio features using *Sphinx* [#]_."
+msgstr "Una volta ottenuto il file **seg** abbiamo cercato di identificare i singoli speaker individuati dalla segmentazione, tagliando l'wave originale in singoli wave, uno per ogni segmento. Una volta ottenuti i differenti spezzoni audio per ogni speaker, si è potuto procedere con l'estrazione delle *features* MFCC attraverso *Sphinx* [#]_."
+
+# e1a8c6d315314951b0b349a84cdb66d0
+#: ../../source/architecture.rst:48
+msgid "Database"
+msgstr ""
+
+# 36c26437d9704204a79818e709ad3885
+#: ../../source/architecture.rst:50
+msgid "The system database is composed of the GMM models files organized by gender in three folders: F (female), M (male), U (not recognized). Every GMM file can be extended with different models of the same speaker: that is really useful because the system does not impose constraints about the way the audio is recorded; with just one model for every speaker it's possible that in some cases the speaker is not recognized when speaking in different environments and with different recording equipments. Different models allow more probabilities to recognized the speaker for a wide samples sets."
+msgstr "Il database del sistema è costituito da modelli GMM suddivisi per genere in cartelle denominate F (genere femminile), M (genere maschile), U (genere non riconosciuto). Ogni file GMM può essere esteso con differenti modelli di uno stesso speaker: questo è utile  perché non essendoci vincoli sul canale di acquisizione dell’audio, è facile che il sistema, basandosi su un unico modello, non riconosca lo speaker che parla in ambienti o tramite mezzi molto diversi tra loro. I differenti modelli contribuiscono quindi ad una maggiore possibilità di riconoscimento sulla varietà di campioni  candidati."
+
+# f3c6d115f7ef497b8a423fc7f5835b89
+#: ../../source/architecture.rst:52
+msgid "To build the gmm model it is used the MFCC with the *features* and the *seg* file of the original wave of the voice."
+msgstr "Per la creazione del modello è  necessario poter usufruire del file MFCC contenente le *features* e il file **seg** del wave che ci interessa inserire nel db."
+
+# 72fc3c58ab9342efbe681fb147ac946b
+#: ../../source/architecture.rst:61
+msgid "Speaker recognition"
+msgstr ""
+
+# 7203022666854b79adc0c3d6a8b14f26
+#: ../../source/architecture.rst:63
+msgid "La parte più interessante del sistema è quella relativa al riconoscimento dello speaker sulla base delle voci presenti nel database; naturalmente deve poter prevedere anche il caso in cui chi parla sia “sconosciuto” . Ogni nuova voce viene analizzata sulla base del relativo MFCC che verrà quindi confrontato con tutti i GMM presenti nel db utilizzando l'**MScore** di *Lium*: più precisamente il metodo **MScore** della libreria prende in input un file MFCC di feature audio e un file contenente uno o più modelli GMM e calcola uno score generalmente negativo, che può andare da circa -31 a circa -34, che è tanto migliore quanto è maggiore (si avvicina di più verso 0)."
+msgstr ""
+
+# 3be8988718a44663ab9f2a1b731a56ee
+#: ../../source/architecture.rst:70
+msgid "Per ottimizzare i tempi di processazione è possibile generare una serie di thread che in concorrenza si dividono i confronti da fare tra i file GMM del database e i file MFCC dei singoli cluster; la scelta di mantenere distinti i modelli vocali dei differenti *speakers* nasce anche da questa esigenza."
+msgstr ""
+
+# d2a154447d464f26b4595052585a8adf
+#: ../../source/architecture.rst:72
+msgid "Una volta ottenuto il nome dello speaker con lo score più alto (*best score*) è necessario verificare se il risultato è attendibile: per prima cosa bisogna accertarsi che lo score sia “sufficientemente” alto per poter escludere la possibilità che lo speaker non sia presente nel database. Per fare questo è stato individuata una soglia in modo empirico, convergendo alla fine sul valore -33: se il *best score* risulta essere minore di tale soglia, ciò indica che probabilmente lo speaker ricercato non è presente nel database. In caso contrario verrà effettuato un altro controllo per accertare che il *best score* sia “sufficientemente” indicativo ovvero che la distanza dal secondo score classificato sia maggiore di una certa quantità: tale valore è stato ottenuto mediante differenti tests, portando a ritenere accettabile una distanza non minore a 0,07. Nel caso in cui la distanza tra il primo e il secondo risultasse minore, si ritiene inattendibile il risultato, pertanto la voce viene considerata sconosciuta, in caso contrario alla voce verrà assegnato  lo speaker che ha prodotto il *best score* ."
+msgstr ""
+
+# 12ca1e64e4ab489dae10f6bcb60480ac
+#: ../../source/architecture.rst:81
+msgid "Sphinx-4 è un sistema di riconoscimento vocale scritto interamentenel linguaggio di programmazione JavaTM. E' stato creato attraverso una collaborazione tra il gruppo Sfinge presso la Carnegie Mellon University, SunMicrosystems Laboratories, Mitsubishi Electric Research Labs (MERL), e HewlettPackard (HP), con il contributo dell'Università della California a Santa Cruz (UCSC) e il Massachusetts Institute of Technology (MIT)."
+msgstr ""
