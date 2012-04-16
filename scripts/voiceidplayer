@@ -701,8 +701,7 @@ class ClusterInfo():
 class Model:
     def __init__(self):
         self.voiceid = None
-        #self.db = GMMVoiceDB(os.path.expanduser('~/.voiceid/gmm_db'))
-        self.db = GMMVoiceDB(os.path.expanduser('~/SpeakerRecognition/voiceid/scripts/smalldb'))
+        self.db = GMMVoiceDB(os.path.expanduser('~/.voiceid/gmm_db'))
         self._clusters = None
         
     def load_video(self, video_path):        
