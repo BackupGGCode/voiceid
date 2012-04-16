@@ -341,8 +341,8 @@ class Cluster:
         for s in self._segments:
             t = s._line[2:]
             t[-1] = speaker
-            t[0] = int(t[0])
-            t[1] = int(t[1])
+            t[0] = int(s.get_start())
+            t[1] = int(s.get_end())
             t.append(self.get_name()) 
             segs.append(t)
         return segs
@@ -1065,8 +1065,8 @@ class Voiceid:
         
         for s in self.get_time_slices():
             d['selections'].append({        
-                                     "startTime" : float(s[0]) / 100,
-                                     "endTime" : float(s[0] + s[1]) / 100,
+                                     "startTime" : float(s[0]) / 100.0,
+                                     "endTime" : float(s[0] + s[1]) / 100.0,
                                      'speaker': s[-2],
                                      'speakerLabel': s[-1],
                                      'gender': s[2]
@@ -1121,7 +1121,7 @@ def manage_ident(filebasename, gmm, clusters):
             ii = l.index(']', i) -1
             value = l[i:ii]
             if not clusters.has_key(cluster):
-                clusters[ cluster ] = Cluster(cluster, 'U', '0', '')
+                clusters[ cluster ] = Cluster(cluster, 'U', '0', '',cluster)
             clusters[ cluster ].add_speaker( speaker, value )
             """
             if clusters[ cluster ].has_key( speaker ) == False:
@@ -1143,7 +1143,7 @@ def extract_clusters(segfilename, clusters):
             speaker_id = l.split()[1].split(':')[1]
             clusters[ speaker_id ] = Cluster(identifier=speaker_id, gender='U', 
                                              frames=0, 
-                                             dirname=os.path.splitext(segfilename)[0])
+                                             dirname=os.path.splitext(segfilename)[0],name=speaker_id)
             last_cluster = clusters[ speaker_id ]
             last_cluster._seg_header = l
         else:

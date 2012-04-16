@@ -534,7 +534,10 @@ class Player(wx.Panel):
             command = """mplayer  -vo null -ao null -frames 0 -identify %s 2>/dev/null |sed -ne '/^ID_/ {s/[]()|&;<>`'"'"'\\!$" []/\\&/g;p}'""" % filename
             result = check_output(command)
             r = result[0].split('\n')
-            return r[17].split("=")[1]
+            for row in r:
+                if row.startswith("ID_LENGTH"):
+                    return row.split("=")[1]
+            
         except Exception,e:
             print  e
         
