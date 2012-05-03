@@ -9,8 +9,7 @@ A system able to process a video using its audio allows you to find all the segm
 Joining a voice database with the classification system you can then study the behavior based on the scores obtained. To accept or reject a speaker identity is necessary to identify a decision threshold. 
 At the same time, the decision threshold may be too restrictive and it is necessary to check some other factors. 
 Another objective is to reduce the response time of the system and thus allow a faster recognition using the information on the gender of the speakers speakers or building a database of individual models for each user entry previously recorded. 
-The system proposed achieves in comparison 1: N recognition rate of 99 \% with a classification time of about 4 seconds with 10 entries in the database .... (to be revised entirely)
 
-The first section will describe in an essential way the system architecture and in more detail the individual macro-blocks. In the second paragraph will be described in a comprehensive manner the characteristics of the database will be listed in the third stage of testing, and finally a description of the Voiceid application and conclusions.
+The first section will describe in an essential way the system architecture and in more detail the individual macro-blocks. In the second paragraph will be described in a comprehensive manner the characteristics of the database will be listed in the third stage of testing, at the end a description of the Voiceid application and in appendix the library API.
 
 .. [#] It is a project started in 2007 in the Laboratory of Computer Science University of Maine (France).

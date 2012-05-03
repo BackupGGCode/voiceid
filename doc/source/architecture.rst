@@ -1,7 +1,6 @@
-Processing flow
-﻿===================
-
-In this section are described by diagrams the various stages that make the whole process of classification and identification of the *speaker*. First ​​a brief description of the capture of audio or video data input and the diarization process, then the creation of the database of GMM models and the process of *matching score* between MFCC and GMM for recognition of a probable *speaker*. 
+Processing Flow
+===============
+In this section are described by diagrams the various stages that make the whole process of classification and identification of the speaker. Starting with a short description of the capture of audio or video data input and the diarization process, then the creation of the database of GMM models and the process of *matching score* between MFCC and GMM for recognition of a probable *speaker*. 
 
 Diarization
 --------------
@@ -47,7 +46,7 @@ With this audio slices for each speaker, we extract the *MFCC* audio features us
 Database
 -----------
 
-The system database is composed of the GMM models files organized by gender in three folders: F (female), M (male), U (not recognized). Every GMM file can be extended with different models of the same speaker: that is really useful because the system does not impose constraints about the way the audio is recorded; with just one model for every speaker it's possible that in some cases the speaker is not recognized when speaking in different environments and with different recording equipments. Different models allow more probabilities to recognized the speaker for a wide samples sets.
+The system database is composed of the GMM models files organized by gender in three folders: F (female), M (male), U (not recognized). Every GMM file can be extended with different models of the same speaker: that is really useful because the system does not impose constraints about the way the audio is recorded; with just one model for every speaker it's possible that in some cases the speaker is not recognized when speaking in different environments and with different recording equipments. Different models allow more probabilities to recognize the speaker for a wide samples sets.
 
 To build the gmm model it is used the MFCC with the *features* and the *seg* file of the original wave of the voice.
 
@@ -60,23 +59,25 @@ To build the gmm model it is used the MFCC with the *features* and the *seg* fil
 Speaker recognition
 -------------------------
 
-La parte più interessante del sistema è quella relativa al riconoscimento dello speaker sulla base delle voci presenti nel database; naturalmente deve poter prevedere anche il caso in cui chi parla sia “sconosciuto” . Ogni nuova voce viene analizzata sulla base del relativo MFCC che verrà quindi confrontato con tutti i GMM presenti nel db utilizzando l'**MScore** di *Lium*: più precisamente il metodo **MScore** della libreria prende in input un file MFCC di feature audio e un file contenente uno o più modelli GMM e calcola uno score generalmente negativo, che può andare da circa -31 a circa -34, che è tanto migliore quanto è maggiore (si avvicina di più verso 0).
+The core of the system is the speaker recognition using a database mapped voices; must be also recognized the case when who speaks is "unknown". Every new voice MFCC is analyzed, compared against all GMM in the db using the *Lium* **MScore**: more in deep the **MScore** method takes in input the feature audio MFCC file and a file containing one or more GMM models and compute a scorek, usually negative, that goes from about -31 to -34, where bigger is better (closer to zero).
+
 
 .. figure::  /img-latex/Mscore2.png
    :align:   center
 
-   Un MFCC viene confrontato con n GMM attraverso l'MScore producendo una serie di scores; il maggiore di essi sarà considerata lo score migliore.
+   A MFCC file is compared with n GMM files using MScore giving a set of scores; the bigger is considered as the best.
 
-Per ottimizzare i tempi di processazione è possibile generare una serie di thread che in concorrenza si dividono i confronti da fare tra i file GMM del database e i file MFCC dei singoli cluster; la scelta di mantenere distinti i modelli vocali dei differenti *speakers* nasce anche da questa esigenza. 
+To optimize the processing it is possible to generate a set of threads that concurrently share the comparisions among GMM files in the db and MFCC of the clusters; the choice to keep in different files the voice models of different *speakers* is also for this purpose.   
 
-Una volta ottenuto il nome dello speaker con lo score più alto (*best score*) è necessario verificare se il risultato è attendibile: per prima cosa bisogna accertarsi che lo score sia “sufficientemente” alto per poter escludere la possibilità che lo speaker non sia presente nel database. Per fare questo è stato individuata una soglia in modo empirico, convergendo alla fine sul valore -33: se il *best score* risulta essere minore di tale soglia, ciò indica che probabilmente lo speaker ricercato non è presente nel database. In caso contrario verrà effettuato un altro controllo per accertare che il *best score* sia “sufficientemente” indicativo ovvero che la distanza dal secondo score classificato sia maggiore di una certa quantità: tale valore è stato ottenuto mediante differenti tests, portando a ritenere accettabile una distanza non minore a 0,07.
-Nel caso in cui la distanza tra il primo e il secondo risultasse minore, si ritiene inattendibile il risultato, pertanto la voce viene considerata sconosciuta, in caso contrario alla voce verrà assegnato  lo speaker che ha prodotto il *best score* .
+When obtained the name of the speaker having the *best score* it is necessary to verify if the result is reliable or not: first of all be certain the score is sufficiently high to exclude the possibility that the speaker is not present in the db. To do that has been identified an empirical threshold, with a value of -33: if the *best score* is lower than this threshold, it means that the speaker is not present in the db. Otherwise another check is performed to ensure that the *best score* is indicative "enough", that is that the distance from the *second classified* score is higher than a given value: the value obtained by some empirical tests is a distant not less then 0.07.  
+In case the distance between the first and the second is lower then this value, the result is taken as unreliable, that is the speaker is considered unknown.
 
 .. figure::  /img-latex/best_speaker.png
    :align:   center
 
-   Una volta ottenuto il *best score*,  verrà verificata l'attendibilità del potenziale riconoscimento.
+   Once obtained the best score, is verified the reliability of the recognition.
 
 
-.. [#] Sphinx-4 è un sistema di riconoscimento vocale scritto interamentenel linguaggio di programmazione JavaTM. E' stato creato attraverso una collaborazione tra il gruppo Sfinge presso la Carnegie Mellon University, SunMicrosystems Laboratories, Mitsubishi Electric Research Labs (MERL), e HewlettPackard (HP), con il contributo dell'Università della California a Santa Cruz (UCSC) e il Massachusetts Institute of Technology (MIT).
+   
+.. [#] Sphinx-4 is a speech/speaker recognition system in Java. It is build in collaboration among the Sphinx group at Carnegie Mellon University, SunMicrosystems Laboratories, Mitsubishi Electric Research Labs (MERL), HewlettPackard (HP), the University of California in Santa Cruz (UCSC) and the Massachusetts Institute of Technology (MIT).
 

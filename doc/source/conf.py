@@ -174,6 +174,7 @@ htmlhelp_basename = 'voiceiddoc'
 # The paper size ('letter' or 'a4').
 #latex_paper_size = 'a4'
 latex_elements = {
+}
 # The paper size ('letterpaper' or 'a4paper').
 #'papersize': 'letterpaper',
 
@@ -183,13 +184,12 @@ latex_font_size = '11pt'
 
 # Additional stuff for the LaTeX preamble.
 #'preamble': '',
-}
 
 # Grouping the document tree into LaTeX files. List of tuples
 # (source start file, target name, title, author, documentclass [howto/manual]).
 latex_documents = [
-  ('index', 'voiceid.tex', u'voiceid Documentation',
-   u'''Michela Fancello \\textless{}michela.fancello@crs4.it\\textgreater{}, 
+  ('index', 'voiceid.tex', u'VoiceID, a speaker recognition/identification system',
+   u'''Michela Fancello \\textless{}michela.fancello@crs4.it\\textgreater{},\\\\
    Mauro~Mereu \\textless{}mauro.mereu@crs4.it\\textgreater{}''', 'manual'),
 ]
 

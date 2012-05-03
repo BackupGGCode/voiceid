@@ -221,8 +221,7 @@ class Cluster:
         """Get the best five speakers in the db for the cluster.
         
         :rtype: array of tuple
-        :returns: an array of five most probable speakers represented by 
-        ordered tuples of the form (speaker, score) ordered by score.
+        :returns: an array of five most probable speakers represented by ordered tuples of the form (speaker, score) ordered by score.
         """
         return sorted(self.speakers.iteritems(), key=lambda (k,v): (v,k),
                       reverse=True)[:5]

@@ -1,15 +1,101 @@
-﻿Tests
-=====
-I Database utilizzati sono sostanzialmente tre: uno è stato costruito utilizzando tracce audio di telegiornali nazionali e conta di 105 voci, il secondo da registrazioni ad hoc mentre l'altro è stato realizzato sfruttando la collezione audio fornita da VoxForge [#]_.
+﻿﻿Tests
+=======
+The Datasets used for testing are three: the first is build using audio tracks from italian news broadcast and has 105 speakers, the second is build of ad hoc recordings and the last is build on audio taken from the VoxForge [#]_ collection.
 
-Nel primo caso sono stati presi in considerazione segmenti audio di lunghezza variabile relativi a *speakers* presenti nei differenti *video news* esaminati: in particolar modo il *training set* si compone di 43 voci femminili e 62 voci maschili (Da correggere - mauro). 
+In the first case we take audio segments of variable length of the speakers in the examined *video news*: the *training set* has 43 female and 62 male speaker voices.
 
-Nel secondo caso invece, per poter esaminare meglio le prestazioni del sistema, è stato costruito un *training set* ad hoc, acquisendo 34 registrazioni di cui 22 maschili e 12 femminili di 30 secondi ciascuno, per un totale di 17 minuti.
+The second dataset is the product of a crowdsourcing build from VoxForge, all in english. The voice dataset was divided in two sets, half in the *training set* and the other half in the *test set*. The use of samples of different size can show how well the system works according to the dimension of the wave files and how long must be the wave track to have a good answer.
 
-Il terzo database è invece il risultato di un *crowdsourcing* messo in piedi da VoxForge : in particolare, è stato scelto il database di voci in lingua inglese essendo il più ricco di campioni audio. L'insieme di voci è stato quindi suddiviso in due insiemi che costituiscono per metà il *training set* e l'altra metà il *test set*. La scelta di utilizzare un database con campioni di differenti dimensioni, deriva dal fatto che il sistema può essere valutato anche sulla base della lunghezza minima richiesta per ottenere una risposta affidabile.
+In the third case, to better examine the system perfomances, we build an ad hoc training set, recording 34 voices, 22 male and 12 female, of about 30 seconds, for about 17 minutes total.
 
-I *training set* presi in considerazione per la parte sperimentale sono interamente costituiti da modelli GMM per ciascun speaker registrato al sistema, mentre i *test set* contengono *feature* MFCC. 
-Per ottimizzare il tempo di ricerca tra i modelli  dello speaker più simile, è stato suddiviso il database in 3 cartelle distinte per genere, F (Voci femminili), M (Voci maschili), U (Voci non definite).
+
+First test
+----------
+The first tests run are focused on evaluating the predictive capabilities of the system, verify the reliability of the system and if possible improve it using some strategies. Using part of the speech corpus of Voxforge we build a training set of 624 GMM, one model for every speaker; the test was performed using 2598 MFCC relative to 162 speakers as test set.
+
+.. figure::  /img-latex/db_testset.png
+ :align: center
+
+
+The samples used in this test have different length, quality and dimensions; this hardly reduces the performances but in this way we can analize the system with a "random" input and see which parameter is more affective.
+
+Each MFCC was compared with each GMM in the db, producing a set of scores useful to evaluate the goodness of the classifier answer. We can see in the following table that False Positive are almost as much as True Positive. After a brief analysis of data we notice that the average distance from first and second most probable speaker scores in case of true positive was about 0.07 when in false positive cases was 0.02. According to this we added a filter that reject cases where the distance is less then 0.07.
+
+.. figure::  /img-latex/tabella-soglia.png
+ :align: center
+
+ Threshold
+
+
+The table shows the number of true positives (correct recognition), true negatives (not recognized), false positives (false alarms), false negatives (wrongly not recognized) in case we use or not the threshold to determine if the classification is reliable. This threshold does not influence the true positives but allow the 97% of false positives to set correctly into the true negatives category, strongly decreasing the false alarm count.
+
+Analyzing the samples' length is also visible that the system works in an effective way as the length grows.
+
+.. figure::  /img-latex/confronti_l_wave.png
+ :align:   center
+
+ Over five seconds is clear that most of the classification are correct.
+	 
+.. figure::  /img-latex/resume_table.png
+ :align:   center
+
+ The test results.
+
+   +----------------------------------------------+
+   |   Legend                                     |
+   +===+==========================================+
+   | A |Just best score                           |
+   +---+------------------------------------------+
+   | B |Best score with distance threshold (0.07) |
+   +---+------------------------------------------+
+   | C |Just waves bigger than 5 seconds          |
+   +---+------------------------------------------+
+   | D |Just waves bigger than 8 seconds          |
+   +---+------------------------------------------+
+   | E |Just waves bigger than 10 seconds         |
+   +---+------------------------------------------+
+
+
+Another useful indicator to examine the answer's goodness is **Sensitivity**; it checks the capacity of the system to correctly classify the speakers, and it is represented in the following formula:
+
+.. figure::  /img-latex/sensitivity.png
+ :align:   center
+
+In our case, because all is relative to a percentage, the sensitivity value is the same as the recognized percentage. We can see that we reach the max sensitivity in segments bigger than 8 seconds (sensitivity of 0.83).
+
+
+Second test
+------------
+To evaluate the segmentation/diarization and the association of the cluster to a db speaker was used the voice database build from an italian broadcast news, about 100 voices extracted from 10 different editions of the show. The *test set* was build from 3 more broadcast news videos of about 30min each. To analyze the diarization we proceed in this way: we run the automatic diarization/identification process and compare the results to the diarization/identification process in interactive mode (with user feedback only for the identification part).
+
+.. figure::  /img-latex/test_tg7.png
+ :align:   center
+
+ TgLa7 test results.
+	
+   +------------------------------------------------------------------------------------------------------------------------+
+   |   Legend                                                                                                               |
+   +===+====================================================================================================================+
+   |A_A|speaker in the db and correctly recognized                                                                          |
+   +---+--------------------------------------------------------------------------------------------------------------------+
+   |U_U|speaker correctly identified as unknown, not in the db and without identity information (es. pedestrians interviews)|
+   +---+--------------------------------------------------------------------------------------------------------------------+
+   |U_N| speaker not in the db (new name added in interactive mode) and correctly defined unknow                            |
+   +---+--------------------------------------------------------------------------------------------------------------------+
+   |U_A| speaker in the db but wrongly defined unknown                                                                      |
+   +---+--------------------------------------------------------------------------------------------------------------------+
+   |A_B| speaker in the db but wrongly identified as another speaker                                                        |
+   +---+--------------------------------------------------------------------------------------------------------------------+
+   |A_U| speaker wrongly identified as known but without identity information (see U_U)                                     |
+   +---+--------------------------------------------------------------------------------------------------------------------+
+
+As shown in the table, the test give us good results, more in deep we see that there are six cases for every speaker (cluster) recognized by the diarization phase. Three cases are good and three are bad. Naturally the best case is when the speaker is correctly recognized (A_A); naturally the situation is more complicated, you can have new speakers that you want to add to the db (U_N), and you can have new speakers that you do not know the name and then you can't (don't want to) put them in the db (U_U). These are the good cases, even if the best case is when the system gives a name to the voice, but you always can find a speaker not in the db (if you haven't a limited number of speakers in the videos/audios), but in these cases the system work is correct. When otherwise a speaker "unknown" is labeled as a speaker already in the db (U_A) or a speaker already present in the db is recognized as another (A_B), or when a speaker in the db is labeled as unknown (A_U), these are the bad cases. To reduce this effect you can, in interactive mode (command line utility), correct manually the speakers labels/names and it automatically update the speaker model in the db building a new model from the wave processed.
+
+
+Third test
+----------
+The *training sets* are composed of GMM files, one for every speaker, the *test sets* are composed of MFCC feature files.
+To optimize the search of the best speaker the voice db is splitted for gender in three different directories, F (female), M (male), U (not recognized).
 
 .. figure::  /img-latex/confronto-thread-time-tabella2.png
  :align:   center
@@ -25,63 +111,8 @@ Per ottimizzare il tempo di ricerca tra i modelli  dello speaker più simile, è
  :align:   center
 
  22 matching-score compared to the thread's number.
- 
-Tutti i test effettuati in una prima fase si sono focalizzati sull'analisi delle prestazioni del sistema utilizzando un differente numero di processori e un numero crescente di *threads*.
-I grafici mostrati in Figura 4.1 /4.2/ 4.3 sintetizzano i tempi medi di risposta ottenuti per differenti tentativi di riconoscimento utilizzando un MFCC e differenti modelli GMM presenti nel database ad hoc descritto in precedenza. Le prestazioni migliori ottenute con una piattaforma con 8 processori non superano in media il mezzo secondo di elaborazione per ciascun GMM. I risultati ottenuti con l'elaborazione in parallelo, come si può notare, migliorano con l'aumento del numero di *thread* in uso.
-Tutti i campioni utilizzati  per questo test sono stati riconosciuti correttamente dal sistema.
 
-Per valutare la segmentazione/diarization e la successiva associazione dei clusters risultanti ad uno speaker presente nel db, è stato utilizzato il database costruito su spezzoni di un telegiornale nazionale; il *test set* è invece stato realizzato prendendo altri 3 (??) video-tg della stessa rete, rendendo possibile la verifica sia della corretta segmentazione degli speaker che il loro riconoscimento. 
+The aim of the last tests is to analyze the performances of the system in multithreading on a multiprocessor platform.
+Graphs in figure show the average response times obtained running differents voice matching using one MFCC and different GMM models in the ad hoc db. Best performances on a 8 cpus are about half a second for every GMM. Correctly the performances increase according to the number of threads but the speedup is not really impressive. In particular the  All the samples used for this test were correctly recognized by the system.
 
-Test TGLa7 con un centinaio di voci nel db. Per creare il database di voci sono state usate una decina di edizioni del TGLa7 e per ogni test è stata usata una edizione di mezz’ora circa del telegiornale.
-Di seguito una tabella riassuntiva:
-
-.. figure::  /img-latex/test_tg7.png
-  :align:   center
-
-  Legenda:
-
-  * A_A: speaker presente nel database e correttamente riconosciuto
-  * U_U: speaker correttamente identificato come sconosciuto, non presente nel database e del quale non si hanno informazioni sull’identità (es. interviste a passanti)
-  * U_N: speaker non presente nel database e definito quindi correttamente sconosciuto
-  * U_A: speaker presente nel database ma erroneamente definito sconosciuto
-  * A_B: speaker presente nel database ed erroneamente indentificato come altro speaker
-  * A_U: speaker identificato erroneamente come conosciuto ma del quale non è conosciuta l’identità (vedi U_U)
-
-(**Per Mauro test**) Allo stesso modo si può calcolare la capacità del sistema di identificare come non riconosciuti i soggetti non presenti nel database: questa viene definita *specificità* .
-
-Infine, l’ultima serie di test effettuati per la parte sperimentale si focalizzano sulle capacità predittive del sistema; in poche parole si vuole verificare l’affidabilità del sistema ed eventualmente migliorarla formulando alcune strategie alternative. Utilizzando parte del database fornito da Voxforge si è costruito un training set di 624 GMM, un modello per ciascuno degli speakers presenti; il test set è stato invece realizzato con 2598 MFCC relativi a 162 speakers.
-
-.. figure::  /img-latex/db_testset.png
- :align: center
-
-I campioni utilizzati per questo test hanno lunghezze, qualità e dimensioni differenti; questo incide fortemente sulle prestazioni ma in questo modo è possibile analizzare il sistema con un input aleatorio e prevedere dei miglioramenti sulla base dell'output ottenuto.
-
-Ogni MFCC è stato confrontato con ciascun GMM del db producendo una serie di scores utili per valutare la bontà di risposta del classificatore. Inizialmente si è preferito analizzare i risultati complessivi riguardanti l'esito del confronto tra tutti gli MFCC e tutto il database: si può notare dalla tabella sottostante una percentuale di falsi riconoscimenti non indifferente, risultato che ha reso opportuno considerare attendibile solo lo score dello *speaker* più probabile che ha una distanza dal secondo più probabile maggiore di 0.09. I falsi positivi si riducono al 3% di quelli iniziali. Questa scelta è stata effettuata sulla base dei seguenti dati: la media delle distanze tra il primo e il secondo classificato per i veri positivi si aggirava sui 0.09 mentre quella tra il primo e il secondo classificato per i falsi positivi si aggirava sui 0.02.
-
-.. figure::  /img-latex/tabella-soglia.png
-  :align: center
-
-  Nella tabella vengono elencati  il numero di veri positivi (riconoscimento corretto), veri negativi (non riconosciuti), falsi positivi (falsi allarmi), falsi negativi (non riconosciuti erroneamente) sia nel caso di utilizzo della soglia per determinare se la classificazione è attendibile e sia nel caso non ne venga utilizzata alcuna. Questa soglia tiene invariato il numero di veri positivi mentre consente al 97% dei falsi positivi di collocarsi correttamente tra i veri negativi, diminuendo fortemente la percentuale di  falsi allarmi. 
-
-Analizzando la lunghezza dei campioni analizzati, si è potuto notare un miglioramento della risposta del sistema all'aumentare della lunghezza stessa. 
-
-.. figure::  /img-latex/confronti_l_wave.png
-  :align:   center
- 
-  Sopra i 5 secondi si può notare una netta superiorità di classificazioni corrette rispetto ai compioni non correttamente riconosciuti.
-
-Nella Figura 4.7 vengono riassunti i risultati del test.
-
-.. figure::  /img-latex/resume_table.png
-   :align:   center
-	
-   A = Risultati iniziali; B = Utilizzo soglia; C = Filtro su lunghezza wave maggiore di 5 secondi;  D = Filtro su lunghezza wave maggiore di 8 secondi;  E = Filtro su lunghezza wave maggiore di 10 secondi.
-
-Un altro indicatore utile per esaminare la validità di risposta è quello della **Sensibilità** che individua la capacità del test di classificare correttamente gli speakers e che si esprime mediante la seguente formula:
-
-.. figure::  /img-latex/sensibilita.png
-   :align:   center
-
-
-.. [#] VoxForge è stato istituito per raccogliere trascrizioni audio per l'utilizzo nei Sistemi di Riconoscimento Vocale come ad esempio ISIP, HTK, Julius e Sphinx. Lo scopo quindi è quello di catalogare e rendere disponibili tutti i files audio (chiamati anche *Speech Corpus*) e i modelli acustici con licenza GPL.
-
+.. [#] VoxForge was build up to gather audio transcriptions for model building in speech recognition systems like ISIP, HTK, Julius and Sphinx. The aim of this project is to make available with open licenses *Speech Corpus* of different languages, and speech models for as many languages is possible.
