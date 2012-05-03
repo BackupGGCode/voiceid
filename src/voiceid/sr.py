@@ -116,7 +116,7 @@ class Cluster:
     :param dirname: the directory where is the cluster wave file"""
 
     
-    def __init__(self, identifier, gender, frames, dirname, name=''):
+    def __init__(self, identifier, gender, frames, dirname, name='unknown'):
         """
         :type identifier: string
         :param identifier: the cluster identifier
@@ -561,8 +561,9 @@ class Voiceid:
         (studio/phone)."""
         tot = []
         for c in self._clusters:
+             
             tot.extend(self._clusters[c].to_dict()[:])
-        tot.sort()
+        #tot.sort()
         return tot
 
     def get_speakers_map(self):
@@ -1066,12 +1067,14 @@ class Voiceid:
         for s in self.get_time_slices():
             d['selections'].append({        
                                      "startTime" : float(s[0]) / 100.0,
-                                     "endTime" : float(s[0] + s[1]) / 100.0,
+                                     "endTime" : float(s[1]) / 100.0,
                                      'speaker': s[-2],
                                      'speakerLabel': s[-1],
                                      'gender': s[2]
                                      })
-        return d
+        for i in d['selections']:
+            print i 
+        return d 
 
     def write_json(self, dictionary=None):
         """Write to file the json dictionary representation of the Clusters."""

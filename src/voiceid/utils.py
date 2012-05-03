@@ -44,6 +44,7 @@ def start_subprocess(commandline):
     :param commandline: the command to run in a subprocess 
     """
     args = shlex.split(commandline)
+
 #    try:
     p = subprocess.Popen(args, stdin=output_redirect, stdout=output_redirect, 
                          stderr=output_redirect)
