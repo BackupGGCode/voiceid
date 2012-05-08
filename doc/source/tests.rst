@@ -31,7 +31,7 @@ The table shows the number of true positives (correct recognition), true negativ
 
 Analyzing the samples' length is also visible that the system works in an effective way as the length grows.
 
-.. figure::  /img-latex/confronti_l_wave.png
+.. figure::  /img-latex/confronti_l_wave_en.png
  :align:   center
 
  Over five seconds is clear that most of the classification are correct.

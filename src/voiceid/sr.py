@@ -116,7 +116,7 @@ class Cluster:
     :param dirname: the directory where is the cluster wave file"""
 
     
-    def __init__(self, identifier, gender, frames, dirname, name='unknown'):
+    def __init__(self, identifier, gender, frames, dirname, label=None):
         """
         :type identifier: string
         :param identifier: the cluster identifier
@@ -133,7 +133,7 @@ class Cluster:
         self.gender = gender
         self._frames = frames
         self._e = None #environment (studio, telephone, unknown)
-        self._name = name
+        self._name = label
         self._speaker = identifier
         self._segments = []
         self._seg_header = ";; cluster:%s [ score:FS = 0.0 ] [ score:FT = 0.0 ] [ score:MS = 0.0 ] [ score:MT = 0.0 ]\n" % identifier
@@ -142,7 +142,8 @@ class Cluster:
         self.wave = dirname + '.wav'
         self.mfcc = dirname + '.mfcc'
         self.dirname = dirname
-        self.add_speaker(identifier, -32.99)
+        if self._speaker != 'unknown':
+            self.add_speaker(identifier, -32.99)
         
     def __str__(self):
         return "%s (%s)" % (self._name, self._speaker)
@@ -1143,9 +1144,9 @@ def extract_clusters(segfilename, clusters):
     for l in f:
         if l.startswith(";;"):
             speaker_id = l.split()[1].split(':')[1]
-            clusters[ speaker_id ] = Cluster(identifier=speaker_id, gender='U', 
+            clusters[ speaker_id ] = Cluster(identifier='unknown', gender='U', 
                                              frames=0, 
-                                             dirname=os.path.splitext(segfilename)[0],name=speaker_id)
+                                             dirname=os.path.splitext(segfilename)[0],label=speaker_id)
             last_cluster = clusters[ speaker_id ]
             last_cluster._seg_header = l
         else:
