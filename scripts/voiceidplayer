@@ -129,6 +129,8 @@ class Controller:
         
         self.clusters_list.clean()
         
+        self.clusters_list.set_info_clusters("")
+        
         if os.path.exists(json_path):
             self.model.load_json(json_path)
             self.frame.train_menu_item.Enable(True)
@@ -208,6 +210,7 @@ class Controller:
         """
         Run Speaker Recognition
         """
+        self.clusters_list.set_info_clusters("")
         self.clusters_list.clean()
         self.frame.run_menu_item.Enable(False)
         path = self.player.video_path.replace('"', '')
@@ -240,14 +243,16 @@ class Controller:
         
         list_items = self.clusters_list.list 
         
-        coloumn = list_items.GetItem(event.m_itemIndex,0)
+        item=list_items.GetColumn(0)
         
-        if list_items.IsItemChecked(coloumn, 0):
+        if item.IsChecked():
             list_items.checked = []
         else:
             for index in range(list_items.GetItemCount()): 
                 cluster = list_items.GetItem(index,1)
-                list_items.checked.append(cluster.GetText())
+                if not cluster.GetText() in list_items.checked:
+                    list_items.checked.append(cluster.GetText())
+                print cluster.GetText()
             
         self.draw_selected_clusters()
         
@@ -258,8 +263,16 @@ class Controller:
         list_items = self.clusters_list.list    
         
         cluster = list_items.GetItem(event.m_itemIndex,1)
-                
+                      
+                      
+        col=list_items.GetColumn(0)        
+        
+               
+                     
+                                
         if cluster.GetText() in list_items.checked:
+            if col.IsChecked():
+                col.Check(False) #not work
             list_items.checked.remove(cluster.GetText())
         else:
             list_items.checked.append(cluster.GetText())
@@ -355,14 +368,12 @@ class Controller:
     def toggle_play(self):
         wx.CallAfter(Publisher().sendMessage, "update_status", "Train ON ...")
         if not self.player.playbackTimer.IsRunning():
-            print "toggle play"
             self.player.mpc.Pause()
             self.player.playbackTimer.Start()   
                    
     def toggle_pause(self):
         wx.CallAfter(Publisher().sendMessage, "update_status", "Train OFF ...")
         if self.player.playbackTimer.IsRunning():
-            print "toggle pause"
             self.player.mpc.Pause()
             self.player.playbackTimer.Stop()  
             
@@ -450,6 +461,7 @@ class Player(wx.Panel):
         self.parent = parent
 #        self.SetBackgroundColour("#000")
         self.mpc = mpc.MplayerCtrl(self, 0, u'mplayer')
+        
         self.sizer = wx.BoxSizer(wx.VERTICAL)
         self.controlSizer = self.build_player_controls()
         self.sliderSizer = wx.BoxSizer(wx.HORIZONTAL)
@@ -487,6 +499,8 @@ class Player(wx.Panel):
         
         self.Bind(wx.EVT_SCROLL_CHANGED, self.update_slider, self.playbackSlider)
         
+        self.Bind(wx.EVT_PAINT, self.repaint)
+        
         self.init_objects()
         
         self.SetSizerAndFit(self.sizer)
@@ -509,7 +523,14 @@ class Player(wx.Panel):
         for s,e,c in segs:
             self.colorPanel.write_slice(float(s) / 100, float(e) / 100, c)
             
-    
+    def repaint(self, event):
+        #self.SetSizerAndFit(self.sizer)
+        try:
+            #print "repaint"
+            self.mpc.FindFocus()
+        except:
+            pass
+        
     def update_slider(self, event):
         
         self.mpc.Seek(self.playbackSlider.GetValue(), 2)
@@ -592,7 +613,7 @@ class Player(wx.Panel):
     def on_play(self, event):
         """"""
         if not self.playbackTimer.IsRunning():
-            print "playing..."
+            #print "playing..."
             self.mpc.Pause()
             self.playbackTimer.Start()
  
@@ -600,7 +621,7 @@ class Player(wx.Panel):
     def on_pause(self, event):
         """"""
         if self.playbackTimer.IsRunning():
-            print "pausing..."
+            #print "pausing..."
             self.mpc.Pause()
             self.playbackTimer.Stop()
 
@@ -722,7 +743,6 @@ class ClustersList(wx.Panel):
         self.list.SetItemKind(item2, 0, 1)
         self.columns+=1
     
-        print self.speakers_GRB
     
     def clean(self):
         self.speakers_GRB = {}
@@ -754,7 +774,6 @@ class ColorPanel(wx.Panel):
         self.parent = parent
 
     def clear(self):
-        print "clear"
         self.dc = wx.PaintDC(self)
         self.dc.Clear()
         del self.dc
@@ -769,6 +788,7 @@ class ColorPanel(wx.Panel):
         self._write_rectangle( start_time * pixel4sec, 10 , duration * pixel4sec, 10, color)  
 
     def _write_rectangle(self,x,y,w,h, color):
+        
         self.dc = wx.PaintDC(self)
         self.dc.BeginDrawing()
         
