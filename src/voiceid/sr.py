@@ -142,8 +142,8 @@ class Cluster:
         self.wave = dirname + '.wav'
         self.mfcc = dirname + '.mfcc'
         self.dirname = dirname
-        if self._speaker != 'unknown':
-            self.add_speaker(identifier, -32.99)
+#        if self._speaker != 'unknown':
+#            self.add_speaker(identifier, -32.99)
         
     def __str__(self):
         return "%s (%s)" % (self._name, self._speaker)
@@ -681,13 +681,28 @@ class Voiceid:
             self[cluster].merge_waves(basename)
             self[cluster].generate_seg_file(os.path.join(basename, 
                                                          cluster + ".seg"))
-        
+        """
         for cluster in self._clusters:            
             filebasename = os.path.join(basename, cluster)
             results = self.get_db().voice_lookup(filebasename + '.mfcc', 
                                                  self[cluster].gender)
             for r in results:
                 self[cluster].add_speaker(r, results[r])
+        """
+        mfcc_files = {}
+        for cluster in self._clusters:                        
+            filebasename = os.path.join(basename, cluster) + '.mfcc'
+            mfcc_files[ filebasename ] = self[cluster].gender
+
+        res = self.get_db().voices_lookup(mfcc_files)
+                       
+        def mfcc_to_cluster(mfcc):
+            return mfcc.split("/")[-1].split(".")[0]
+        
+        for rr in res:
+            cluster = mfcc_to_cluster(rr)
+            for r in res[rr].keys():
+                self[cluster].add_speaker(r, res[rr][r])
             
         if not quiet: 
             print ""
@@ -918,7 +933,7 @@ class Voiceid:
                 try:
                     os.remove("%s.seg" % wave_b )
                     os.remove("%s.mfcc" % wave_b )
-                    os.remove("%s.ident.seg" % wave_b )
+#                    os.remove("%s.ident.seg" % wave_b )
                     os.remove("%s.init.gmm" % wave_b )
                     os.remove("%s.wav" % wave_b )
                 except:

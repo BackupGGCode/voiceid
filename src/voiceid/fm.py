@@ -424,8 +424,6 @@ def ident_seg_rename(filebasename, identifier, outputname):
     output.close()
     ensure_file_exists(outputname + '.seg')
 
-
-
 def srt2subnames(filebasename, key_value):
     """Substitute cluster names with real names in subtitles."""
 
@@ -471,8 +469,6 @@ def file2trim(filename):
     if not QUIET_MODE: 
         print "*** trim ***"
     seg2trim(file_basename)
-
-
 
 #--------------------------------------------
 #   diarization and voice matching functions

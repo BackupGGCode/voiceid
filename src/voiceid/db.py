@@ -121,6 +121,18 @@ class VoiceDB:
         :param gender: the speaker gender 
         """
         raise NotImplementedError() 
+        
+    def voices_lookup(self, mfcc_dictionary):
+        """Look for the best matching speaker in the db for the given features files in the dictionary. 
+        
+        :type mfcc_dictionary: dictionary
+        :param mfcc_dictionary: a dict where the keys are the feature(mfcc) file extracted from the wave, and the values are the relative gender (char F, M or U). 
+
+        :rtype: dictionary
+        :returns: a dictionary having a computed score for every voice model in the db 
+        """
+        raise NotImplementedError()
+    
     
 class GMMVoiceDB(VoiceDB):
     """A Gaussian Mixture Model voices database.
@@ -319,7 +331,7 @@ class GMMVoiceDB(VoiceDB):
         res = {}
         out = {}
         
-        def match_voice(self, mfcc_file, speaker, gender, output):
+        def match_voice(self, mfcc_file, speaker, gender):
             out[speaker+mfcc_file+gender] = self.match_voice(mfcc_file, speaker, gender)
         
         keys = []
@@ -329,19 +341,79 @@ class GMMVoiceDB(VoiceDB):
             if  alive_threads(self.__threads)  < self.__maxthreads :
                 keys.append(s+mfcc_file+gender)
                 self.__threads[s+mfcc_file+gender] = Thread(target=match_voice, 
-                                      args=(self, mfcc_file, s, gender, out[s+mfcc_file+gender] ) )
+                                      args=(self, mfcc_file, s, gender ) )
                 self.__threads[s+mfcc_file+gender].start()
             else:
                 while alive_threads(self.__threads) >= self.__maxthreads:
                     time.sleep(1)
                 keys.append(s+mfcc_file+gender)
                 self.__threads[s+mfcc_file+gender] = Thread(target=match_voice, 
-                                      args=(self, mfcc_file, s, gender, out[s+mfcc_file+gender] ) )
+                                      args=(self, mfcc_file, s, gender ) )
                 self.__threads[s+mfcc_file+gender].start()                
+
+
             
         for thr in keys:
             if self.__threads[thr].is_alive():
                 self.__threads[thr].join()
             res.update( out[thr] )    
+            
+        return res
+    
+    def voices_lookup(self, mfcc_dictionary):
+        """Look for the best matching speaker in the db for the given features files in the dictionary. 
+        
+        :type mfcc_dictionary: dictionary
+        :param mfcc_dictionary: a dict where the keys are the feature(mfcc) file extracted from the wave, and the values are the relative gender (char F, M or U). 
+
+        :rtype: dictionary
+        :returns: a dictionary having a computed score for every voice model in the db 
+        """
+        
+        out = {}
+        res = {}
+        keys = []
+        
+        def __match_voice(self, mfcc_file, speaker, gender):
+#            print "started thread "+speaker+mfcc_file+gender #+" in out["+mfcc_file+"]"
+            try:
+                speakerkey = mfcc_file+'***'+speaker+gender
+                out[speakerkey] = self.match_voice(mfcc_file, speaker, gender)
+            except:
+                exit(-1)
+                
+        for mfcc_file in mfcc_dictionary:
+            gender = mfcc_dictionary[mfcc_file]
+            speakers = self.get_speakers()[gender]
+                                    
+            #out[mfcc_file] = {}
+            for s in speakers:
+                speakerkey = mfcc_file+'***'+s+gender 
+                out[speakerkey] = None
+                if  alive_threads(self.__threads)  < self.__maxthreads :
+                    keys.append(speakerkey)
+                    self.__threads[speakerkey] = Thread(target=__match_voice, 
+                                          args=(self, mfcc_file, s, gender ) )
+                    self.__threads[speakerkey].start()
+                else:
+                    while alive_threads(self.__threads) >= self.__maxthreads:
+                        time.sleep(1)
+                    keys.append(speakerkey)
+                    self.__threads[speakerkey] = Thread(target=__match_voice, 
+                                          args=(self, mfcc_file, s, gender ) )
+                    self.__threads[speakerkey].start()                
+            
+        for thr in keys:
+            if self.__threads[thr].is_alive():
+                self.__threads[thr].join()
+        for thr in out:
+            arr = out[thr]
+            mfcc_key = thr.split('***')[0]
+            if not res.has_key(mfcc_key):
+                res[mfcc_key] = {}
+            try:
+                res[mfcc_key].update( arr )
+            except:
+                print "missing out["+thr+"]"    
             
         return res
