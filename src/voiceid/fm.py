@@ -508,14 +508,14 @@ def _train_map(filebasename):
     start_subprocess(commandline)
     ensure_file_exists(filebasename+'.gmm')
 
-def mfcc_vs_gmm(filebasename, gmm, gender, custom_db_dir=None):
+def mfcc_vs_gmm(filebasename, gmm_file, gender, custom_db_dir=None):
     """Match a mfcc file and a given gmm model file and produce a segmentation file containing the score obtained. 
     
     :type filebasename: string
     :param filebasename: the basename of the mfcc file to process
     
-    :type gmm: string
-    :param gmm: the path of the gmm file containing the voice model
+    :type gmm_file: string
+    :param gmm_file: the path of the gmm file containing the voice model
     
     :type gender: char
     :param gender: F, M or U, the gender of the voice model
@@ -526,21 +526,21 @@ def mfcc_vs_gmm(filebasename, gmm, gender, custom_db_dir=None):
     database = DB_DIR
     if custom_db_dir != None:
         database = custom_db_dir
-    gmm_name = os.path.split(gmm)[1]
-    commandline = 'java -Xmx256M -cp ' + LIUM_JAR + ' fr.lium.spkDiarization.programs.MScore --sInputMask=%s.seg --fInputMask=%s.mfcc --sOutputMask=%s.ident.' + gender + '.' + gmm_name + '.seg --sOutputFormat=seg,UTF8  --fInputDesc=audio16kHz2sphinx,1:3:2:0:0:0,13,1:0:300:4 --tInputMask=' + database + '/' + gender + '/' + gmm + ' --sTop=8,' + UBM_PATH + '  --sSetLabel=add --sByCluster ' + filebasename 
+    gmm_name = os.path.split(gmm_file)[1]
+    commandline = 'java -Xmx256M -cp ' + LIUM_JAR + ' fr.lium.spkDiarization.programs.MScore --sInputMask=%s.seg --fInputMask=%s.mfcc --sOutputMask=%s.ident.' + gender + '.' + gmm_name + '.seg --sOutputFormat=seg,UTF8  --fInputDesc=audio16kHz2sphinx,1:3:2:0:0:0,13,1:0:300:4 --tInputMask=' + database + '/' + gender + '/' + gmm_file + ' --sTop=8,' + UBM_PATH + '  --sSetLabel=add --sByCluster ' + filebasename 
     start_subprocess(commandline)
     ensure_file_exists(filebasename + '.ident.' + gender + '.' + gmm_name + '.seg')
     
 #def threshold_tuning():
 #    """ Get a score to tune up the threshold to define when a speaker is unknown"""
 #    filebasename = os.path.join(test_path,'mr_arkadin')
-#    gmm = "mrarkadin.gmm"
+#    gmm_file = "mrarkadin.gmm"
 #    gender = 'M'
 #    ensure_file_exists(filebasename+'.wav')
-#    ensure_file_exists( os.path.join(test_path,gender,gmm ) )
+#    ensure_file_exists( os.path.join(test_path,gender,gmm_file ) )
 #    file2trim(filebasename+'.wav')
 #    extract_mfcc(filebasename)
-#    mfcc_vs_gmm(filebasename, gmm, gender,custom_db_dir=test_path)
+#    mfcc_vs_gmm(filebasename, gmm_file, gender,custom_db_dir=test_path)
 #    clusters = {}
 #    extract_clusters(filebasename+'.seg',clusters)
 #    manage_ident(filebasename,gender+'.'+gmm,clusters)

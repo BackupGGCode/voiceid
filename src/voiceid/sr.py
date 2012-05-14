@@ -133,7 +133,7 @@ class Cluster:
         self.gender = gender
         self._frames = frames
         self._e = None #environment (studio, telephone, unknown)
-        self._name = label
+        self._label = label
         self._speaker = identifier
         self._segments = []
         self._seg_header = ";; cluster:%s [ score:FS = 0.0 ] [ score:FT = 0.0 ] [ score:MS = 0.0 ] [ score:MT = 0.0 ]\n" % identifier
@@ -142,11 +142,9 @@ class Cluster:
         self.wave = dirname + '.wav'
         self.mfcc = dirname + '.mfcc'
         self.dirname = dirname
-#        if self._speaker != 'unknown':
-#            self.add_speaker(identifier, -32.99)
         
     def __str__(self):
-        return "%s (%s)" % (self._name, self._speaker)
+        return "%s (%s)" % (self._label, self._speaker)
 
     def add_speaker(self, identifier, score):
         """Add a speaker with a computed score for the cluster, if a better 
@@ -191,7 +189,7 @@ class Cluster:
             
     def get_name(self):
         """Get the cluster name assigned by the diarization process."""
-        return self._name
+        return self._label
 
     def get_best_speaker(self):
         """Get the best speaker for the cluster according to the scores.
@@ -273,20 +271,20 @@ class Cluster:
         """
         self._generate_a_seg_file(filename, self.wave[:-4])
 
-    def _generate_a_seg_file(self, filename, identifier):
+    def _generate_a_seg_file(self, filename, first_col_name):
         """Generate a segmentation file for the given showname.
 
         :type filename: string
         :param filename: the name of the seg file
         
-        :type identifier: string
-        :param identifier: the name in the first column of the seg file,
+        :type first_col_name: string
+        :param first_col_name: the name in the first column of the seg file,
                in fact the name and path of the corresponding wave file
         """
         f = open(filename, 'w')
         f.write(self._seg_header)
         line = self._segments[0].get_line()[:]
-        line[0] = identifier
+        line[0] = first_col_name
         line[2] = 0
         line[3] = self._frames - 1
         f.write("%s %s %s %s %s %s %s %s\n" % tuple(line) )
@@ -301,15 +299,15 @@ class Cluster:
         self._segments.sort()
         #TODO: merge in the same
 
-    def rename(self, identifier):
+    def rename(self, label):
         """Rename the cluster and all the relative segments.
         
-        :type identifier: string
-        :param identifier: the new name of the cluster"""
-        self._seg_header = self._seg_header.replace(self._name, identifier)
-        self._name = identifier
+        :type label: string
+        :param label: the new name of the cluster"""
+        self._seg_header = self._seg_header.replace(self._label, label)
+        self._label = label
         for s in self._segments:
-            s.rename(identifier)
+            s.rename(label)
         
     def merge_waves(self, dirname):
         """Take all the wave of a cluster and build a single wave.
@@ -357,7 +355,7 @@ class Cluster:
         result = str(self._seg_header)
         for s in self._segments:
             line = s.get_line()
-            line[-1] = self._name
+            line[-1] = self._label
             result += "%s %s %s %s %s %s %s %s\n" % tuple(line)
         return result
             
@@ -525,35 +523,35 @@ class Voiceid:
         """Get the extension of the current working file."""
         return self._ext[:]
         
-    def get_cluster(self, identifier):
-        """Get a the cluster by a given identifier.
+    def get_cluster(self, label):
+        """Get a the cluster by a given label.
         
-        :type identifier: string
-        :param identifier: the cluster identifier (i.e. S0, S12, S44...)
+        :type label: string
+        :param label: the cluster label (i.e. S0, S12, S44...)
         """
         try:
-            return self._clusters[ identifier ]
+            return self._clusters[ label ]
         except:
             return None
     
-    def add_update_cluster(self, identifier, cluster):
+    def add_update_cluster(self, label, cluster):
         """Add a cluster or update an existing cluster.
 
-        :type identifier: string
-        :param identifier: the cluster identifier (i.e. S0, S12, S44...)
+        :type label: string
+        :param label: the cluster label (i.e. S0, S12, S44...)
         
         :type cluster: object
         :param cluster: a Cluster object
         """
-        self._clusters[ identifier ] = cluster
+        self._clusters[ label ] = cluster
         
-    def remove_cluster(self, identifier):
+    def remove_cluster(self, label):
         """Remove and delete a cluster. 
 
-        :type identifier: string
-        :param identifier: the cluster identifier (i.e. S0, S12, S44...)
+        :type label: string
+        :param label: the cluster label (i.e. S0, S12, S44...)
         """
-        del self._clusters[identifier]
+        del self._clusters[label]
         
     def get_time_slices(self):
         """Return the time slices with all the information about start time,
@@ -760,6 +758,25 @@ class Voiceid:
         to_remove = self._clusters.pop(to_delete)
             
         to_keep.merge(to_remove)
+        
+    def automerge_clusters(self):
+        """Check for Clusters representing the same speaker and merge them."""
+        all_clusters = self.get_clusters().copy()
+        
+        if not self._single:
+            changed = False
+            for c1 in all_clusters:
+                c_c1 = all_clusters[c1]
+                for c2 in all_clusters:
+                    c_c2 = all_clusters[c2]
+                    if c1 != c2 and c_c1.get_speaker() != 'unknown' and c_c1.get_speaker() == c_c2.get_speaker() and self._clusters.has_key(c1) and self._clusters.has_key(c2):
+                        changed = True 
+                        self._merge_clusters(c1, c2)
+            if changed:            
+                self._rename_clusters()
+                shutil.rmtree(self.get_file_basename())
+                self.generate_seg_file()
+                self._to_trim()                
 
     def extract_speakers(self, interactive=False, quiet=False, thrd_n=1):
         """Identify the speakers in the audio wav according to a speakers
@@ -814,24 +831,9 @@ class Voiceid:
         
         self._match_clusters(interactive, quiet)
         
-        
-        #merging
-        all_clusters = self.get_clusters().copy()
-        
-        if not self._single :
-            changed = False
-            for c1 in all_clusters:
-                c_c1 = all_clusters[c1]
-                for c2 in all_clusters:
-                    c_c2 = all_clusters[c2]
-                    if c1 != c2 and c_c1.get_speaker() != 'unknown' and c_c1.get_speaker() == c_c2.get_speaker() and self._clusters.has_key(c1) and self._clusters.has_key(c2):
-                        changed = True 
-                        self._merge_clusters(c1, c2)
-            if changed:            
-                self._rename_clusters()
-                shutil.rmtree(self.get_file_basename())
-                self.generate_seg_file()
-                self._to_trim()                
+        if not interactive:
+            #merging
+            self.automerge_clusters()
    
         sec = wave_duration( basename+'.wav' )
         total_time = time.time() - start_time
@@ -891,17 +893,17 @@ class Voiceid:
         :type t_num: integer
         :param t_num: number of contemporary threads processing the update_db  
         """
-        def _get_available_wav_basename(speaker, basedir):
+        def _get_available_wav_basename(label, basedir):
             cont = 0
-            speaker = os.path.join(basedir, speaker)
-            wav_name = speaker + ".wav"
+            label = os.path.join(basedir, label)
+            wav_name = label + ".wav"
             if os.path.exists(wav_name):
                 while True: #search an inexistent name for new gmm
                     cont = cont +1
-                    wav_name = speaker + "" + str(cont) + ".wav"
+                    wav_name = label + "" + str(cont) + ".wav"
                     if not os.path.exists(wav_name):
                         break
-            return speaker + str(cont)
+            return label + str(cont)
         
         
         def _build_model_wrapper(self, wave_b, cluster, wave_dir, new_speaker, 
@@ -939,7 +941,10 @@ class Voiceid:
                 except:
                     pass
             #end _build_model_wrapper
-            
+        
+        #merge all clusters relatives to the same speaker
+        self.automerge_clusters()
+        
         thrds = {}
         
         for c in self._clusters.values():
