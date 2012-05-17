@@ -159,7 +159,7 @@ class GMMVoiceDB(VoiceDB):
         """Read for any changes the db voice models files."""
         self._speakermodels = {}
         for g in self._genders:
-            dir_ = None
+            dir_ = []
             path = os.path.join(self._path, g)
             try:
                 dir_ = os.listdir(path)
