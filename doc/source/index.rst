@@ -13,6 +13,7 @@ Voiceid's documentation
    intro
    architecture
    tests
+   application
    api
 
 

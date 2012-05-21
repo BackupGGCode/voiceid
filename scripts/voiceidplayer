@@ -52,6 +52,31 @@ EDIT_ID = 0
 OK_DIALOG = 33
 CANCEL_DIALOG = 34
 
+def get_length(filepath):  
+        """
+        Capture video length
+        
+        :type filename: string
+        :param filepath: video's path
+        """
+        def check_output(command): 
+            process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True)
+            output = process.communicate()
+            retcode = process.poll()
+            if retcode:
+                    raise subprocess.CalledProcessError(retcode, command, output=output[0])
+            return output
+        
+        try:     
+            command = """mplayer  -vo null -ao null -frames 0 -identify %s 2>/dev/null |sed -ne '/^ID_/ {s/[]()|&;<>`'"'"'\\!$" []/\\&/g;p}'""" % filepath
+            result = check_output(command)
+            r = result[0].split('\n')
+            for row in r:
+                if row.startswith("ID_LENGTH"):
+                    return row.split("=")[1]
+        except Exception,e:
+            print  e
+
 
 class Controller:
     """A controller build the window interface and bind it all the control functions
@@ -103,7 +128,7 @@ class Controller:
         
         Publisher().subscribe(self.update_status, "update_status")
         Publisher().subscribe(self.update_list, "update_list")
-        
+        Publisher().subscribe(self.update_info_video, "update_info")
         
     def on_close(self, ev):
         """
@@ -136,6 +161,7 @@ class Controller:
             
         self.frame.run_menu_item.Enable(True)
         
+        self.player.set_video_length(get_length(self.player.video_path))
         
         self.clusters_list.clean()
         
@@ -145,7 +171,8 @@ class Controller:
             self.model.load_json(json_path)
             self.frame.train_menu_item.Enable(True)
             wx.CallAfter(Publisher().sendMessage, "update_list", "Loading finished")
-       
+            wx.CallAfter(Publisher().sendMessage, "update_info")
+            
     def on_select_db(self, event):
         """Set database path"""
         
@@ -189,6 +216,7 @@ class Controller:
         self.frame.db_menu_item.Enable(True)
         self.frame.run_menu_item.Enable(True)
         wx.CallAfter(Publisher().sendMessage, "update_list", "Process finished")
+        wx.CallAfter(Publisher().sendMessage, "update_info")
         
     def update_status(self, msg):
         """
@@ -239,7 +267,6 @@ class Controller:
         self.frame.db_menu_item.Enable(False)
         path = self.player.video_path.replace('"', '')
         self.model.load_video(str(path))
-        #self.player.video_path
         self.thread_logger = threading.Thread(target=self.on_extraction_speakers)
         self.thread_logger.start()
         
@@ -249,24 +276,32 @@ class Controller:
 
     def update_list(self, msg):
         """
-        Receives data from thread and updates the status bar
+        Receives data to updates clusters list
         
         :type msg: Message
-        :param msg: text to update info list
+        :param msg: text to update list
         """
         
         self.clusters_list.clean()
-        t = msg.data
-        self.frame.set_status_text(t)
-        u, k = self.model.get_clusters_info()
-        
-        text = "Video: \n %s \n\n Speakers : \n %s unknown + %s known" % (str(os.path.basename(self.player.video_path)), str(u), str(k) )
-        self.clusters_list.set_info_video(text)
         clusters = self.model.get_clusters()
         for c in clusters.values():
             self.clusters_list.add_cluster(c.get_name(), c.get_speaker())
 
         self.draw_selected_clusters()    
+        
+    def update_info_video(self, msg):
+        """
+        Receives data to updates video info
+        
+        :type msg: Message
+        :param msg: text to update video info
+        """
+        
+        
+        u, k = self.model.get_clusters_info()
+        
+        text = "*Video: \n %s \n Length: %.2f \n\n *Database folder: %s \n\n *Speakers : %s unknown + %s known" % (str(os.path.basename(self.player.video_path)), float(self.player.video_length)/60,str(os.path.basename(self.model.get_db())), str(u), str(k) )
+        self.clusters_list.set_info_video(text)
 
     def on_check_col_clusters_list(self, event):
         """
@@ -284,7 +319,7 @@ class Controller:
                 cluster = list_items.GetItem(index,1)
                 if not cluster.GetText() in list_items.checked:
                     list_items.checked.append(cluster.GetText())
-                print cluster.GetText()
+                #print cluster.GetText()
             
         self.draw_selected_clusters()
         
@@ -322,7 +357,7 @@ class Controller:
         cluster = list_items.GetItem(event.m_itemIndex,1)
         
         self.model.set_cluster(str(cluster.GetText()), str(event.GetText()))
-        print "cl %s sp %s " % ((str(cluster.GetText()), str(event.GetText())))
+        #print "cl %s sp %s " % ((str(cluster.GetText()), str(event.GetText())))
         wx.CallAfter(Publisher().sendMessage, "update_status", "Unsaving changes ...")
         
     def init_player_seek(self):
@@ -363,7 +398,6 @@ class Controller:
         
         list_items = self.clusters_list.list    
         start_time = self.model.get_cluster(list_items.checked[0])._segments[0].get_start()
-        
         for l in list_items.checked:
             c = self.model.get_cluster(l)
             if c._segments[0].get_start() < start_time:
@@ -374,8 +408,12 @@ class Controller:
         self.toggle_pause()
         self.player.mpc.Mute(0)
         self.player.playbackSlider.SetValue(float(start_time) / 100)
-        secsPlayed = time.strftime('%M:%S', time.gmtime(start_time))
-        self.player.trackCounter.SetLabel(secsPlayed)
+        try:
+            secsPlayed = self.player.mpc.GetTimePos()
+            secsPlayed = time.strftime('%M:%S', time.gmtime(secsPlayed))
+            self.player.trackCounter.SetLabel(secsPlayed)
+        except:
+            "Problems with mpc.GetTimePos()"
         
              
     def on_play_segments(self, event):
@@ -402,10 +440,12 @@ class Controller:
             if offset >= end :
                 next_ = len(segments) - n
                 if  n > 0 :
+                    self.toggle_play()
                     start = float(segments[ next_ ].get_start()) / 100
                     self.player.mpc.Seek(start, 2) 
                 else:
                     self.toggle_pause()
+                    self.on_play_clusters(event)
                 break
             elif offset >= float(s.get_start()) / 100:
                 break
@@ -648,31 +688,9 @@ class Player(wx.Panel):
  
         return controlSizer    
 
-
-    def getLength(self,filepath):  
-        """
-        Capture video length
-        
-        :type filename: string
-        :param filepath: video's path
-        """
-        def check_output(command): 
-            process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True)
-            output = process.communicate()
-            retcode = process.poll()
-            if retcode:
-                    raise subprocess.CalledProcessError(retcode, command, output=output[0])
-            return output
-        
-        try:     
-            command = """mplayer  -vo null -ao null -frames 0 -identify %s 2>/dev/null |sed -ne '/^ID_/ {s/[]()|&;<>`'"'"'\\!$" []/\\&/g;p}'""" % filepath
-            result = check_output(command)
-            r = result[0].split('\n')
-            for row in r:
-                if row.startswith("ID_LENGTH"):
-                    return row.split("=")[1]
-        except Exception,e:
-            print  e
+    def set_video_length(self, length):
+        """Set video length"""
+        self.video_length = length
         
 
     def on_media_started(self, event):
@@ -680,8 +698,7 @@ class Player(wx.Panel):
         Init player
         """
         print 'Media started!'
-        file = self.video_path
-        self.video_length = self.getLength(file)
+        self.video_length = get_length(self.video_path)
         self.mpc.SetProperty("loop", 0)
         self.mpc.SetProperty("osdlevel", 0) 
         r = "%.1f" % round(float(self.video_length), 1)
@@ -811,10 +828,7 @@ class ClustersList(wx.Panel):
         second.SetWidth(wx.LIST_AUTOSIZE)
         self.list.InsertColumnInfo(1,second)
         
-        #self.list.InsertColumn(col=1, heading='Cluster', format=wx.LIST_AUTOSIZE)
         self.list.InsertColumn(2, '', wx.LIST_AUTOSIZE)
-        
-        #self.Bind(ULC.EVT_LIST_ITEM_CHECKING, self.list.OnCheck)
         
         self.list.SetBackgroundColour("white")
         
@@ -944,6 +958,8 @@ class ColorPanel(wx.Panel):
         
         duration = end_time - start_time
         
+        if duration<1:
+            duration = 1
         self._write_rectangle( start_time * pixel4sec, 10 , duration * pixel4sec, 10, color)  
 
     def _write_rectangle(self,x,y,w,h, color):
@@ -1087,6 +1103,12 @@ class Model:
         :param db_path: database location
         """
         self.db = GMMVoiceDB(str(db_path))
+        
+    def get_db(self):
+        """
+        Init db object 
+        """
+        return self.db.get_path()
     
 class App(wx.App):
     """
