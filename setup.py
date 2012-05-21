@@ -46,6 +46,19 @@ except:
     print "ERROR: GStreamer not installed"
     exit(0)
 
+try:
+    import wx
+except ImportError:
+    print "ERROR: Wxpython not installed: version 2.8.12 needed"
+    exit(0)
+
+try:
+    import wx.lib.agw.ultimatelistctrl as ULC
+except ImportError:
+    print "ERROR: Wxpython not updated: version 2.8.12 needed"
+    exit(0)
+
+
 doc_files = []    
 if sys.argv[1] == 'clean':
     check_output('cd doc; make clean')
