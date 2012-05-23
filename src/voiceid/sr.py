@@ -355,7 +355,7 @@ class Cluster:
         result = str(self._seg_header)
         for s in self._segments:
             line = s.get_line()
-            line[-1] = self._label
+            line[-1] = self._speaker
             result += "%s %s %s %s %s %s %s %s\n" % tuple(line)
         return result
             
@@ -1117,10 +1117,11 @@ class Voiceid:
         """
         
         if mode == 'srt':
+            self.generate_seg_file()
             seg2srt(self.get_file_basename() + '.seg')
-            srt2subnames(self.get_file_basename(), self.get_speakers_map())
-            shutil.move(self.get_file_basename() + '.ident.srt', 
-                        self.get_file_basename() + '.srt')
+#            srt2subnames(self.get_file_basename(), self.get_speakers_map())
+#            shutil.move(self.get_file_basename() + '.ident.srt', 
+#                        self.get_file_basename() + '.srt')
             
         if mode == 'json':
             self.write_json()

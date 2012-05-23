@@ -134,8 +134,10 @@ class Controller:
         """
         Destroy all processes and windows
         """
-        
-        self.player.mpc.Quit()
+        try:
+            self.player.mpc.Quit()
+        except:
+            print "MplayerCtrl not started"
         self.frame.Destroy()
         
     def on_add_file(self, event):
@@ -154,14 +156,12 @@ class Controller:
             path = dlg.GetPath()
             self.currentFolder = os.path.dirname(path[0])
             trackPath = '"%s"' % path.replace("\\", "/")
-            self.player.video_path = trackPath
-            self.player.mpc.Loadfile(trackPath)
+            self.player.load_file(trackPath)
             json_path = os.path.splitext(trackPath)[0]+'.json'
             json_path = json_path.replace('"', '')
             
         self.frame.run_menu_item.Enable(True)
         
-        self.player.set_video_length(get_length(self.player.video_path))
         
         self.clusters_list.clean()
         
@@ -390,12 +390,7 @@ class Controller:
         wx.CallAfter(self.player.draw_cluster_segs, result)
 
         
-        
-    def on_play_clusters(self,event = None):
-        """
-        Plays all selected clusters
-        """
-        
+    def get_start_time(self):
         list_items = self.clusters_list.list    
         start_time = self.model.get_cluster(list_items.checked[0])._segments[0].get_start()
         for l in list_items.checked:
@@ -403,6 +398,14 @@ class Controller:
             if c._segments[0].get_start() < start_time:
                 start_time = c._segments[0].get_start()
                 
+        return start_time
+        
+    def on_play_clusters(self,event = None):
+        """
+        Plays all selected clusters
+        """
+               
+        start_time = self.get_start_time() 
         self.player.mpc.Mute(1)
         self.player.mpc.Seek(float(start_time) / 100 , 2)
         self.toggle_pause()
@@ -422,12 +425,12 @@ class Controller:
         """
         
         list_items = self.clusters_list.list    
+        start_time = self.get_start_time() 
         items = list_items.checked
         segments = []
         for c in items:
             cluster = self.model.get_cluster(c)
             segments.extend(cluster._segments[:])
-            
 
         segments = sorted(segments, key = lambda seg: seg._start)
         
@@ -444,12 +447,19 @@ class Controller:
                     start = float(segments[ next_ ].get_start()) / 100
                     self.player.mpc.Seek(start, 2) 
                 else:
+                    print "end"
                     self.toggle_pause()
                     self.on_play_clusters(event)
                 break
             elif offset >= float(s.get_start()) / 100:
                 break
-                
+            elif offset <= float(start_time) / 100:
+                self.on_play_clusters(event)
+                #self.player.on_play(event)
+                #self.toggle_play()
+                print "offset <= float(start_time) / 100"
+                break
+            
             n += 1
                 
     def toggle_play(self):
@@ -563,9 +573,11 @@ class Player(wx.Panel):
         wx.Panel.__init__(self, parent, -1)
 
         self.parent = parent
-
-        self.mpc = mpc.MplayerCtrl(self, 0, u'mplayer', [u'cache', u'1024'])
-        
+        self.video_length = 0
+        self.video_pos = 0
+        self.video_path = None
+        #self.mpc = mpc.MplayerCtrl(self, 0, u'mplayer', [u'cache', u'1024'])
+        self.mpc = wx.Panel(self, -1, size=(400,300))
         self.sizer = wx.BoxSizer(wx.VERTICAL)
         self.controlSizer = self.build_player_controls()
         self.sliderSizer = wx.BoxSizer(wx.HORIZONTAL)
@@ -610,8 +622,6 @@ class Player(wx.Panel):
         self.mpc.Bind(wx.EVT_SIZE, self.on_size)
         
         self.mpc.Bind(wx.EVT_MAXIMIZE, self.on_size)
-        
-        self.init_objects()
         
         self.SetSizerAndFit(self.sizer)
         self.sizer.Layout()
@@ -692,12 +702,27 @@ class Player(wx.Panel):
         """Set video length"""
         self.video_length = length
         
+    def set_video_path(self, path):
+        """Set video path"""
+        self.video_path = path
+        
+        
+    def load_file(self,path):
+        self.init_objects()
+        self.set_video_path(path)
+        self.video_length = get_length(path)
+        path_srt = os.path.splitext(path)[0]+'.srt'
+        self.sizer.Detach(self.mpc)
+        self.mpc = mpc.MplayerCtrl(self, 0, u'mplayer',mplayer_args=['-sub', path_srt])
+        self.sizer.Insert(0,self.mpc,1, wx.EXPAND | wx.ALL, 5)
+        self.sizer.Layout()
 
     def on_media_started(self, event):
         """
         Init player
         """
         print 'Media started!'
+       
         self.video_length = get_length(self.video_path)
         self.mpc.SetProperty("loop", 0)
         self.mpc.SetProperty("osdlevel", 0) 
@@ -705,8 +730,7 @@ class Player(wx.Panel):
         self.video_length = float(r)
         self.playbackSlider.SetRange(0, self.video_length)
         self.playbackTimer.Start(100) 
-        
-#        #Pause on start
+        #Pause on start
         if self.playbackTimer.IsRunning():
             self.mpc.Pause()
             self.playbackTimer.Stop()
@@ -742,6 +766,7 @@ class Player(wx.Panel):
         When process started ... 
         """
         print 'Process started!'
+        self.mpc.Loadfile(self.video_path)
  
     def on_process_stopped(self, event):
         """
@@ -959,8 +984,10 @@ class ColorPanel(wx.Panel):
         duration = end_time - start_time
         
         if duration<1:
-            duration = 1
-        self._write_rectangle( start_time * pixel4sec, 10 , duration * pixel4sec, 10, color)  
+            w = 1
+        else:
+            w = duration * pixel4sec
+        self._write_rectangle( start_time * pixel4sec, 10 , w, 10, color)  
 
     def _write_rectangle(self,x,y,w,h, color):
         """
@@ -971,7 +998,7 @@ class ColorPanel(wx.Panel):
         :type y: float
         :param y: y-axis to start drawing
         :type w: float
-        :param w: with area to draw 
+        :param w: width area to draw 
         :type h: float
         :param h: height area to draw 
         :type color: string
