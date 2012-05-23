@@ -17,7 +17,7 @@
 #    GNU General Public License for more details.
 #
 #############################################################################
-
+"""Module containing some utilities about subprocess, thread and file checking."""
 import os
 import shlex
 import subprocess

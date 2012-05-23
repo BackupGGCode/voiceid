@@ -17,6 +17,7 @@
 #    GNU General Public License for more details.
 #
 #############################################################################
+"""Module containing classes relatives to the speaker recognition task."""
 
 import os
 import shlex
@@ -297,7 +298,6 @@ class Cluster:
         :param other: the cluster to be merged with"""
         self._segments.extend(other._segments)
         self._segments.sort()
-        #TODO: merge in the same
 
     def rename(self, label):
         """Rename the cluster and all the relative segments.
@@ -1092,8 +1092,6 @@ class Voiceid:
                                      'speakerLabel': s[-1],
                                      'gender': s[2]
                                      })
-        for i in d['selections']:
-            print i 
         return d 
 
     def write_json(self, dictionary=None):

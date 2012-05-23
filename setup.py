@@ -55,7 +55,7 @@ except ImportError:
 try:
     import wx.lib.agw.ultimatelistctrl as ULC
 except ImportError:
-    print "ERROR: Wxpython not updated: version 2.8.12 needed"
+    print "ERROR: Wxpython wrong version: version >=2.8.12 needed"
     exit(0)
 
 

@@ -17,6 +17,7 @@
 #    GNU General Public License for more details.
 #
 #############################################################################
+"""Module containing the low level file manipulation functions."""
 
 import os
 import re
@@ -24,7 +25,6 @@ import struct
 from __init__ import QUIET_MODE, LIUM_JAR, SMS_GMMS, GENDER_GMMS, UBM_PATH, \
     DB_DIR
 from utils import start_subprocess, ensure_file_exists, humanize_time
-
 
 
 def wave_duration(wavfile):

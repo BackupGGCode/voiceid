@@ -17,6 +17,7 @@
 #    GNU General Public License for more details.
 #
 #############################################################################
+"""Module containing the voice DB relative classes."""
 
 import os
 import shutil
@@ -27,9 +28,7 @@ from utils import ensure_file_exists, alive_threads
 from fm import extract_mfcc, build_gmm, merge_gmms, split_gmm, \
     mfcc_vs_gmm
 
-#-------------------------------------
-#   classes
-#-------------------------------------
+
 class VoiceDB:
     """A class that represent a generic voice models db.
     
