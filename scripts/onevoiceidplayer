@@ -211,9 +211,9 @@ class Controller:
                     i+=1
                     if self.config_check == 1:
                         name = r[0]
-                        if r[1] < THRESHOLD:
-                            name = "Unknown"
-                    wx.CallAfter(Publisher().sendMessage, "update_speakers_list", str(i)+" "+name+" score: "+str(r[1])) 
+#                        if r[1] < THRESHOLD:
+#                            name = "Unknown"
+                        wx.CallAfter(Publisher().sendMessage, "update_speakers_list", str(i)+" "+name) 
      
     
 

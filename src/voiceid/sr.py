@@ -351,11 +351,12 @@ class Cluster:
             print "%s to %s" % ( humanize_time( float(s.get_start()) / 100 ),
                                  humanize_time( float(s.get_end()) / 100 ) )
             
-    def _get_seg_repr(self):
+    def _get_seg_repr(self, set_speakers=True):
         result = str(self._seg_header)
         for s in self._segments:
             line = s.get_line()
-            line[-1] = self._speaker
+            if set_speakers:
+                line[-1] = self._speaker
             result += "%s %s %s %s %s %s %s %s\n" % tuple(line)
         return result
             
@@ -576,11 +577,11 @@ class Voiceid:
          convert to wave."""
         file2wav(self.get_filename())
         
-    def generate_seg_file(self):
+    def generate_seg_file(self, set_speakers=True):
         """Generate a seg file according to the information acquired about the speech clustering"""
         result = ''
         for c in self._clusters:
-            result += self._clusters[c]._get_seg_repr()
+            result += self._clusters[c]._get_seg_repr(set_speakers)
             
         f = open(self.get_file_basename() + '.seg', 'w')
         f.write(result)
@@ -775,7 +776,7 @@ class Voiceid:
             if changed:            
                 self._rename_clusters()
                 shutil.rmtree(self.get_file_basename())
-                self.generate_seg_file()
+                self.generate_seg_file(set_speakers=False)
                 self._to_trim()                
 
     def extract_speakers(self, interactive=False, quiet=False, thrd_n=1):
@@ -811,6 +812,8 @@ class Voiceid:
         
         self.diarization()
         
+        diarization_time = time.time() - start_time
+        
         self._status = 2   
         if not quiet: 
             print self.get_working_status()        
@@ -819,14 +822,19 @@ class Voiceid:
         self._status = 3  
         if not quiet: 
             print self.get_working_status()
-        diarization_time = time.time() - start_time
+        
 
         self._to_MFCC()
         self._status = 4 
-        basename = self.get_file_basename()
+        
+        self._cluster_matching(diarization_time, interactive, quiet, thrd_n, start_time)
 
+    def _cluster_matching(self, diarization_time=None, interactive=False, quiet=False, thrd_n=1, start_t=0):    
+        
         if not quiet: 
             print self.get_working_status()
+            
+        basename = self.get_file_basename()   
         self._extract_clusters()
         
         self._match_clusters(interactive, quiet)
@@ -836,7 +844,7 @@ class Voiceid:
             self.automerge_clusters()
    
         sec = wave_duration( basename+'.wav' )
-        total_time = time.time() - start_time
+        total_time = time.time() - start_t
         self._set_time( total_time )
         self._status = 5
         if not quiet: print self.get_working_status()
@@ -942,16 +950,13 @@ class Voiceid:
                     pass
             #end _build_model_wrapper
         
-        #merge all clusters relatives to the same speaker
-        self.automerge_clusters()
-        
         thrds = {}
         
         for c in self._clusters.values():
             if c.up_to_date == False:
                 
                 current_speaker = c.get_speaker()
-                old_s= c.get_best_speaker()
+                old_s = c.get_best_speaker()
                 if current_speaker != 'unknown' and current_speaker != old_s:
                     b_file = _get_available_wav_basename(current_speaker, os.getcwd())
                     wav_name = b_file + '.wav'
@@ -971,6 +976,8 @@ class Voiceid:
         for t in thrds:
             if thrds[t].is_alive():
                 thrds[t].join()
+        #merge all clusters relatives to the same speaker
+        self.automerge_clusters()
 
     def to_XMP_string(self):
         """Return the Adobe XMP representation of the information about who is

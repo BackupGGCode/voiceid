@@ -33,6 +33,7 @@
 
 from voiceid.db import GMMVoiceDB
 from voiceid.sr import Voiceid
+from voiceid import KEEP_INTERMEDIATE_FILES
 import wx.lib.agw.ultimatelistctrl as ULC
 from wx.lib.pubsub import Publisher
 import MplayerCtrl as mpc
@@ -46,6 +47,7 @@ import wx.lib.buttons as buttons
 dirName = os.path.join(sys.prefix, 'local/share/voiceid')
 bitmapDir = os.path.join(dirName, 'bitmaps')
 dbDir = os.path.expanduser('~/.voiceid/gmm_db')
+KEEP_INTERMEDIATE_FILES = True
 LIST_ID = 26
 PLAY_ID = 1
 EDIT_ID = 0
@@ -165,7 +167,7 @@ class Controller:
         
         self.clusters_list.clean()
         
-        self.clusters_list.set_info_video("")
+        #self.clusters_list.set_info_video("")
         
         if os.path.exists(json_path):
             self.model.load_json(json_path)
@@ -186,7 +188,7 @@ class Controller:
                 self.model.load_video(str(path_video))
             except StandardError, e:
                 print e
-                print "No video to load"
+                #print "No video to load"
         dialog.Destroy()
      
     def on_extraction_speakers(self):
@@ -255,6 +257,8 @@ class Controller:
         
         wx.CallAfter(Publisher().sendMessage, "update_status", "Saving changes...")
         self.model.save_changes()
+        wx.CallAfter(Publisher().sendMessage, "update_list", "Changes saved")
+        wx.CallAfter(Publisher().sendMessage, "update_info")
         wx.CallAfter(Publisher().sendMessage, "update_status", "Changes saved")
             
     def on_run(self, event):
@@ -917,6 +921,7 @@ class ClustersList(wx.Panel):
         self.columns = 0
         self.list.DeleteAllItems()
         self.list.checked = []
+        self.set_info_video("")
         
     def set_info_video(self, text):
         """
@@ -1121,6 +1126,7 @@ class Model:
         """
         self.voiceid.update_db(1)
         self.voiceid.write_output("json")
+        self._clusters = self.voiceid.get_clusters()
         
     def set_db(self, db_path):
         """
