@@ -405,6 +405,13 @@ class Cluster:
                 line[-1] = self._speaker
             result += "%s %s %s %s %s %s %s %s\n" % tuple(line)
         return result
+    
+    def get_duration(self):
+        """Return cluster duration."""
+        d = 0
+        for s in self._segments:
+            d += s.get_duration()
+        return d
             
 
 class Voiceid:
@@ -949,7 +956,7 @@ class Voiceid:
         if not quiet: print self.get_working_status()
         if interactive:
             print "Updating db"
-            self.update_db(thrd_n)
+            self.update_db(thrd_n, automerge=True)
 
         if not interactive:
             if not quiet: 
@@ -993,12 +1000,15 @@ class Voiceid:
         for r in results:
             self[cluster].add_speaker(r, results[r])
 
-    def update_db(self, t_num=4):
+    def update_db(self, t_num=4, automerge=False):
         """Update voice db after some changes, for example after a train 
         session.
-
+        
         :type t_num: integer
-        :param t_num: number of contemporary threads processing the update_db  
+        :param t_num: number of contemporary threads processing the update_db
+        
+        :type automerge: boolean
+        :param automerge: true to do the automerge or false to not do it  
         """
         def _get_available_wav_basename(label, basedir):
             cont = 0
@@ -1075,8 +1085,9 @@ class Voiceid:
         for t in thrds:
             if thrds[t].is_alive():
                 thrds[t].join()
-        #merge all clusters relatives to the same speaker
-        self.automerge_clusters()
+        if automerge:
+            #merge all clusters relatives to the same speaker
+            self.automerge_clusters()
 
     def to_XMP_string(self):
         """Return the Adobe XMP representation of the information about who is

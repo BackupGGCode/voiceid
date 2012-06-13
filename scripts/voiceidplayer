@@ -33,7 +33,7 @@
 
 from voiceid.db import GMMVoiceDB
 from voiceid.sr import Voiceid
-from voiceid import KEEP_INTERMEDIATE_FILES
+import voiceid
 import wx.lib.agw.ultimatelistctrl as ULC
 from wx.lib.pubsub import Publisher
 import MplayerCtrl as mpc
@@ -47,7 +47,7 @@ import wx.lib.buttons as buttons
 dirName = os.path.join(sys.prefix, 'local/share/voiceid')
 bitmapDir = os.path.join(dirName, 'bitmaps')
 dbDir = os.path.expanduser('~/.voiceid/gmm_db')
-KEEP_INTERMEDIATE_FILES = True
+voiceid.KEEP_INTERMEDIATE_FILES = True
 LIST_ID = 26
 PLAY_ID = 1
 EDIT_ID = 0
@@ -288,8 +288,13 @@ class Controller:
         
         self.clusters_list.clean()
         clusters = self.model.get_clusters()
+        clusters_review = []
         for c in clusters.values():
-            self.clusters_list.add_cluster(c.get_name(), c.get_speaker())
+            if float(c.get_duration())>3:
+                clusters_review.append(c)
+                
+        for c in clusters_review:
+            self.clusters_list.add_cluster(c.get_name(), c.get_speaker(), c.get_duration())
 
         self.draw_selected_clusters()    
         
@@ -846,16 +851,23 @@ class ClustersList(wx.Panel):
         first._kind = 1      
         first._text = 'Speaker'
         first._font= wx.Font(13, wx.ROMAN, wx.NORMAL, wx.BOLD)
+        first.SetWidth(wx.LIST_AUTOSIZE_USEHEADER)
         self.list.InsertColumnInfo(0,first)
-        self.list.SetColumnWidth(0, 110)
         
         second = ULC.UltimateListItem()
         second._mask = wx.LIST_MASK_TEXT | wx.LIST_MASK_FORMAT 
         second._text = 'Cluster'
-        second.SetWidth(wx.LIST_AUTOSIZE)
+        second.SetWidth(wx.LIST_AUTOSIZE_USEHEADER)
         self.list.InsertColumnInfo(1,second)
         
-        self.list.InsertColumn(2, '', wx.LIST_AUTOSIZE)
+        self.list.InsertColumn(2, '', wx.LIST_AUTOSIZE_USEHEADER)
+        
+        fourty = ULC.UltimateListItem()
+        fourty._mask = wx.LIST_MASK_TEXT | wx.LIST_MASK_FORMAT 
+        fourty._text = 'Length'
+        fourty.SetWidth(wx.LIST_AUTOSIZE_USEHEADER)
+        self.list.InsertColumnInfo(3,fourty)
+        
         
         self.list.SetBackgroundColour("white")
         
@@ -873,7 +885,7 @@ class ClustersList(wx.Panel):
         self.SetSizer(self.sizer)
         self.sizer.Layout()
         
-    def add_cluster(self, cluster_label, cluster_speaker):
+    def add_cluster(self, cluster_label, cluster_speaker, length):
         """
         Add a new cluster item in list
         
@@ -893,21 +905,23 @@ class ClustersList(wx.Panel):
         
         self.speakers_GRB[cluster_label] = color
         
-        data = {self.columns : (cluster_speaker,cluster_label,"")}
+        secs = time.strftime('%M:%S', time.gmtime(length/60))
+        
+        data = {self.columns : (cluster_speaker,cluster_label,"",secs)}
         
         
         for key, d in data.items():
             index = self.list.Append(d)
             self.list.SetItemData(index, key)
         
-        item = self.list.GetItem(self.columns,2)
-        item2 = self.list.GetItem(self.columns,0)
+        item2 = self.list.GetItem(self.columns,2)
+        item1 = self.list.GetItem(self.columns,0)
         
-        item.SetMask(ULC.ULC_MASK_BACKCOLOUR)
-        item.SetBackgroundColour(wx.Colour(color[0],color[1],color[2]))
+        item2.SetMask(ULC.ULC_MASK_BACKCOLOUR)
+        item2.SetBackgroundColour(wx.Colour(color[0],color[1],color[2]))
         
-        self.list.SetItem(item)
-        self.list.SetItemKind(item2, 0, 1)
+        self.list.SetItem(item2)
+        self.list.SetItemKind(item1, 0, 1)
         self.columns+=1
     
     
@@ -986,12 +1000,12 @@ class ColorPanel(wx.Panel):
         
         duration = end_time - start_time
         
-        w = duration * pixel4sec
-            
-        if w<1:
-            w = 1
-            
-        self._write_rectangle( start_time * pixel4sec, 10 , w, 10, color)  
+        if duration>5:
+            w = duration * pixel4sec
+            if w<1:
+                w = 1
+                
+            self._write_rectangle( start_time * pixel4sec, 10 , w, 10, color)  
 
     def _write_rectangle(self,x,y,w,h, color):
         """
@@ -1055,6 +1069,7 @@ class Model:
         """
         
         self.voiceid = Voiceid.from_json_file(self.db, json_path)
+        self.voiceid._automerge_segments() # experimental
         self._clusters = self.voiceid.get_clusters()    
         
     def extract_speakers(self):
@@ -1082,6 +1097,7 @@ class Model:
         """
         Return all clusters
         """
+            
         return self.voiceid.get_clusters()
     
     def get_clusters_info(self):
