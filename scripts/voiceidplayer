@@ -1063,6 +1063,7 @@ class Model:
         """
         
         self.voiceid.extract_speakers(False, False, 4)
+        self.voiceid._automerge_segments() # experimental
         self._clusters = self.voiceid.get_clusters()
 
     def get_status(self):

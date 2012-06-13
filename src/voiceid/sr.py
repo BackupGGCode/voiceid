@@ -53,13 +53,25 @@ class Segment:
         self._u = str(line[6])
         self._speaker = str(line[7])
         self._line = line[:]
-        
+    
+    def __repr__(self):
+        return str(self._line)
+            
     def __cmp__(self, other):
         if self._start < other._start:
             return -1
         if self._start > other._start:
             return 1
         return 0
+    
+    def merge(self, other):
+        """Merge two segments, the other in to the original.
+        
+        :type other: Segment
+        :param other: the segment to be merged with
+        """
+        self._duration = other._start - self._start + other._duration
+        self._line[3] = self._duration
     
     def rename(self, identifier):
         """Change the identifier of the segment.
@@ -146,6 +158,39 @@ class Cluster:
         
     def __str__(self):
         return "%s (%s)" % (self._label, self._speaker)
+    
+#    def intercept(self, other):
+#        self_ordered_segs = self.get_segments()[:].sort()
+#        other_ordered_segs = other.get_segments()[:].sort()
+#        low = hi = None
+#        if self_ordered_segs[0] <other_ordered_segs[0]:
+#            low = self_ordered_segs
+#            hi = other_ordered_segs
+#        else:
+#            hi = self_ordered_segs
+#            low = other_ordered_segs
+#        for l in low:
+#            for h in hi:
+#                if l>h:
+#                    return True
+#        return False
+            
+        
+    def get_segments(self):
+        return self._segments
+    
+    def get_segment(self, start_time):
+        for s in self._segments:
+            if s._start == start_time:
+                return s
+        return None
+    def remove_segment(self, start_time):
+        for s in self._segments:
+            if s._start == start_time:
+                self._segments.remove(s)
+                return True
+        return False
+                
 
     def add_speaker(self, identifier, score):
         """Add a speaker with a computed score for the cluster, if a better 
@@ -331,6 +376,7 @@ class Cluster:
             ensure_file_exists(file_basename + '.mfcc')
         except IOError:
             extract_mfcc(file_basename)
+
             
     def to_dict(self):
         """A dictionary representation of a Cluster."""
@@ -759,6 +805,59 @@ class Voiceid:
         to_remove = self._clusters.pop(to_delete)
             
         to_keep.merge(to_remove)
+    
+    def _automerge_segments(self):        
+        clusters = self._clusters.copy() # copy all clusters to work on data, not reference
+        all_segs = []                    # prepare an array to store all the segments from all the clusters
+        for c in clusters:
+            c_segs = clusters[c].get_segments()
+            for s in c_segs:
+                all_segs.append( (s,c,) ) # for every segment put a tuple with segment and cluster label
+        all_segs.sort() # sort all segs by start time (see __cmp__ in Segment)
+        
+        # prepare a structure (array of dictionaries) to put the segments to be merged
+        to_merge = []
+        to_merge.append({}) 
+
+        idx = 0 # index of to_merge, starting from 0 
+        prev = None
+        for s in all_segs:
+            current = s[:] # a copy of the current seg to avoid reference
+            if prev:       # if is not the first run of for (so we have two segments to compare)  
+                p_cluster = prev[1]  # the cluster of the previous segment
+                cluster = current[1] # the cluster of the current segment
+                segment = current[0] # a copy of the current segment
+                
+                if p_cluster == cluster: # if previous segment and current segment belong to the same cluster                                        
+                    if not to_merge[idx].has_key(cluster): # if the dictionary is still empty (has not the key 'cluster') 
+                        to_merge[idx][cluster] = []        # initialize the dictionary                     
+                        to_merge[idx][cluster].extend([segment,prev[0]]) # insert the current and prev segment
+                    else:                # if the dictionary has already the key 'cluster'
+                        try:
+                            to_merge[idx][cluster].index(segment)  # if there is segment do not do nothing                            
+                        except ValueError:                         # if segment is not present
+                            to_merge[idx][cluster].append(segment) # append segment 
+                            
+                elif len(to_merge[idx])>0:  # if prev and curr seg do not belong to the same cluster, 
+                                            # and current idx points to an already used dictionary
+                    idx += 1                # then increment idx and 
+                    to_merge.append({})     # prepare a new empty dictionary for the next group 
+ 
+                     
+            prev = current[:] # update prev before ending the run 
+            
+        for groupdict in to_merge:                        # cicle the array containing the groups to merge as dictionaries
+            for cluster_key in groupdict:                 # a dictionary containing just a key, the cluster label
+                groupdict[cluster_key].sort(reverse=True) # reverse sort (by start_time) of the segments to merge
+                prev = None                                # initialize previous segment
+                for current_seg in groupdict[cluster_key]: # cicle on the array of segments to merge
+                    seg_start = current_seg.get_start()
+                    segment = self.get_cluster(cluster_key).get_segment(seg_start) # get the reference of current segment
+                    if prev:                              # if is not the first run (so we have at least two segs to merge
+                        segment.merge(prev)               # merge the previous segment into the current
+                        self.get_cluster(cluster_key).remove_segment(prev.get_start()) # remove the previous segment from the cluster
+                    prev = segment                        # update previous segment 
+                    
         
     def automerge_clusters(self):
         """Check for Clusters representing the same speaker and merge them."""

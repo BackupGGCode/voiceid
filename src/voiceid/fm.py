@@ -130,7 +130,7 @@ def get_gender(input_file):
     """
     gmm = open(input_file,'r')
 
-    kind = gmm.read(8)
+    gmm.read(8) # kind
 
     num_gmm_string = gmm.read(4)
     num_gmm = struct.unpack('>i', num_gmm_string )
@@ -139,11 +139,11 @@ def get_gender(input_file):
         print str(num_gmm) + " gmms"
         raise Exception('Loop needed for gmms')
 
-    gmm_1 = gmm.read(8)
-    nothing =  gmm.read(4)
+    gmm.read(8) # gmm_1
+    gmm.read(4) # nothing
 
     str_len = struct.unpack('>i', gmm.read(4) )
-    name = gmm.read(str_len[0])
+    gmm.read(str_len[0]) # name
 
     gender = gmm.read(1)
     return gender
@@ -493,7 +493,7 @@ def diarization(filebasename):
     :type filebasename: string
     :param filebasename: the basename of the wav file to process
     """
-    start_subprocess( 'java -Xmx2024m -jar '+LIUM_JAR+' --fInputMask=%s.wav --sOutputMask=%s.seg --doCEClustering ' +  filebasename )
+    start_subprocess( 'java -Xmx2024m -jar '+LIUM_JAR+' fr.lium.spkDiarization.system.Diarization --fInputMask=%s.wav --sOutputMask=%s.seg --doCEClustering ' +  filebasename )
     ensure_file_exists(filebasename+'.seg')
 
 def _train_init(filebasename):
