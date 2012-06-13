@@ -68,7 +68,7 @@ def get_length(filepath):
             if retcode:
                     raise subprocess.CalledProcessError(retcode, command, output=output[0])
             return output
-        
+        print filepath 
         try:     
             command = """mplayer  -vo null -ao null -frames 0 -identify %s 2>/dev/null |sed -ne '/^ID_/ {s/[]()|&;<>`'"'"'\\!$" []/\\&/g;p}'""" % filepath
             result = check_output(command)
@@ -383,7 +383,6 @@ class Controller:
         list_items = self.clusters_list.list    
         items = list_items.checked
         
-        
         for c in items:
             cluster = self.model.get_cluster(c)
             color = self.clusters_list.get_color(c)
@@ -451,7 +450,6 @@ class Controller:
                     start = float(segments[ next_ ].get_start()) / 100
                     self.player.mpc.Seek(start, 2) 
                 else:
-                    print "end"
                     self.toggle_pause()
                     self.on_play_clusters(event)
                 break
@@ -461,7 +459,7 @@ class Controller:
                 self.on_play_clusters(event)
                 #self.player.on_play(event)
                 #self.toggle_play()
-                print "offset <= float(start_time) / 100"
+                #print "offset <= float(start_time) / 100"
                 break
             
             n += 1
@@ -988,10 +986,11 @@ class ColorPanel(wx.Panel):
         
         duration = end_time - start_time
         
-        if duration<1:
+        w = duration * pixel4sec
+            
+        if w<1:
             w = 1
-        else:
-            w = duration * pixel4sec
+            
         self._write_rectangle( start_time * pixel4sec, 10 , w, 10, color)  
 
     def _write_rectangle(self,x,y,w,h, color):
