@@ -21,7 +21,7 @@
 
 from multiprocessing import cpu_count
 from optparse import OptionParser
-from voiceid import DB_DIR, LIUM_JAR, UBM_PATH, QUIET_MODE, KEEP_INTERMEDIATE_FILES, OUTPUT_FORMAT
+from voiceid import DB_DIR, LIUM_JAR, UBM_PATH, QUIET_MODE, OUTPUT_FORMAT
 from voiceid.db import GMMVoiceDB
 from voiceid.sr import Voiceid
 from voiceid.utils import check_deps
@@ -72,9 +72,9 @@ examples:
     parser.add_option("-f", "--output-format", dest="output_format",action="store", type="string", help="output file format [ srt | json | xmp ] (default srt)")
 
     (options, args) = parser.parse_args()
-
+    import voiceid
     if options.keep_intermediate_files:
-        KEEP_INTERMEDIATE_FILES = options.keep_intermediate_files
+        voiceid.KEEP_INTERMEDIATE_FILES = options.keep_intermediate_files
     if options.quiet_mode:
         QUIET_MODE = options.quiet_mode
     if options.dir_gmm:
@@ -107,7 +107,7 @@ examples:
         #write the output according to the given output format
         cmanager.write_output( OUTPUT_FORMAT )
         
-        if not KEEP_INTERMEDIATE_FILES:
+        if not voiceid.KEEP_INTERMEDIATE_FILES:
             os.remove(cmanager.get_file_basename() + '.seg')            
             os.remove(cmanager.get_file_basename() + '.mfcc')
             w = cmanager.get_file_basename() + '.wav'

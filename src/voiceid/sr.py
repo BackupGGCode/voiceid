@@ -945,9 +945,9 @@ class Voiceid:
         
         self._match_clusters(interactive, quiet)
         
-        if not interactive:
-            #merging
-            self.automerge_clusters()
+#        if not interactive:
+#            #merging
+#            self.automerge_clusters()
    
         sec = wave_duration( basename+'.wav' )
         total_time = time.time() - start_t

@@ -17,14 +17,15 @@
 #    GNU General Public License for more details.
 #
 #############################################################################
-"""Module containing the low level file manipulation functions."""
-
-import os
-import re
-import struct
 from __init__ import QUIET_MODE, LIUM_JAR, SMS_GMMS, GENDER_GMMS, UBM_PATH, \
     DB_DIR
 from utils import start_subprocess, ensure_file_exists, humanize_time
+import os
+import re
+import struct
+import subprocess
+"""Module containing the low level file manipulation functions."""
+
 
 
 def wave_duration(wavfile):
@@ -473,6 +474,44 @@ def file2trim(filename):
 #--------------------------------------------
 #   diarization and voice matching functions
 #--------------------------------------------
+def get_features_number(filebasename):
+    """Return mfcc features number"""
+    def check_output(command): 
+        process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True)
+        output = process.communicate()
+        retcode = process.poll()
+        if retcode:
+                raise subprocess.CalledProcessError(retcode, command, output=output[0])
+        return output 
+    
+    #get the header in a temporary file
+    header = check_output('sphinx_cepview -d 0 -e 1 -header 1 -f %s.mfcc' %filebasename)
+    print header[0]
+                          
+    #get the number of computed MFCC vectors
+    nb_frames =0
+    for line in header[0].splitlines():
+        print line
+        it = line.find('Total')
+        if it != -1:
+            ifr = line.find('frames')
+            index_start=it+6
+            index_end=ifr-1
+            nb_frames=line[index_start:index_end]
+           
+    return int(nb_frames)
+
+def get_uem_seg(filebasename):
+    # create a output file
+    out_file = filebasename + ".uem.seg"
+    nb_frames=get_features_number(filebasename)
+    text=filebasename +" 1 0 "+str(nb_frames)+" U U U 1"
+    fout = open(out_file, "w")
+    fout.write(text)
+    fout.close()
+    ensure_file_exists(out_file)
+
+
 def _silence_segmentation(filebasename):
     """Make a basic segmentation file for the wave file, cutting off the silence.""" 
     start_subprocess( 'java -Xmx2024m -cp '+LIUM_JAR+' fr.lium.spkDiarization.programs.MSegInit --fInputMask=%s.mfcc --fInputDesc=audio16kHz2sphinx,1:1:0:0:0:0,13,0:0:0 --sInputMask= --sOutputMask=%s.s.seg ' +  filebasename )
@@ -507,6 +546,8 @@ def _train_map(filebasename):
     commandline = 'java -Xmx256m -cp '+LIUM_JAR+' fr.lium.spkDiarization.programs.MTrainMAP --sInputMask=%s.ident.seg --fInputMask=%s.mfcc --fInputDesc=audio16kHz2sphinx,1:3:2:0:0:0,13,1:1:300:4 --tInputMask=%s.init.gmm --emCtrl=1,5,0.01 --varCtrl=0.01,10.0 --tOutputMask=%s.gmm ' + filebasename 
     start_subprocess(commandline)
     ensure_file_exists(filebasename+'.gmm')
+
+
 
 def mfcc_vs_gmm(filebasename, gmm_file, gender, custom_db_dir=None):
     """Match a mfcc file and a given gmm model file and produce a segmentation file containing the score obtained. 
