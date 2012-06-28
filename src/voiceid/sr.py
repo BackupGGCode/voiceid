@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 #############################################################################
 #
 # VoiceID, Copyright (C) 2011-2012, Sardegna Ricerche.
@@ -17,19 +18,17 @@
 #    GNU General Public License for more details.
 #
 #############################################################################
-"""Module containing classes relatives to the speaker recognition task."""
+"""Module containing high level classes relatives to the speaker recognition task."""
 
 import os
 import shlex
 import shutil
 import subprocess
 import time
-from __init__ import KEEP_INTERMEDIATE_FILES, output_redirect
-from threading import Thread
-from utils import ensure_file_exists, humanize_time
-from fm import merge_waves, extract_mfcc, file2wav, _silence_segmentation, \
-    _gender_detection, diarization, seg2trim, wave_duration, seg2srt, srt2subnames
-
+from . import configuration
+import threading 
+import utils
+import fm
 
 class Segment:
     """A Segment taken from a segmentation file, representing the smallest recognized
@@ -371,11 +370,11 @@ class Cluster:
         
         self.wave = os.path.join(dirname, name + ".wav")
         
-        merge_waves(listw, self.wave)      
+        fm.merge_waves(listw, self.wave)      
         try:
-            ensure_file_exists(file_basename + '.mfcc')
+            utils.ensure_file_exists(file_basename + '.mfcc')
         except IOError:
-            extract_mfcc(file_basename)
+            fm.extract_mfcc(file_basename)
 
             
     def to_dict(self):
@@ -394,8 +393,8 @@ class Cluster:
     def print_segments(self):
         """Print cluster timing."""
         for s in self._segments:
-            print "%s to %s" % ( humanize_time( float(s.get_start()) / 100 ),
-                                 humanize_time( float(s.get_end()) / 100 ) )
+            print "%s to %s" % ( utils.humanize_time( float(s.get_start()) / 100 ),
+                                 utils.humanize_time( float(s.get_end()) / 100 ) )
             
     def _get_seg_repr(self, set_speakers=True):
         result = str(self._seg_header)
@@ -485,7 +484,7 @@ class Voiceid:
         self._time = 0
         self._interactive = False 
         self._db = db
-        ensure_file_exists(filename)
+        utils.ensure_file_exists(filename)
         self._set_filename(filename)
         self._status = 0
         self._single = single  
@@ -560,7 +559,7 @@ class Voiceid:
                 pass
             else:
                 raise e
-        ensure_file_exists(new_file)
+        utils.ensure_file_exists(new_file)
         
         self._filename = new_file
         self._basename, self._ext = os.path.splitext(self._filename)
@@ -628,7 +627,7 @@ class Voiceid:
     def _to_WAV(self):
         """In case the input file is a video or the wave is in a wrong format,
          convert to wave."""
-        file2wav(self.get_filename())
+        fm.file2wav(self.get_filename())
         
     def generate_seg_file(self, set_speakers=True):
         """Generate a seg file according to the information acquired about the speech clustering"""
@@ -651,8 +650,8 @@ class Voiceid:
             except OSError,e:
                 if e.errno != 17:
                     raise e
-            _silence_segmentation(self._basename)
-            _gender_detection(self._basename)
+            fm._silence_segmentation(self._basename)
+            fm._gender_detection(self._basename)
             segname = self._basename + '.seg'
             f = open(segname,'r')
             headers = []
@@ -709,19 +708,20 @@ class Voiceid:
             shutil.move(segname + '.tmp', segname)
             shutil.copy(self.get_file_basename() + '.seg', 
                         os.path.join(self.get_file_basename(), 'S0' + '.seg'))
-            ensure_file_exists(segname)
+            utils.ensure_file_exists(segname)
         else:
-            diarization(self._basename)
+            self._to_MFCC()
+            fm.diarization(self._basename)
         
     def _to_MFCC(self):
         """Extract the mfcc of the wave input file. Needs the wave file so a 
         prerequisite is _to_WAV()."""
-        extract_mfcc(self._basename)
+        fm.extract_mfcc(self._basename)
     
     def _to_trim(self):
         """Trim the wave input file according to the segmentation in the seg
         file. Run after diarization."""
-        seg2trim(self._basename)
+        fm.seg2trim(self._basename)
         
     def _extract_clusters(self):
         extract_clusters(self._basename+'.seg', self._clusters)
@@ -870,20 +870,20 @@ class Voiceid:
         """Check for Clusters representing the same speaker and merge them."""
         all_clusters = self.get_clusters().copy()
         
-        if not self._single:
-            changed = False
-            for c1 in all_clusters:
-                c_c1 = all_clusters[c1]
-                for c2 in all_clusters:
+        if not self._single:                # if not in single mode mode 
+            changed = False                 # initialize the variable to check if some change has happened
+            for c1 in all_clusters:         # cycle over clusters
+                c_c1 = all_clusters[c1]     
+                for c2 in all_clusters:     # inner cycle over clusters
                     c_c2 = all_clusters[c2]
                     if c1 != c2 and c_c1.get_speaker() != 'unknown' and c_c1.get_speaker() == c_c2.get_speaker() and self._clusters.has_key(c1) and self._clusters.has_key(c2):
-                        changed = True 
-                        self._merge_clusters(c1, c2)
-            if changed:            
-                self._rename_clusters()
-                shutil.rmtree(self.get_file_basename())
-                self.generate_seg_file(set_speakers=False)
-                self._to_trim()                
+                        changed = True                  # if two clusters have the same speaker and have different cluster identifiers 
+                        self._merge_clusters(c1, c2)    # merge the clusters an record that something changed
+            if changed:       #    if something has changed
+                self._rename_clusters()                 # rename all the clusters starting from S0
+                shutil.rmtree(self.get_file_basename()) # remove also the old waves and seg files of the old clusters
+                self.generate_seg_file(set_speakers=False)  # rebuild all seg files
+                self._to_trim()                         # resplit the original wave file according to the new clusters
 
     def extract_speakers(self, interactive=False, quiet=False, thrd_n=1):
         """Identify the speakers in the audio wav according to a speakers
@@ -903,37 +903,37 @@ class Voiceid:
         """
         
         if thrd_n < 1: thrd_n = 1
-        self.get_db().set_maxthreads(thrd_n)
-        
+        self.get_db().set_maxthreads(thrd_n) # set the max number of threads the db can use to compare 
+                                             # in parallel the voices to the db models
         self._status = 0
         start_time = time.time()
         if not quiet: 
             print self.get_working_status()
-        self._to_WAV()
+        self._to_WAV()  # convert your input file to a Wave file having some technical requirements 
         
         self._status = 1    
         
         if not quiet: 
             print self.get_working_status()
         
-        self.diarization()
+        self.diarization()  # start diarization over your wave file
         
         diarization_time = time.time() - start_time
         
         self._status = 2   
         if not quiet: 
             print self.get_working_status()        
-        self._to_trim()
+        self._to_trim()     # trim the original wave file according to the segments given by diarization
         
         self._status = 3  
         if not quiet: 
             print self.get_working_status()
         
 
-        self._to_MFCC()
+#        self._to_MFCC()     
         self._status = 4 
         
-        self._cluster_matching(diarization_time, interactive, quiet, thrd_n, start_time)
+        self._cluster_matching(diarization_time, interactive, quiet, thrd_n, start_time) # search for every identified cluster if there is a relative model voice in the db 
 
     def _cluster_matching(self, diarization_time=None, interactive=False, quiet=False, thrd_n=1, start_t=0):    
         
@@ -949,7 +949,7 @@ class Voiceid:
 #            #merging
 #            self.automerge_clusters()
    
-        sec = wave_duration( basename+'.wav' )
+        sec = fm.wave_duration( basename+'.wav' )
         total_time = time.time() - start_t
         self._set_time( total_time )
         self._status = 5
@@ -985,11 +985,11 @@ class Voiceid:
                     len(speakers_in_db['M'])+len(speakers_in_db['U'])
                 voice_time = float(total_time - diarization_time ) 
                 t_f_s = voice_time / len(speakers_in_db) 
-                print """\nwav duration: %s\nall done in %dsec (%s) (diarization %dsec time:%s )  with %s threads and %d voices in db (%f) """ % (humanize_time(sec), 
+                print """\nwav duration: %s\nall done in %dsec (%s) (diarization %dsec time:%s )  with %s threads and %d voices in db (%f) """ % (utils.humanize_time(sec), 
                                                                                                                                                   total_time, 
-                                                                                                                                                  humanize_time(total_time), 
+                                                                                                                                                  utils.humanize_time(total_time), 
                                                                                                                                                   diarization_time, 
-                                                                                                                                                  humanize_time(diarization_time), 
+                                                                                                                                                  utils.humanize_time(diarization_time), 
                                                                                                                                                   thrd_n, 
                                                                                                                                                   tot_voices, 
                                                                                                                                                   t_f_s)
@@ -1027,11 +1027,11 @@ class Voiceid:
                                  old_speaker):
             """ A procedure to wrap the model building to run in a Thread """
             try:
-                ensure_file_exists(wave_b+'.seg')
+                utils.ensure_file_exists(wave_b+'.seg')
             except:
                 self[cluster]._generate_a_seg_file( wave_b+'.seg', wave_b)                             
          
-            ensure_file_exists(wave_b+'.wav')
+            utils.ensure_file_exists(wave_b+'.wav')
 #            new_speaker = self[cluster].get_speaker()
             self.get_db().add_model(wave_b, new_speaker, 
                                     self[cluster].gender )
@@ -1048,7 +1048,7 @@ class Voiceid:
                                            self[cluster].value, 
                                            self[cluster].gender )
                 self[cluster].set_speaker(new_speaker)
-            if not KEEP_INTERMEDIATE_FILES:
+            if not configuration.KEEP_INTERMEDIATE_FILES:
                 try:
                     os.remove("%s.seg" % wave_b )
                     os.remove("%s.mfcc" % wave_b )
@@ -1074,7 +1074,7 @@ class Voiceid:
                     shutil.move(c.wave, wav_name)
                     
                     cluster_label = c.get_name()
-                    thrds[cluster_label] = Thread(target=_build_model_wrapper,
+                    thrds[cluster_label] = threading.Thread(target=_build_model_wrapper,
                                                   args=(self, b_file, 
                                                         cluster_label, 
                                                         basename, 
@@ -1233,10 +1233,7 @@ class Voiceid:
         
         if mode == 'srt':
             self.generate_seg_file()
-            seg2srt(self.get_file_basename() + '.seg')
-#            srt2subnames(self.get_file_basename(), self.get_speakers_map())
-#            shutil.move(self.get_file_basename() + '.ident.srt', 
-#                        self.get_file_basename() + '.srt')
+            fm.seg2srt(self.get_file_basename() + '.seg')
             
         if mode == 'json':
             self.write_json()
@@ -1270,28 +1267,46 @@ def manage_ident(filebasename, gmm, clusters):
                     _clusters[ cluster ][ speaker ] = float(value)
             """
     f.close()
-    if not KEEP_INTERMEDIATE_FILES:
+    if not configuration.KEEP_INTERMEDIATE_FILES:
         os.remove("%s.ident.%s.seg" % (filebasename, gmm ) )
 
 def extract_clusters(segfilename, clusters):
     """Read _clusters from segmentation file."""
     f = open(segfilename, "r")
     last_cluster = None
-    for l in f:
-        if l.startswith(";;"):
-            speaker_id = l.split()[1].split(':')[1]
-            clusters[ speaker_id ] = Cluster(identifier='unknown', gender='U', 
-                                             frames=0, 
-                                             dirname=os.path.splitext(segfilename)[0],label=speaker_id)
-            last_cluster = clusters[ speaker_id ]
-            last_cluster._seg_header = l
-        else:
-            line = l.split()
-            last_cluster._segments.append(Segment(line))
-            last_cluster._frames += int(line[3])
-            last_cluster.gender = line[4]
-            last_cluster._e = line[5]
+    rows = f.readlines()
     f.close()
+    import string
+    if string.find(' '.join(rows),';;') != -1 :
+        for l in rows:
+            if l.startswith(";;"):
+                speaker_id = l.split()[1].split(':')[1]
+                clusters[ speaker_id ] = Cluster(identifier='unknown', gender='U', 
+                                                 frames=0, 
+                                                 dirname=os.path.splitext(segfilename)[0],label=speaker_id)
+                last_cluster = clusters[ speaker_id ]
+                last_cluster._seg_header = l
+            else:
+                line = l.split()
+                last_cluster._segments.append(Segment(line))
+                last_cluster._frames += int(line[3])
+                last_cluster.gender = line[4]
+                last_cluster._e = line[5]
+    else:
+        for l in rows:
+            line = l.split()
+            speaker_id = line[-1]
+            if not clusters.has_key( speaker_id ):
+                clusters[ speaker_id ] = Cluster(identifier='unknown', gender='U', 
+                                                 frames=0, 
+                                                 dirname=os.path.splitext(segfilename)[0],label=speaker_id)
+            clusters[ speaker_id ]._segments.append(Segment(line))
+            clusters[ speaker_id ]._frames += int(line[3])
+            clusters[ speaker_id ].gender = line[4]
+            clusters[ speaker_id ]._e = line[5]
+            
+    
+    
 
 def _interactive_training(filebasename, cluster, identifier):
     """A user interactive way to set the name to an unrecognized voice of a 
@@ -1322,8 +1337,8 @@ def _interactive_training(filebasename, cluster, identifier):
             commandline = "play "+str(w)
             print "  Listening %s..." % cluster
             args = shlex.split(commandline)
-            p = subprocess.Popen(args, stdin=output_redirect, stdout=output_redirect, 
-                                 stderr=output_redirect)
+            p = subprocess.Popen(args, stdin=configuration.output_redirect, stdout=configuration.output_redirect, 
+                                 stderr=configuration.output_redirect)
             time.sleep(1)
             continue
         if char == "2":

@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 #############################################################################
 #
 # VoiceID, Copyright (C) 2011-2012, Sardegna Ricerche.
@@ -104,18 +105,24 @@ import sys
 # initializations and global variables
 #-------------------------------------
 
-QUIET_MODE = False
-VERBOSE = False
-KEEP_INTERMEDIATE_FILES = False
-LIUM_JAR = os.path.join(sys.prefix,'local/share/voiceid/LIUM_SpkDiarization-4.7.jar')  
-UBM_PATH  = os.path.join(sys.prefix,'local/share/voiceid/ubm.gmm')
-DB_DIR = os.path.expanduser('~/.voiceid/gmm_db')
-GENDER_GMMS = os.path.join(sys.prefix,'local/share/voiceid/gender.gmms')
-SMS_GMMS = os.path.join(sys.prefix,'local/share/voiceid/sms.gmms')
-S_GMMS = os.path.join(sys.prefix,'local/share/voiceid/s.gmms')
-OUTPUT_FORMAT = 'srt' #default output format
-test_path  = os.path.expanduser('~/.voiceid/test')
+class VConf(object):
+    def __init__(self, *args, **kwargs):
+        object.__init__(self, *args, **kwargs)
+        self.QUIET_MODE = False
+        self.VERBOSE = False
+        self.KEEP_INTERMEDIATE_FILES = False
+        self.LIUM_JAR = os.path.join(sys.prefix,'local/share/voiceid/LIUM_SpkDiarization-4.7.jar')  
+        self.UBM_PATH  = os.path.join(sys.prefix,'local/share/voiceid/ubm.gmm')
+        self.DB_DIR = os.path.expanduser('~/.voiceid/gmm_db')
+        self.GENDER_GMMS = os.path.join(sys.prefix,'local/share/voiceid/gender.gmms')
+        self.SMS_GMMS = os.path.join(sys.prefix,'local/share/voiceid/sms.gmms')
+        self.S_GMMS = os.path.join(sys.prefix,'local/share/voiceid/s.gmms')
+        self.OUTPUT_FORMAT = 'srt' #default output format
+        self.test_path  = os.path.expanduser('~/.voiceid/test')
+        self.output_redirect = open('/dev/null','w')
+        if self.VERBOSE:
+            self.output_redirect = open('/dev/stdout','w')
 
-output_redirect = open('/dev/null','w')
-if VERBOSE:
-    output_redirect = open('/dev/stdout','w')
+configuration = VConf() 
+
+

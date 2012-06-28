@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# -*- coding: utf-8 -*-
 #########################################################################
 #
 # VoiceID, Copyright (C) 2011, Sardegna Ricerche.
@@ -30,9 +31,9 @@
 # You can also build yourself the speaker models and put those in the db
 # using the scripts to create the gmm files.
 
-from onevoiceidplayer import Model
-from optparse import OptionParser
-from threading import Thread
+import onevoiceidplayer
+import optparse
+import threading 
 import time
 
 
@@ -49,7 +50,7 @@ examples:
     speaker identification test incremental waves
         %prog [ -i SECONDS]  """
 
-    parser = OptionParser(usage)
+    parser = optparse.OptionParser(usage)
     parser.add_option("-v", "--verbose", dest="verbose", action="store_true", default=False, help="verbose mode")
     parser.add_option("-q", "--quiet", dest="quiet_mode", action="store_true", default=False, help="suppress prints")
     parser.add_option("-a", "--train-mode", dest="train_mode", action="store", type="int",help="start training mode")
@@ -71,7 +72,7 @@ examples:
     
     if options.train_mode:
         #create Model 
-        model = Model(test_mode = False)
+        model = onevoiceidplayer.Model(test_mode = False)
         
         def set_speaker():
             if not quiet_mode:  print "Stop recording..."
@@ -87,7 +88,7 @@ examples:
         
         
     if options.test_mode_fixed or options.test_mode_incremental:     
-        model = Model(test_mode = True)
+        model = onevoiceidplayer.Model(test_mode = True)
         
         def get_result():
             if not quiet_mode:  print "Stop recording..."
@@ -97,7 +98,7 @@ examples:
                 best = model.get_last_result()[0]
                 print best[0]
         
-            t = Thread(target=wait_stop, args=(True,))
+            t = threading.Thread(target=wait_stop, args=(True,))
             t.start()
             
         if not quiet_mode:  print "Start recording..."

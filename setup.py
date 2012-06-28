@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 from distutils.core import setup
 f = open('README','r')
 long_desc = f.read()

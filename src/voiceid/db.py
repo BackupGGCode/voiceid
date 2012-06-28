@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 #############################################################################
 #
 # VoiceID, Copyright (C) 2011-2012, Sardegna Ricerche.
@@ -22,11 +23,10 @@
 import os
 import shutil
 import time
-from threading import Thread
-from sr import manage_ident
-from utils import ensure_file_exists, alive_threads
-from fm import extract_mfcc, build_gmm, merge_gmms, split_gmm, \
-    mfcc_vs_gmm
+import threading
+import sr
+import utils
+import fm
 
 
 class VoiceDB:
@@ -178,10 +178,10 @@ class GMMVoiceDB(VoiceDB):
         :type gender: char F, M or U
         :param gender: the gender of the speaker (optional)"""
                 
-        extract_mfcc(basefilename)
+        fm.extract_mfcc(basefilename)
         
-        ensure_file_exists(basefilename+".mfcc")
-        build_gmm(basefilename, identifier)
+        utils.ensure_file_exists(basefilename+".mfcc")
+        fm.build_gmm(basefilename, identifier)
 #        try:
 #            _silence_segmentation(basefilename)
 #        except:
@@ -215,8 +215,8 @@ class GMMVoiceDB(VoiceDB):
         orig_gmm = os.path.join(self.get_path(), 
                                     gender, identifier + '.gmm')
         try:
-            ensure_file_exists(orig_gmm)
-            merge_gmms([orig_gmm, gmm_path], orig_gmm)
+            utils.ensure_file_exists(orig_gmm)
+            fm.merge_gmms([orig_gmm, gmm_path], orig_gmm)
             self._read_db()
             return True
         except IOError,e:
@@ -250,7 +250,7 @@ class GMMVoiceDB(VoiceDB):
             if not os.path.exists(folder_tmp):
                 os.mkdir(folder_tmp)
                 
-            split_gmm(os.path.join(folder_db_dir, old_s + ".gmm"), 
+            fm.split_gmm(os.path.join(folder_db_dir, old_s + ".gmm"), 
                       folder_tmp)
             listgmms = os.listdir(folder_tmp)
             filebasename = os.path.splitext(mfcc_file)[0]
@@ -258,7 +258,7 @@ class GMMVoiceDB(VoiceDB):
             
             if len(listgmms) != 1:
                 for gmm in listgmms:
-                    mfcc_vs_gmm(filebasename, 
+                    fm.mfcc_vs_gmm(filebasename, 
                                 os.path.join(old_s + "_tmp_gmms", gmm), 
                                 gender)
                     f = open("%s.ident.%s.%s.seg" % 
@@ -273,7 +273,7 @@ class GMMVoiceDB(VoiceDB):
                             value_tmp = l[i:ii]
                             if float(value_tmp) == value_old_s:
                                 os.remove(os.path.join(folder_tmp, gmm))
-                merge_gmms(listgmms, 
+                fm.merge_gmms(listgmms, 
                            os.path.join(folder_db_dir, old_s + ".gmm"))
             else:
                 os.remove(os.path.join(folder_db_dir, old_s + ".gmm")) 
@@ -295,10 +295,10 @@ class GMMVoiceDB(VoiceDB):
         
         mfcc_basename = os.path.splitext(mfcc_file)[0]
                 
-        mfcc_vs_gmm( mfcc_basename , identifier + '.gmm', 
+        fm.mfcc_vs_gmm( mfcc_basename , identifier + '.gmm', 
                      gender, self.get_path() )
         cls = {}
-        manage_ident( mfcc_basename, 
+        sr.manage_ident( mfcc_basename, 
                       gender + '.' + identifier + '.gmm', cls )
         s = {}
         for c in cls:
@@ -337,16 +337,16 @@ class GMMVoiceDB(VoiceDB):
         
         for s in speakers:
             out[s+mfcc_file+gender] = None
-            if  alive_threads(self.__threads)  < self.__maxthreads :
+            if  utils.alive_threads(self.__threads)  < self.__maxthreads :
                 keys.append(s+mfcc_file+gender)
-                self.__threads[s+mfcc_file+gender] = Thread(target=match_voice, 
+                self.__threads[s+mfcc_file+gender] = threading.Thread(target=match_voice, 
                                       args=(self, mfcc_file, s, gender ) )
                 self.__threads[s+mfcc_file+gender].start()
             else:
-                while alive_threads(self.__threads) >= self.__maxthreads:
+                while utils.alive_threads(self.__threads) >= self.__maxthreads:
                     time.sleep(1)
                 keys.append(s+mfcc_file+gender)
-                self.__threads[s+mfcc_file+gender] = Thread(target=match_voice, 
+                self.__threads[s+mfcc_file+gender] = threading.Thread(target=match_voice, 
                                       args=(self, mfcc_file, s, gender ) )
                 self.__threads[s+mfcc_file+gender].start()                
 
@@ -389,16 +389,16 @@ class GMMVoiceDB(VoiceDB):
             for s in speakers:
                 speakerkey = mfcc_file+'***'+s+gender 
                 out[speakerkey] = None
-                if  alive_threads(self.__threads)  < self.__maxthreads :
+                if  utils.alive_threads(self.__threads)  < self.__maxthreads :
                     keys.append(speakerkey)
-                    self.__threads[speakerkey] = Thread(target=__match_voice, 
+                    self.__threads[speakerkey] = threading.Thread(target=__match_voice, 
                                           args=(self, mfcc_file, s, gender ) )
                     self.__threads[speakerkey].start()
                 else:
-                    while alive_threads(self.__threads) >= self.__maxthreads:
+                    while utils.alive_threads(self.__threads) >= self.__maxthreads:
                         time.sleep(1)
                     keys.append(speakerkey)
-                    self.__threads[speakerkey] = Thread(target=__match_voice, 
+                    self.__threads[speakerkey] = threading.Thread(target=__match_voice, 
                                           args=(self, mfcc_file, s, gender ) )
                     self.__threads[speakerkey].start()                
             

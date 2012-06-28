@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 #############################################################################
 #
 # VoiceID, Copyright (C) 2011-2012, Sardegna Ricerche.
@@ -17,19 +18,18 @@
 #    GNU General Public License for more details.
 #
 #############################################################################
-"""Module containing some utilities about subprocess, thread and file checking."""
+"""Module containing some utilities about subprocess, threading and file checking."""
 import os
 import shlex
 import subprocess
-from __init__ import output_redirect, LIUM_JAR, DB_DIR, UBM_PATH
+from . import configuration
 
 
 def alive_threads(t):
     """Check how much threads are running and alive in a thread dictionary
 
     :type t: dictionary
-    :param t: thread dictionary like  { key : thread_obj, ... }
-    """ 
+    :param t: thread dictionary like  { key : thread_obj, ... }""" 
     num = 0
     for thr in t:
         if t[thr].is_alive():
@@ -41,13 +41,11 @@ def start_subprocess(commandline):
     termination.
 
     :type commandline: string
-    :param commandline: the command to run in a subprocess 
-    """
+    :param commandline: the command to run in a subprocess"""
     args = shlex.split(commandline)
-
 #    try:
-    p = subprocess.Popen(args, stdin=output_redirect, stdout=output_redirect, 
-                         stderr=output_redirect)
+    p = subprocess.Popen(args, stdin=configuration.output_redirect, stdout=configuration.output_redirect, 
+                         stderr=configuration.output_redirect)
     retval = p.wait()
 #    except:
 #        print "except 1327"
@@ -67,8 +65,7 @@ def ensure_file_exists(filename):
     """Ensure file exists and is not empty, otherwise raise an IOError.
     
     :type filename: string
-    :param filename: file to check 
-    """
+    :param filename: file to check"""
     if not os.path.exists(filename):
         raise IOError("File %s doesn't exist or not correctly created" % filename)
     if not (os.path.getsize(filename) > 0):
@@ -76,16 +73,16 @@ def ensure_file_exists(filename):
 
 def check_deps():
     """Check for dependencies."""
-    ensure_file_exists(LIUM_JAR)
+    ensure_file_exists(configuration.LIUM_JAR)
 
-    dir_m = os.path.join(DB_DIR, "M")
-    dir_f = os.path.join(DB_DIR, "F")
-    dir_u = os.path.join(DB_DIR, "U")
-    ensure_file_exists(UBM_PATH)
-    if not os.path.exists(DB_DIR):
-        raise IOError("No gmm db directory found in %s (take a look to the configuration, DB_DIR parameter)" % DB_DIR )
-    if os.listdir(DB_DIR) == []:
-        print "WARNING: Gmm db directory found in %s is empty" % DB_DIR
+    dir_m = os.path.join(configuration.DB_DIR, "M")
+    dir_f = os.path.join(configuration.DB_DIR, "F")
+    dir_u = os.path.join(configuration.DB_DIR, "U")
+    ensure_file_exists(configuration.UBM_PATH)
+    if not os.path.exists(configuration.DB_DIR):
+        raise IOError("No gmm db directory found in %s (take a look to the configuration, DB_DIR parameter)" % configuration.DB_DIR )
+    if os.listdir(configuration.DB_DIR) == []:
+        print "WARNING: Gmm db directory found in %s is empty" % configuration.DB_DIR
     if not os.path.exists(dir_m):
         os.makedirs(dir_m)
     if not os.path.exists(dir_f):
@@ -98,8 +95,7 @@ def humanize_time(secs):
     
     :type secs: integer
     :param secs: the time in seconds to represent in human readable format 
-           (hh:mm:ss) 
-    """
+           (hh:mm:ss)"""
     mins, secs = divmod(secs, 60)
     hours, mins = divmod(mins, 60)
     return '%02d:%02d:%02d,%s' % (hours, mins, int(secs), str(("%0.3f" % secs ))[-3:] )
