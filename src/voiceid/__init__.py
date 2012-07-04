@@ -101,28 +101,32 @@ process a file to extract the speakers in it.
 import os
 import sys
 
-#-------------------------------------
-# initializations and global variables
-#-------------------------------------
-
 class VConf(object):
+    """"Configuration for Voiceid, implemented as singleton"""
+    __instance = None
+    def __new__(cls, *args, **kwargs):
+        if not cls.__instance:
+            cls.__instance = super(VConf, cls).__new__(
+                                cls, *args, **kwargs)
+        return cls.__instance
+    
     def __init__(self, *args, **kwargs):
         object.__init__(self, *args, **kwargs)
         self.QUIET_MODE = False
         self.VERBOSE = False
         self.KEEP_INTERMEDIATE_FILES = False
-        self.LIUM_JAR = os.path.join(sys.prefix,'local/share/voiceid/LIUM_SpkDiarization-4.7.jar')  
-        self.UBM_PATH  = os.path.join(sys.prefix,'local/share/voiceid/ubm.gmm')
-        self.DB_DIR = os.path.expanduser('~/.voiceid/gmm_db')
-        self.GENDER_GMMS = os.path.join(sys.prefix,'local/share/voiceid/gender.gmms')
-        self.SMS_GMMS = os.path.join(sys.prefix,'local/share/voiceid/sms.gmms')
-        self.S_GMMS = os.path.join(sys.prefix,'local/share/voiceid/s.gmms')
-        self.OUTPUT_FORMAT = 'srt' #default output format
-        self.test_path  = os.path.expanduser('~/.voiceid/test')
-        self.output_redirect = open('/dev/null','w')
+        local = 'local'
+        if sys.platform == 'win32':
+            local = ''
+        self.LIUM_JAR = os.path.join(sys.prefix, local, 'share', 'voiceid', 'LIUM_SpkDiarization-4.22.jar')  
+        self.UBM_PATH = os.path.join(sys.prefix, local, 'share', 'voiceid', 'ubm.gmm')
+        self.DB_DIR = os.path.join(os.path.expanduser('~'), '.voiceid', 'gmm_db')
+        self.GENDER_GMMS = os.path.join(sys.prefix, local, 'share', 'voiceid', 'gender.gmms')
+        self.SMS_GMMS = os.path.join(sys.prefix, local, 'share', 'voiceid', 'sms.gmms')
+        self.S_GMMS = os.path.join(sys.prefix, local, 'share', 'voiceid', 's.gmms')
+        self.OUTPUT_FORMAT = 'srt' #default output format        
+        self.test_path = os.path.join(os.path.expanduser('~'), '.voiceid', 'test')
+        self.output_redirect = open(os.path.devnull, 'w')
         if self.VERBOSE:
-            self.output_redirect = open('/dev/stdout','w')
-
-configuration = VConf() 
-
+            self.output_redirect = open(sys.stdout, 'w')
 

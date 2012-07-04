@@ -37,8 +37,7 @@ class VoiceDB:
     def __init__(self, path):
         """        
         :type path: string
-        :param path: the voice db path
-        """
+        :param path: the voice db path"""
         self._path = path
         self._genders = ['F', 'M', 'U']
         self._read_db()
@@ -48,8 +47,7 @@ class VoiceDB:
         files, splitted in 3 directories according to the gender (F, M, U).
         
         :rtype: string
-        :returns: the path of the voice db
-        """
+        :returns: the path of the voice db"""
         return self._path
     
     def get_speakers(self):
@@ -61,8 +59,7 @@ class VoiceDB:
         raise NotImplementedError()
     
     def add_model(self, basefilename, identifier, gender=None):
-        """
-        Add a voice model to the database.
+        """Add a voice model to the database.
         
         :type basefilename: string
         :param basefilename: basename including absolulute path of the voice file
@@ -71,13 +68,11 @@ class VoiceDB:
         :param identifier: name or label of the speaker voice in the model, in a single word without special characters
         
         :type gender: char F, M or U
-        :param gender: the gender of the speaker in the model 
-        """
+        :param gender: the gender of the speaker in the model"""
         raise NotImplementedError()
     
     def remove_model(self, mfcc_file, identifier, score, gender):
-        """
-        Remove a speaker model from the database according to the score it gets
+        """Remove a speaker model from the database according to the score it gets
         by matching vs the given feature file 
         
         :type mfcc_file: string
@@ -90,13 +85,11 @@ class VoiceDB:
         :param score: the score obtained in the voice matching
         
         :type gender: char F, M or U
-        :param gender: the speaker gender 
-        """
+        :param gender: the speaker gender"""
         raise NotImplementedError() 
     
     def match_voice(self, mfcc_file, identifier, gender):
-        """
-        Match the given feature file vs the specified speaker model.
+        """Match the given feature file vs the specified speaker model.
 
         :type mfcc_file: string         
         :param mfcc_file: the feature(mfcc) file extracted from the wave
@@ -105,20 +98,17 @@ class VoiceDB:
         :param identifier: the name or label of the speaker
         
         :type gender: char F, M or U
-        :param gender: the speaker gender 
-        """
+        :param gender: the speaker gender"""
         raise NotImplementedError()
     
     def voice_lookup(self, mfcc_file, gender):
-        """
-        Look for the best matching speaker in the db for the given features file. 
+        """Look for the best matching speaker in the db for the given features file. 
         
         :type mfcc_file: string         
         :param mfcc_file: the feature(mfcc) file extracted from the wave
         
         :type gender: char F, M or U
-        :param gender: the speaker gender 
-        """
+        :param gender: the speaker gender"""
         raise NotImplementedError() 
         
     def voices_lookup(self, mfcc_dictionary):
@@ -128,10 +118,8 @@ class VoiceDB:
         :param mfcc_dictionary: a dict where the keys are the feature(mfcc) file extracted from the wave, and the values are the relative gender (char F, M or U). 
 
         :rtype: dictionary
-        :returns: a dictionary having a computed score for every voice model in the db 
-        """
+        :returns: a dictionary having a computed score for every voice model in the db"""
         raise NotImplementedError()
-    
     
 class GMMVoiceDB(VoiceDB):
     """A Gaussian Mixture Model voices database.
@@ -149,8 +137,7 @@ class GMMVoiceDB(VoiceDB):
         """Set the max number of threads running together for the lookup task.
         
         :type t: integer
-        :param t: max number of threads allowed to run at the same time.
-        """
+        :param t: max number of threads allowed to run at the same time."""
         if t > 0:
             self.__maxthreads = t
     
@@ -177,10 +164,9 @@ class GMMVoiceDB(VoiceDB):
 
         :type gender: char F, M or U
         :param gender: the gender of the speaker (optional)"""
-                
-        fm.extract_mfcc(basefilename)
         
-        utils.ensure_file_exists(basefilename+".mfcc")
+        fm.extract_mfcc(basefilename)
+        utils.ensure_file_exists(basefilename + ".mfcc")
         fm.build_gmm(basefilename, identifier)
 #        try:
 #            _silence_segmentation(basefilename)
@@ -192,7 +178,7 @@ class GMMVoiceDB(VoiceDB):
                 f = open(segfile, 'r')
                 for l in f.readlines():
                     if not l.startswith(';;'):
-                        g[ l.split(' ')[4] ] +=1
+                        g[ l.split(' ')[4] ] += 1
                 f.close()    
                 
                 if g['M'] > g['F']:
@@ -212,14 +198,14 @@ class GMMVoiceDB(VoiceDB):
 #        _train_map(basefilename)
         
         gmm_path = basefilename + '.gmm'
-        orig_gmm = os.path.join(self.get_path(), 
+        orig_gmm = os.path.join(self.get_path(),
                                     gender, identifier + '.gmm')
         try:
             utils.ensure_file_exists(orig_gmm)
             fm.merge_gmms([orig_gmm, gmm_path], orig_gmm)
             self._read_db()
             return True
-        except IOError,e:
+        except IOError, e:
             s = "File %s doesn't exist or not correctly created" % orig_gmm
             if str(e) == s:
                 shutil.move(gmm_path, orig_gmm)
@@ -243,14 +229,14 @@ class GMMVoiceDB(VoiceDB):
         :param gender: the gender of the speaker (optional)"""
         old_s = identifier
         
-        folder_db_dir = os.path.join(self.get_path(),gender)
+        folder_db_dir = os.path.join(self.get_path(), gender)
         
         if os.path.exists(os.path.join(folder_db_dir, old_s + ".gmm")):
             folder_tmp = os.path.join(folder_db_dir, old_s + "_tmp_gmms")
             if not os.path.exists(folder_tmp):
                 os.mkdir(folder_tmp)
                 
-            fm.split_gmm(os.path.join(folder_db_dir, old_s + ".gmm"), 
+            fm.split_gmm(os.path.join(folder_db_dir, old_s + ".gmm"),
                       folder_tmp)
             listgmms = os.listdir(folder_tmp)
             filebasename = os.path.splitext(mfcc_file)[0]
@@ -258,8 +244,8 @@ class GMMVoiceDB(VoiceDB):
             
             if len(listgmms) != 1:
                 for gmm in listgmms:
-                    fm.mfcc_vs_gmm(filebasename, 
-                                os.path.join(old_s + "_tmp_gmms", gmm), 
+                    fm.mfcc_vs_gmm(filebasename,
+                                os.path.join(old_s + "_tmp_gmms", gmm),
                                 gender)
                     f = open("%s.ident.%s.%s.seg" % 
                              (filebasename, gender, gmm), "r")
@@ -273,7 +259,7 @@ class GMMVoiceDB(VoiceDB):
                             value_tmp = l[i:ii]
                             if float(value_tmp) == value_old_s:
                                 os.remove(os.path.join(folder_tmp, gmm))
-                fm.merge_gmms(listgmms, 
+                fm.merge_gmms(listgmms,
                            os.path.join(folder_db_dir, old_s + ".gmm"))
             else:
                 os.remove(os.path.join(folder_db_dir, old_s + ".gmm")) 
@@ -295,14 +281,14 @@ class GMMVoiceDB(VoiceDB):
         
         mfcc_basename = os.path.splitext(mfcc_file)[0]
                 
-        fm.mfcc_vs_gmm( mfcc_basename , identifier + '.gmm', 
-                     gender, self.get_path() )
+        fm.mfcc_vs_gmm(mfcc_basename , identifier + '.gmm',
+                     gender, self.get_path())
         cls = {}
-        sr.manage_ident( mfcc_basename, 
-                      gender + '.' + identifier + '.gmm', cls )
+        sr.manage_ident(mfcc_basename,
+                      gender + '.' + identifier + '.gmm', cls)
         s = {}
         for c in cls:
-            s.update( cls[ c ].speakers )
+            s.update(cls[ c ].speakers)
         return s
     
     def get_speakers(self):
@@ -324,38 +310,35 @@ class GMMVoiceDB(VoiceDB):
         :param gender: the speaker gender
         
         :rtype: dictionary
-        :returns: a dictionary having a computed score for every voice model in the db 
-        """
-        speakers =  self.get_speakers()[gender]
+        :returns: a dictionary having a computed score for every voice model in the db """
+        speakers = self.get_speakers()[gender]
         res = {}
         out = {}
         
         def match_voice(self, mfcc_file, speaker, gender):
-            out[speaker+mfcc_file+gender] = self.match_voice(mfcc_file, speaker, gender)
+            out[speaker + mfcc_file + gender] = self.match_voice(mfcc_file, speaker, gender)
         
         keys = []
         
         for s in speakers:
-            out[s+mfcc_file+gender] = None
-            if  utils.alive_threads(self.__threads)  < self.__maxthreads :
-                keys.append(s+mfcc_file+gender)
-                self.__threads[s+mfcc_file+gender] = threading.Thread(target=match_voice, 
-                                      args=(self, mfcc_file, s, gender ) )
-                self.__threads[s+mfcc_file+gender].start()
+            out[s + mfcc_file + gender] = None
+            if  utils.alive_threads(self.__threads) < self.__maxthreads :
+                keys.append(s + mfcc_file + gender)
+                self.__threads[s + mfcc_file + gender] = threading.Thread(target=match_voice,
+                                      args=(self, mfcc_file, s, gender))
+                self.__threads[s + mfcc_file + gender].start()
             else:
                 while utils.alive_threads(self.__threads) >= self.__maxthreads:
                     time.sleep(1)
-                keys.append(s+mfcc_file+gender)
-                self.__threads[s+mfcc_file+gender] = threading.Thread(target=match_voice, 
-                                      args=(self, mfcc_file, s, gender ) )
-                self.__threads[s+mfcc_file+gender].start()                
+                keys.append(s + mfcc_file + gender)
+                self.__threads[s + mfcc_file + gender] = threading.Thread(target=match_voice,
+                                      args=(self, mfcc_file, s, gender))
+                self.__threads[s + mfcc_file + gender].start()                
 
-
-            
         for thr in keys:
             if self.__threads[thr].is_alive():
                 self.__threads[thr].join()
-            res.update( out[thr] )    
+            res.update(out[thr])    
             
         return res
     
@@ -366,8 +349,7 @@ class GMMVoiceDB(VoiceDB):
         :param mfcc_dictionary: a dict where the keys are the feature(mfcc) file extracted from the wave, and the values are the relative gender (char F, M or U). 
 
         :rtype: dictionary
-        :returns: a dictionary having a computed score for every voice model in the db 
-        """
+        :returns: a dictionary having a computed score for every voice model in the db"""
         
         out = {}
         res = {}
@@ -376,7 +358,7 @@ class GMMVoiceDB(VoiceDB):
         def __match_voice(self, mfcc_file, speaker, gender):
 #            print "started thread "+speaker+mfcc_file+gender #+" in out["+mfcc_file+"]"
             try:
-                speakerkey = mfcc_file+'***'+speaker+gender
+                speakerkey = mfcc_file + '***' + speaker + gender
                 out[speakerkey] = self.match_voice(mfcc_file, speaker, gender)
             except:
                 exit(-1)
@@ -384,24 +366,22 @@ class GMMVoiceDB(VoiceDB):
         for mfcc_file in mfcc_dictionary:
             gender = mfcc_dictionary[mfcc_file]
             speakers = self.get_speakers()[gender]
-                                    
             #out[mfcc_file] = {}
             for s in speakers:
-                speakerkey = mfcc_file+'***'+s+gender 
+                speakerkey = mfcc_file + '***' + s + gender 
                 out[speakerkey] = None
-                if  utils.alive_threads(self.__threads)  < self.__maxthreads :
+                if  utils.alive_threads(self.__threads) < self.__maxthreads :
                     keys.append(speakerkey)
-                    self.__threads[speakerkey] = threading.Thread(target=__match_voice, 
-                                          args=(self, mfcc_file, s, gender ) )
+                    self.__threads[speakerkey] = threading.Thread(target=__match_voice,
+                                          args=(self, mfcc_file, s, gender))
                     self.__threads[speakerkey].start()
                 else:
                     while utils.alive_threads(self.__threads) >= self.__maxthreads:
                         time.sleep(1)
                     keys.append(speakerkey)
-                    self.__threads[speakerkey] = threading.Thread(target=__match_voice, 
-                                          args=(self, mfcc_file, s, gender ) )
+                    self.__threads[speakerkey] = threading.Thread(target=__match_voice,
+                                          args=(self, mfcc_file, s, gender))
                     self.__threads[speakerkey].start()                
-            
         for thr in keys:
             if self.__threads[thr].is_alive():
                 self.__threads[thr].join()
@@ -411,8 +391,7 @@ class GMMVoiceDB(VoiceDB):
             if not res.has_key(mfcc_key):
                 res[mfcc_key] = {}
             try:
-                res[mfcc_key].update( arr )
+                res[mfcc_key].update(arr)
             except:
-                print "missing out["+thr+"]"    
-            
+                print "missing out[" + thr + "]"    
         return res

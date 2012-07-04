@@ -22,9 +22,11 @@
 
 import multiprocessing
 import optparse
-from voiceid import utils, db, sr, fm, configuration
+from voiceid import utils, db, sr, fm, VConf
 import os
 import shutil
+
+configuration = VConf()
 
 def _multiargs_callback(option, opt_str, value, parser):
     """ Create an array from multiple args"""

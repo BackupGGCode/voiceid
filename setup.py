@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 from distutils.core import setup
-f = open('README','r')
+f = open('README', 'r')
 long_desc = f.read()
 f.close()
 import sys
@@ -8,21 +8,22 @@ import os
 import os.path
 import subprocess
 
+which = 'which'
+if sys.platform == 'win32':
+    which = 'where'
+    
 basedir = os.path.dirname(os.path.join(os.getcwd(), sys.argv[0]))
-try:
-    from subprocess import check_output
-except ImportError:
-    def check_output(command): 
-        process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True)
-        output = process.communicate()
-        retcode = process.poll()
-        if retcode:
-                raise subprocess.CalledProcessError(retcode, command, output=output[0])
-        return output 
+def my_check_output(command): 
+    process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True)
+    output = process.communicate()
+    retcode = process.poll()
+    if retcode:
+            raise subprocess.CalledProcessError(retcode, command, output=output[0])
+    return output 
 
 try:
-    java_ver = check_output('java -version')[0].split('\n')[0]
-    jv = java_ver.split(' ')[2].replace('\"','').split('.')
+    java_ver = my_check_output('java -version')[0].split('\n')[0]
+    jv = java_ver.split(' ')[2].replace('\"', '').split('.')
     if jv[1] < 6:
         raise Exception()   
 except:
@@ -30,19 +31,19 @@ except:
     exit(0)
 
 try:
-    sox = check_output('sox --help')
+    sox = my_check_output('sox --help')
 except:
     print "ERROR: sox not installed"
     exit(0)
     
 try:
-    sphinx = check_output('which sphinx_fe')
+    sphinx = my_check_output(which + ' sphinx_fe')
 except:
     print "ERROR: CMU-sphinx not installed"
     exit(0)
     
 try:
-    sphinx = check_output('which gst-launch')
+    sphinx = my_check_output(which + ' gst-launch')
 except:
     print "ERROR: GStreamer not installed"
     exit(0)
@@ -50,31 +51,29 @@ except:
 try:
     import wx
 except ImportError:
-    print "ERROR: Wxpython not installed: version 2.8.12 needed"
-    exit(0)
+    print "WARNING: Wxpython not installed: version 2.8.12 needed"
 
 try:
     import wx.lib.agw.ultimatelistctrl as ULC
 except ImportError:
-    print "ERROR: Wxpython wrong version: version >=2.8.12 needed"
-    exit(0)
+    print "WARNING: Wxpython wrong version: version >=2.8.12 needed"
 
 
 doc_files = []    
 if sys.argv[1] == 'clean':
-    check_output('cd doc; make clean')
+    my_check_output('cd doc; make clean')
 elif sys.argv[1].startswith('bdist'):
     try:
         print "creating html documentation"
-        check_output('cd doc; make html')
+        my_check_output('cd doc; make html')
     except:
         print "ERROR: documentation not correctly created"
         exit(0)
-    doc_dir = os.path.join(basedir, 'doc/build/html')
-    doc_files = [ os.path.join(doc_dir, f) for f in os.listdir(doc_dir) if not os.path.isdir( os.path.join(doc_dir, f) ) ]
+    doc_dir = os.path.join(basedir, 'doc', 'build', 'en', 'html')
+    doc_files = [ os.path.join(doc_dir, f) for f in os.listdir(doc_dir) if not os.path.isdir(os.path.join(doc_dir, f)) ]
     
-image_dir = os.path.join(basedir, 'share/bitmaps')
-image_files = [ os.path.join(image_dir, f) for f in os.listdir(image_dir) if not os.path.isdir( os.path.join(image_dir, f) ) ]
+image_dir = os.path.join(basedir, 'share', 'bitmaps')
+image_files = [ os.path.join(image_dir, f) for f in os.listdir(image_dir) if not os.path.isdir(os.path.join(image_dir, f)) ]
 
 setup(name='voiceid',
       version='0.1',
@@ -96,13 +95,13 @@ setup(name='voiceid',
                    'Operating System :: POSIX',
                    'Programming Language :: Python :: 2.6',
                    'Topic :: Multimedia :: Sound/Audio :: Speech',
-                   'Topic :: Software Development :: Libraries :: Python Modules',],
+                   'Topic :: Software Development :: Libraries :: Python Modules', ],
       packages=['voiceid'],
-      package_dir={'voiceid': 'src/voiceid'},
-      data_files=[('share/voiceid', ['share/LIUM_SpkDiarization-4.7.jar', 'share/sms.gmms', 'share/s.gmms', 'share/gender.gmms','share/ubm.gmm']), 
-                  ('share/voiceid/bitmaps', image_files ),
-		('share/doc/voiceid/html', doc_files )],
-      scripts=['scripts/vid', 'scripts/voiceidplayer', 'scripts/onevoiceidplayer', 
+      package_dir={'voiceid': os.path.join('src', 'voiceid')},
+      data_files=[(os.path.join('share', 'voiceid'), [ os.path.join('share', 'LIUM_SpkDiarization-4.22.jar'), os.path.join('share', 'sms.gmms'), os.path.join('share', 's.gmms'), os.path.join('share', 'gender.gmms'), os.path.join('share', 'ubm.gmm')]),
+                  (os.path.join('share', 'voiceid', 'bitmaps'), image_files),
+        (os.path.join('share', 'doc', 'voiceid', 'html'), doc_files) ],
+      scripts=[os.path.join('scripts', 'vid'), os.path.join('scripts', 'voiceidplayer'), os.path.join('scripts', 'onevoiceidplayer'),
                #'scripts/onevoice'
                ],
       )

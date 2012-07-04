@@ -25,24 +25,24 @@ import shlex
 import shutil
 import subprocess
 import time
-from . import configuration
 import threading 
 import utils
 import fm
+from . import VConf
+
+configuration = VConf()
 
 class Segment:
     """A Segment taken from a segmentation file, representing the smallest recognized
      voice time slice.
 
     :type line: string
-    :param line: the line taken from a seg file
-    """
+    :param line: the line taken from a seg file"""
     
     def __init__(self, line):
         """
         :type line: string
-        :param line: the line taken from a seg file
-        """
+        :param line: the line taken from a seg file"""
         self._basename = str(line[0])
         self._one = int(line[1])
         self._start = int(line[2])
@@ -67,8 +67,7 @@ class Segment:
         """Merge two segments, the other in to the original.
         
         :type other: Segment
-        :param other: the segment to be merged with
-        """
+        :param other: the segment to be merged with"""
         self._duration = other._start - self._start + other._duration
         self._line[3] = self._duration
     
@@ -126,7 +125,6 @@ class Cluster:
     
     :type dirname: string
     :param dirname: the directory where is the cluster wave file"""
-
     
     def __init__(self, identifier, gender, frames, dirname, label=None):
         """
@@ -183,13 +181,13 @@ class Cluster:
             if s._start == start_time:
                 return s
         return None
+    
     def remove_segment(self, start_time):
         for s in self._segments:
             if s._start == start_time:
                 self._segments.remove(s)
                 return True
         return False
-                
 
     def add_speaker(self, identifier, score):
         """Add a speaker with a computed score for the cluster, if a better 
@@ -199,8 +197,7 @@ class Cluster:
         :param identifier: the speaker identifier
         
         :type score: float
-        :param score: score computed between the cluster wave and speaker model
-        """
+        :param score: score computed between the cluster wave and speaker model"""
         v = float(score)
         if self.speakers.has_key( identifier ) == False:
             self.speakers[ identifier ] = v
@@ -219,8 +216,7 @@ class Cluster:
         """Set the cluster speaker identifier 'by hand'.
         
         :type identifier: string
-        :param identifier: the speaker name or identifier 
-        """
+        :param identifier: the speaker name or identifier"""
         self.up_to_date = False
         self._speaker = identifier
 
@@ -243,8 +239,7 @@ class Cluster:
          then it is set as "unknown".
          
          :rtype: string
-         :returns: the best speaker matching the cluster wav
-         """
+         :returns: the best speaker matching the cluster wav"""
         max_val = -33.0
         try:
             self.value = max(self.speakers.values())
@@ -265,8 +260,7 @@ class Cluster:
         """Get the best five speakers in the db for the cluster.
         
         :rtype: array of tuple
-        :returns: an array of five most probable speakers represented by ordered tuples of the form (speaker, score) ordered by score.
-        """
+        :returns: an array of five most probable speakers represented by ordered tuples of the form (speaker, score) ordered by score."""
         return sorted(self.speakers.iteritems(), key=lambda (k,v): (v,k),
                       reverse=True)[:5]
     
@@ -283,7 +277,6 @@ class Cluster:
             if gg != self.gender:
                 differ = True
                 g[gg] += s.get_duration()
-                
         if differ:
             if g['M'] > g['F']:
                 return 'M'
@@ -312,8 +305,7 @@ class Cluster:
         """Generate a segmentation file for the cluster.
         
         :type filename: string
-        :param filename: the name of the seg file
-        """
+        :param filename: the name of the seg file"""
         self._generate_a_seg_file(filename, self.wave[:-4])
 
     def _generate_a_seg_file(self, filename, first_col_name):
@@ -324,8 +316,7 @@ class Cluster:
         
         :type first_col_name: string
         :param first_col_name: the name in the first column of the seg file,
-               in fact the name and path of the corresponding wave file
-        """
+               in fact the name and path of the corresponding wave file"""
         f = open(filename, 'w')
         f.write(self._seg_header)
         line = self._segments[0].get_line()[:]
@@ -357,25 +348,18 @@ class Cluster:
         """Take all the wave of a cluster and build a single wave.
 
         :type dirname: string
-        :param dirname: the output dirname
-        """        
+        :param dirname: the output dirname"""        
         name = self.get_name() 
         videocluster =  os.path.join(dirname, name)
-        
         listwaves = os.listdir(videocluster)
-        
         listw = [ os.path.join(videocluster, f) for f in listwaves ]
-        
         file_basename = os.path.join(dirname, name)
-        
         self.wave = os.path.join(dirname, name + ".wav")
-        
         fm.merge_waves(listw, self.wave)      
         try:
             utils.ensure_file_exists(file_basename + '.mfcc')
         except IOError:
             fm.extract_mfcc(file_basename)
-
             
     def to_dict(self):
         """A dictionary representation of a Cluster."""
@@ -424,15 +408,14 @@ class Voiceid:
     
     :type single: boolean
     :param single: set to True to force to avoid diarization (a faster 
-           approach) only in case you have just a single speaker in the file      
-    """
+           approach) only in case you have just a single speaker in the file"""
+           
     @staticmethod 
     def from_json_file(db, json_filename):
         """Build a Voiceid object from json file.
         
         :type json_filename: string
-        :param json_filename: the file containing a json style python dictionary representing a Voiceid object instance
-        """
+        :param json_filename: the file containing a json style python dictionary representing a Voiceid object instance"""
         of = open(json_filename, 'r')
         jdict = eval(of.read())
         of.close()
@@ -443,8 +426,7 @@ class Voiceid:
         """Build a Voiceid object from json dictionary.
         
         :type json_dict: dictionary
-        :param json_dict: the json style python dictionary representing a Voiceid object instance
-        """
+        :param json_dict: the json style python dictionary representing a Voiceid object instance"""
         v = Voiceid(db, json_dict['url'])
         dirname = os.path.splitext(json_dict['url'])[0]
         try:
@@ -471,8 +453,7 @@ class Voiceid:
         
         :type single: boolean
         :param single: set to True to force to avoid diarization (a faster 
-               approach) only in case you have just a single speaker in the file         
-        """
+               approach) only in case you have just a single speaker in the file"""
         self.status_map = {0:'file_loaded', 1:'file_converted', 
                            2:'diarization_done', 3:'trim_done', 
                            4:'mfcc extracted', 5:'speakers matched'} 
@@ -503,8 +484,7 @@ class Voiceid:
             2:'diarization_done', 
             3:'trim_done', 
             4:'mfcc extracted', 
-            5:'speakers matched'
-        """
+            5:'speakers matched'"""
         return self._status
 
     def get_working_status(self):
@@ -531,8 +511,7 @@ class Voiceid:
         self._interactive = value
 
     def get_clusters(self):
-        """Get the clusters recognized in the processed file.
-        """
+        """Get the clusters recognized in the processed file."""
         return self._clusters
 
     def _set_clusters(self, value):
@@ -545,10 +524,7 @@ class Voiceid:
         self._time = value
     
     def _set_filename(self, filename):
-        """ 
-        Set the filename of the current working file
-        """
-        
+        """Set the filename of the current working file"""
         new_file = filename
         new_file = new_file.replace("'",'_').replace('-','_').replace(' ','_')
         try:
@@ -560,7 +536,6 @@ class Voiceid:
             else:
                 raise e
         utils.ensure_file_exists(new_file)
-        
         self._filename = new_file
         self._basename, self._ext = os.path.splitext(self._filename)
         
@@ -580,8 +555,7 @@ class Voiceid:
         """Get a the cluster by a given label.
         
         :type label: string
-        :param label: the cluster label (i.e. S0, S12, S44...)
-        """
+        :param label: the cluster label (i.e. S0, S12, S44...)"""
         try:
             return self._clusters[ label ]
         except:
@@ -594,16 +568,14 @@ class Voiceid:
         :param label: the cluster label (i.e. S0, S12, S44...)
         
         :type cluster: object
-        :param cluster: a Cluster object
-        """
+        :param cluster: a Cluster object"""
         self._clusters[ label ] = cluster
         
     def remove_cluster(self, label):
         """Remove and delete a cluster. 
 
         :type label: string
-        :param label: the cluster label (i.e. S0, S12, S44...)
-        """
+        :param label: the cluster label (i.e. S0, S12, S44...)"""
         del self._clusters[label]
         
     def get_time_slices(self):
@@ -776,11 +748,9 @@ class Voiceid:
                     print '\t ------------------------'
                     
             """
-            
              
             if interactive == True:
                 self._set_interactive( True )
-                
                 speakers[c] = best = _interactive_training(basename, 
                                                           c, speakers[c])
                 self[c].set_speaker(best)
@@ -798,7 +768,6 @@ class Voiceid:
             i += 1
     
     def _merge_clusters(self, c1, c2):
-        
         label = ''
         to_delete = ''
         if c1 < c2:
@@ -810,7 +779,6 @@ class Voiceid:
             
         to_keep = self.get_cluster(label)
         to_remove = self._clusters.pop(to_delete)
-            
         to_keep.merge(to_remove)
     
     def _automerge_segments(self):        
@@ -821,11 +789,9 @@ class Voiceid:
             for s in c_segs:
                 all_segs.append( (s,c,) ) # for every segment put a tuple with segment and cluster label
         all_segs.sort() # sort all segs by start time (see __cmp__ in Segment)
-        
         # prepare a structure (array of dictionaries) to put the segments to be merged
         to_merge = []
         to_merge.append({}) 
-
         idx = 0 # index of to_merge, starting from 0 
         prev = None
         for s in all_segs:
@@ -849,10 +815,7 @@ class Voiceid:
                                             # and current idx points to an already used dictionary
                     idx += 1                # then increment idx and 
                     to_merge.append({})     # prepare a new empty dictionary for the next group 
- 
-                     
             prev = current[:] # update prev before ending the run 
-            
         for groupdict in to_merge:                        # cicle the array containing the groups to merge as dictionaries
             for cluster_key in groupdict:                 # a dictionary containing just a key, the cluster label
                 groupdict[cluster_key].sort(reverse=True) # reverse sort (by start_time) of the segments to merge
@@ -864,7 +827,6 @@ class Voiceid:
                         segment.merge(prev)               # merge the previous segment into the current
                         self.get_cluster(cluster_key).remove_segment(prev.get_start()) # remove the previous segment from the cluster
                     prev = segment                        # update previous segment 
-                    
         
     def automerge_clusters(self):
         """Check for Clusters representing the same speaker and merge them."""
@@ -899,8 +861,7 @@ class Voiceid:
         :param quiet: silent mode, no prints in batch mode
         
         :type thrd_n: integer
-        :param thrd_n: max number of concurrent threads for voice db matching 
-        """
+        :param thrd_n: max number of concurrent threads for voice db matching"""
         
         if thrd_n < 1: thrd_n = 1
         self.get_db().set_maxthreads(thrd_n) # set the max number of threads the db can use to compare 
@@ -910,45 +871,31 @@ class Voiceid:
         if not quiet: 
             print self.get_working_status()
         self._to_WAV()  # convert your input file to a Wave file having some technical requirements 
-        
         self._status = 1    
-        
         if not quiet: 
             print self.get_working_status()
-        
         self.diarization()  # start diarization over your wave file
-        
         diarization_time = time.time() - start_time
-        
         self._status = 2   
         if not quiet: 
             print self.get_working_status()        
         self._to_trim()     # trim the original wave file according to the segments given by diarization
-        
         self._status = 3  
         if not quiet: 
             print self.get_working_status()
-        
-
 #        self._to_MFCC()     
         self._status = 4 
-        
         self._cluster_matching(diarization_time, interactive, quiet, thrd_n, start_time) # search for every identified cluster if there is a relative model voice in the db 
 
     def _cluster_matching(self, diarization_time=None, interactive=False, quiet=False, thrd_n=1, start_t=0):    
-        
         if not quiet: 
             print self.get_working_status()
-            
         basename = self.get_file_basename()   
         self._extract_clusters()
-        
         self._match_clusters(interactive, quiet)
-        
 #        if not interactive:
 #            #merging
 #            self.automerge_clusters()
-   
         sec = fm.wave_duration( basename+'.wav' )
         total_time = time.time() - start_t
         self._set_time( total_time )
@@ -957,7 +904,6 @@ class Voiceid:
         if interactive:
             print "Updating db"
             self.update_db(thrd_n, automerge=True)
-
         if not interactive:
             if not quiet: 
                 for c in self._clusters:
@@ -967,7 +913,6 @@ class Voiceid:
                         print "\t %s %s" % (speaker, self[c].speakers[speaker])
                     print '\t ------------------------'
                     distance = self[c].get_distance()
-                        
                     try:
                         mean = self[c].get_mean()
                         m_distance = self[c].get_m_distance()
@@ -978,7 +923,6 @@ class Voiceid:
                     print """\t best speaker: %s (distance from 2nd %f - mean %f - distance from mean %f ) """ % (self[c],
                                                                                                               distance,
                                                                                                                   mean, m_distance)         
-    
                 
                 speakers_in_db = self.get_db().get_speakers()
                 tot_voices = len(speakers_in_db['F']) + \
@@ -1008,8 +952,8 @@ class Voiceid:
         :param t_num: number of contemporary threads processing the update_db
         
         :type automerge: boolean
-        :param automerge: true to do the automerge or false to not do it  
-        """
+        :param automerge: true to do the automerge or false to not do it"""
+        
         def _get_available_wav_basename(label, basedir):
             cont = 0
             label = os.path.join(basedir, label)
@@ -1021,7 +965,7 @@ class Voiceid:
                     if not os.path.exists(wav_name):
                         break
             return label + str(cont)
-        
+            #end _get_available_wav_basename
         
         def _build_model_wrapper(self, wave_b, cluster, wave_dir, new_speaker, 
                                  old_speaker):
@@ -1038,9 +982,7 @@ class Voiceid:
             self._match_voice_wrapper(cluster, wave_b+'.mfcc', new_speaker, 
                                       self[cluster].gender)                            
             b_s = self[cluster].get_best_speaker()
-            
 #            print 'b_s = %s   new_speaker = %s ' % ( b_s, new_speaker )
-            
             if b_s != new_speaker :
 #                print "removing model for speaker %s" % (old_speaker)
                 mfcc_name = os.path.join(wave_dir, cluster) + '.mfcc'
@@ -1058,9 +1000,8 @@ class Voiceid:
                 except:
                     pass
             #end _build_model_wrapper
-        
+            
         thrds = {}
-        
         for c in self._clusters.values():
             if c.up_to_date == False:
                 
@@ -1081,7 +1022,6 @@ class Voiceid:
                                                         current_speaker, old_s) )
                     thrds[cluster_label].start()
                 c.up_to_date = True
-        
         for t in thrds:
             if thrds[t].is_alive():
                 thrds[t].join()
@@ -1139,7 +1079,6 @@ class Voiceid:
                                      xmpDM:duration="%s"
                                      xmpDM:speaker="%s"
                                      /> """ % (s[0], s[1], s[-2] )
-        
         final_tags = """
                                 </rdf:Seq>
                             </xmpDM:markers>
@@ -1154,7 +1093,6 @@ class Voiceid:
         #TODO: extract previous XMP information from the media and merge 
         #      with speaker information
         return initial_tags + inner_string + final_tags            
-
     
     def to_dict(self):
         """Return a JSON representation for the clustering information."""
@@ -1228,23 +1166,17 @@ class Voiceid:
         output of the recognition process.
 
         :type mode: string
-        :param mode: the output format: srt, json or xmp
-        """
+        :param mode: the output format: srt, json or xmp"""
         
         if mode == 'srt':
             self.generate_seg_file()
             fm.seg2srt(self.get_file_basename() + '.seg')
-            
         if mode == 'json':
             self.write_json()
-        
         if mode == 'xmp':
             file_xmp = open(self.get_file_basename() + '.xmp', 'w')
             file_xmp.write(str(self.to_XMP_string()))
             file_xmp.close()
-
-
-
 
 def manage_ident(filebasename, gmm, clusters):
     """Take all the files created by the call of mfcc_vs_gmm() on the whole 
@@ -1304,9 +1236,6 @@ def extract_clusters(segfilename, clusters):
             clusters[ speaker_id ]._frames += int(line[3])
             clusters[ speaker_id ].gender = line[4]
             clusters[ speaker_id ]._e = line[5]
-            
-    
-    
 
 def _interactive_training(filebasename, cluster, identifier):
     """A user interactive way to set the name to an unrecognized voice of a 
@@ -1317,9 +1246,7 @@ def _interactive_training(filebasename, cluster, identifier):
         info = """The system has not identified this speaker!"""
     else:
         info = "The system has identified this speaker as '"+identifier+"'!"
-
     print info
-
     while True:
         try:
             char = raw_input("\n 1) Listen\n 2) Set name\n Press enter to skip\n> ")

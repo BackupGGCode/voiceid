@@ -23,10 +23,15 @@ import os
 import re
 import struct
 import utils
-from . import configuration
 import subprocess
+from . import VConf
 
+configuration = VConf()
 
+java_mem = '2048'
+import sys
+if sys.platform == 'win32':
+    java_mem = '1280'
 
 def wave_duration(wavfile):
     """Extract the duration of a wave file in sec.
@@ -49,7 +54,7 @@ def merge_waves(input_waves, wavename):
     :param wavename: the output wave file to be generated"""
     #if os.path.exists(wavename):
             #raise Exception("File gmm %s already exist!" % wavename)
-    waves = [w.replace(" ","\ ") for w in input_waves]
+    waves = [w.replace(" ", "\ ") for w in input_waves]
     w = " ".join(waves)
     commandline = "sox " + str(w) + " " + str(wavename)
     utils.start_subprocess(commandline)
@@ -70,19 +75,19 @@ def file2wav(filename):
             w = wave.open(filename)
             par = w.getparams()
             w.close()
-        except wave.Error,e:
+        except wave.Error, e:
             print e
             return True
-        if par[:3] == (1,2,16000) and par[-1:] == ('not compressed',):
+        if par[:3] == (1, 2, 16000) and par[-1:] == ('not compressed',):
             return False
         else:
             return True
 
     name, ext = os.path.splitext(filename)
     if ext != '.wav' or is_bad_wave(filename):
-        utils.start_subprocess( "gst-launch filesrc location='" + filename + "' ! decodebin ! audioresample ! 'audio/x-raw-int,rate=16000' ! audioconvert ! 'audio/x-raw-int,rate=16000,depth=16,signed=true,channels=1' ! wavenc ! filesink location=" + name + ".wav " )
+        utils.start_subprocess("gst-launch filesrc location='" + filename 
+                               + "' ! decodebin ! audioresample ! 'audio/x-raw-int,rate=16000' ! audioconvert ! 'audio/x-raw-int,rate=16000,depth=16,signed=true,channels=1' ! wavenc ! filesink location=" + name + ".wav ")
     utils.ensure_file_exists(name + '.wav')
-
 
 def merge_gmms(input_files, output_file):
     """Merge two or more gmm files to a single gmm file with more voice models.
@@ -97,21 +102,21 @@ def merge_gmms(input_files, output_file):
 
     for f in input_files:
         try:
-            current_f = open(f,'r')
+            current_f = open(f, 'r')
         except:
             continue
         kind = current_f.read(8)
         if kind != 'GMMVECT_' :
             raise Exception('different kinds of models!')
-        num = struct.unpack('>i', current_f.read(4) )
+        num = struct.unpack('>i', current_f.read(4))
         num_gmm += int(num[0])
         all_other = current_f.read()
         gmms += all_other
         current_f.close()
 
     num_gmm_string = struct.pack('>i', num_gmm)
-    new_gmm = open(output_file,'w')
-    new_gmm.write( "GMMVECT_" )
+    new_gmm = open(output_file, 'w')
+    new_gmm.write("GMMVECT_")
     new_gmm.write(num_gmm_string)
     new_gmm.write(gmms)
     new_gmm.close()
@@ -122,10 +127,10 @@ def get_gender(input_file):
     :type input_file: string
     :param input_file: the gmm file
     """
-    gmm = open(input_file,'r')
+    gmm = open(input_file, 'r')
     gmm.read(8) # kind
     num_gmm_string = gmm.read(4)
-    num_gmm = struct.unpack('>i', num_gmm_string )
+    num_gmm = struct.unpack('>i', num_gmm_string)
 
     if num_gmm != (1,):
         print str(num_gmm) + " gmms"
@@ -134,7 +139,7 @@ def get_gender(input_file):
     gmm.read(8) # gmm_1
     gmm.read(4) # nothing
 
-    str_len = struct.unpack('>i', gmm.read(4) )
+    str_len = struct.unpack('>i', gmm.read(4))
     gmm.read(str_len[0]) # name
 
     gender = gmm.read(1)
@@ -147,25 +152,22 @@ def split_gmm(input_file, output_dir=None):
     :param input_file: the gmm file containing various voice models
     
     :type output_dir: string
-    :param output_dir: the directory where is splitted the gmm input file
-    """
+    :param output_dir: the directory where is splitted the gmm input file"""
+    
     def read_gaussian(f):
         g_key = f.read(8)     #read string of 8bytes kind
         if g_key != 'GAUSS___':
             raise Exception("Error: the gaussian is not of GAUSS___ key  (%s)" % g_key)
         g_id = f.read(4)
         g_length = f.read(4)     #readint 4bytes representing the name length
-        g_name = f.read( int( struct.unpack('>i', g_length )[0] )  )
+        g_name = f.read(int(struct.unpack('>i', g_length)[0]))
         g_gender = f.read(1)
         g_kind = f.read(4)
         g_dim = f.read(4)
         g_count = f.read(4)
         g_weight = f.read(8)
-
-        dimension = int( struct.unpack('>i', g_dim )[0] )
-
+        dimension = int(struct.unpack('>i', g_dim)[0])
         g_header = g_key + g_id + g_length + g_name + g_gender + g_kind + g_dim + g_count + g_weight
-
 #        data = ''
         datasize = 0
         if g_kind == FULL:
@@ -179,10 +181,9 @@ def split_gmm(input_file, output_dir=None):
             for j in range(dimension) :
                 datasize += 1
                 t = j
-                while t < j+1 :
+                while t < j + 1 :
                     datasize += 1
                     t += 1
-
         return g_header + f.read(datasize * 8)
 
     def read_gaussian_container(f):
@@ -192,49 +193,45 @@ def split_gmm(input_file, output_dir=None):
             raise Exception("Error: the gaussian container is not of GAUSSVEC kind %s" % ck)
         cs = f.read(4)    #readint 4bytes representing the size of the gaussian container
         stuff = ck + cs
-        for index in range( int( struct.unpack( '>i', cs )[0] ) ):
+        for index in range(int(struct.unpack('>i', cs)[0])):
             stuff += read_gaussian(f)
         return stuff
 
     def read_gmm(f):
         myfile = {}
         #single gmm
-
         k = f.read(8)     #read string of 8bytes kind
         if k != "GMM_____":
             raise Exception("Error: Gmm section doesn't match GMM_____ kind")
         h = f.read(4)     #readint 4bytes representing the hash (compatibility)
         l = f.read(4)     #readint 4bytes representing the name length
         #read string of l bytes
-        name = f.read( int( struct.unpack('>i',   l )[0] )  ) 
+        name = f.read(int(struct.unpack('>i', l)[0])) 
         myfile['name'] = name
         g = f.read(1)     #read a char representing the gender
         gk = f.read(4)    #readint 4bytes representing the gaussian kind
         dim = f.read(4)   #readint 4bytes representing the dimension
         c = f.read(4)     #readint 4bytes representing the number of components
-        gvect_header =  k + h + l + name + g + gk + dim + c
+        gvect_header = k + h + l + name + g + gk + dim + c
         myfile['header'] = gvect_header
         myfile['content'] = read_gaussian_container(f)
         return myfile
 
-    f = open(input_file,'r')
+    f = open(input_file, 'r')
     key = f.read(8)
     if key != 'GMMVECT_':  #gmm container
         raise Exception('Error: Not a GMMVECT_ file!')
     size = f.read(4)
-    num = int(struct.unpack( '>i', size )[0]) #number of gmms
-    main_header = key + struct.pack( '>i', 1 )
+    num = int(struct.unpack('>i', size)[0]) #number of gmms
+    main_header = key + struct.pack('>i', 1)
     FULL = 0
     files = []
     for n in range(num):
-        files.append( read_gmm( f ) )
-
+        files.append(read_gmm(f))
     f.close()
-
     file_basename = input_file[:-4]
-
     index = 0
-    basedir,filename = os.path.split(file_basename)
+    basedir, filename = os.path.split(file_basename)
     if output_dir != None:
         basedir = output_dir
         for f in files:
@@ -243,7 +240,6 @@ def split_gmm(input_file, output_dir=None):
         fd.write(main_header + f['header'] + f['content'])
         fd.close()
         index += 1
-        
 
 def rename_gmm(input_file, identifier):
     """Rename a gmm with a new speaker identifier(name) associated.
@@ -252,44 +248,31 @@ def rename_gmm(input_file, identifier):
     :param input_file: the gmm file to rename
     
     :type identifier: string
-    :param identifier: the new name or identifier of the gmm model 
-    """ 
-    
-    gmm = open(input_file,'r')
-    new_gmm = open(input_file+'.new','w')
-
+    :param identifier: the new name or identifier of the gmm model""" 
+    gmm = open(input_file, 'r')
+    new_gmm = open(input_file + '.new', 'w')
     kind = gmm.read(8)
     new_gmm.write(kind)
-
     num_gmm_string = gmm.read(4) 
-    num_gmm = struct.unpack('>i', num_gmm_string )
-
+    num_gmm = struct.unpack('>i', num_gmm_string)
     if num_gmm != (1,):
         print str(num_gmm) + " gmms"
         raise Exception('Loop needed for gmms')
-
     new_gmm.write(num_gmm_string)
-
     gmm_1 = gmm.read(8)
     new_gmm.write(gmm_1)
-
-    nothing =  gmm.read(4) 
+    nothing = gmm.read(4) 
     new_gmm.write(nothing)
-
-    str_len = struct.unpack('>i', gmm.read(4) )
+    str_len = struct.unpack('>i', gmm.read(4))
     name = gmm.read(str_len[0])
     print name
-    new_len = struct.pack('>i', len(identifier) )
-
+    new_len = struct.pack('>i', len(identifier))
     new_gmm.write(new_len)
     new_gmm.write(identifier)
-
     all_other = gmm.read()
-
     new_gmm.write(all_other)
     gmm.close()
     new_gmm.close()
-    
 
 def build_gmm(filebasename, identifier):
     """Build a gmm (Gaussian Mixture Model) file from a given wave with a 
@@ -299,17 +282,12 @@ def build_gmm(filebasename, identifier):
     :param filebasename: the input file basename
     
     :type identifier: string
-    :param identifier: the name or identifier of the speaker
-    """
+    :param identifier: the name or identifier of the speaker"""
 
     diarization(filebasename)
-
     ident_seg(filebasename, identifier)
-
     extract_mfcc(filebasename)
-    
     _train_init(filebasename)
-
     _train_map(filebasename)
 
 #-------------------------------------
@@ -320,10 +298,9 @@ def seg2trim(filebasename):
     <file base name>/<cluster>/<cluster>_<start time>.wav 
     
     :type filebasename: string
-    :param filebasename: filebasename of the seg and wav input files
-    """
+    :param filebasename: filebasename of the seg and wav input files"""
     segfile = filebasename + '.seg'
-    s = open(segfile,'r')
+    s = open(segfile, 'r')
     for line in s.readlines():
         if not line.startswith(";;"):
             arr = line.split()
@@ -332,42 +309,40 @@ def seg2trim(filebasename):
             end = float(arr[3]) / 100
             try:
                 mydir = os.path.join(filebasename, clust)
-                os.makedirs( mydir )
+                os.makedirs(mydir)
             except os.error, e:
                 if e.errno == 17:
                     pass
                 else:
                     raise os.error
-            wave_path = os.path.join(filebasename, clust, 
-                                     "%s_%07d.%07d.wav" % (clust, int(st), 
+            wave_path = os.path.join(filebasename, clust,
+                                     "%s_%07d.%07d.wav" % (clust, int(st),
                                                            int(end)))
-            commandline = "sox %s.wav %s trim  %s %s" % (filebasename, wave_path, 
+            commandline = "sox %s.wav %s trim  %s %s" % (filebasename, wave_path,
                                                          st, end)
             utils.start_subprocess(commandline)
-            utils.ensure_file_exists( wave_path )
+            utils.ensure_file_exists(wave_path)
     s.close()
 
 def seg2srt(segfile):
     """Take a seg file and convert it in a subtitle file (srt).
     
     :type segfile: string
-    :param segfile: the segmentation file to convert
-    """
+    :param segfile: the segmentation file to convert"""
     def readtime(aline):
         return int(aline[2])
 
     basename = os.path.splitext(segfile)[0]
-    s = open(segfile,'r')
+    s = open(segfile, 'r')
     lines = []
     for line in s.readlines():
         if not line.startswith(";;"):
             arr = line.split()
             lines.append(arr)
     s.close()
-
     lines.sort(key=readtime, reverse=False)
-    fileoutput = basename+".srt"
-    srtfile = open(fileoutput,"w")
+    fileoutput = basename + ".srt"
+    srtfile = open(fileoutput, "w")
     row = 0
     for line in lines:
         row = row + 1
@@ -377,16 +352,13 @@ def seg2srt(segfile):
         srtfile.write(utils.humanize_time(st) + " --> " + utils.humanize_time(en) + "\n")
         srtfile.write(line[7] + "\n")
         srtfile.write("\n")
-
     srtfile.close()
     utils.ensure_file_exists(basename + '.srt')
 
 def extract_mfcc(filebasename):
     """Extract audio features from the wave file, in particular the 
-    mel-frequency cepstrum using a sphinx tool.
-    
-    """
-    commandline = "sphinx_fe -verbose no -mswav yes -i %s.wav -o %s.mfcc" %  ( filebasename, filebasename )
+    mel-frequency cepstrum using a sphinx tool."""
+    commandline = "sphinx_fe -verbose no -mswav yes -i %s.wav -o %s.mfcc" % (filebasename, filebasename)
     utils.start_subprocess(commandline)
     utils.ensure_file_exists(filebasename + '.mfcc')
 
@@ -399,7 +371,7 @@ def ident_seg_rename(filebasename, identifier, outputname):
     """Take a seg file and substitute the clusters with a given name or 
     identifier."""
     f = open(filebasename + '.seg', 'r')
-    clusters=[]
+    clusters = []
     lines = f.readlines()
     for line in lines:
         for k in line.split():
@@ -411,7 +383,7 @@ def ident_seg_rename(filebasename, identifier, outputname):
     clusters.reverse()
     for line in lines:
         for c in clusters:
-            line = line.replace(c,identifier)
+            line = line.replace(c, identifier)
         output.write(line)
     output.close()
     utils.ensure_file_exists(outputname + '.seg')
@@ -420,21 +392,19 @@ def srt2subnames(filebasename, key_value):
     """Substitute cluster names with real names in subtitles."""
 
     def replace_words(text, word_dic):
-        """
-        take a text and replace words that match a key in a dictionary with
-        the associated value, return the changed text
-        """
+        """Take a text and replace words that match a key in a dictionary with
+        the associated value, return the changed text"""
         rc = re.compile('|'.join(map(re.escape, word_dic)))
 
         def translate(match):
-            return word_dic[match.group(0)]+'\n'
+            return word_dic[match.group(0)] + '\n'
 
         return rc.sub(translate, text)
 
     file_original_subtitle = open(filebasename + ".srt")
     original_subtitle = file_original_subtitle.read()
     file_original_subtitle.close()
-    key_value = dict(map(lambda (key, value): (str(key) + "\n", value), 
+    key_value = dict(map(lambda (key, value): (str(key) + "\n", value),
                          key_value.items()))
     text = replace_words(original_subtitle, key_value)
     out_file = filebasename + ".ident.srt"
@@ -449,8 +419,7 @@ def file2trim(filename):
     to the diarization process.
     
     :type filename: string
-    :param filename: the input file audio/video 
-    """
+    :param filename: the input file audio/video"""
     if not configuration.QUIET_MODE: 
         print "*** converting video to wav ***"
     file2wav(filename)
@@ -467,6 +436,7 @@ def file2trim(filename):
 #--------------------------------------------
 def get_features_number(filebasename):
     """Return mfcc features number"""
+    
     def check_output(command): 
         process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True)
         output = process.communicate()
@@ -476,19 +446,19 @@ def get_features_number(filebasename):
         return output 
     
     #get the header in a temporary file
-    header = check_output('sphinx_cepview -d 0 -e 1 -header 1 -f %s.mfcc' %filebasename)
+    header = check_output('sphinx_cepview -d 0 -e 1 -header 1 -f %s.mfcc' % filebasename)
 #    print header[0]
                           
     #get the number of computed MFCC vectors
-    nb_frames =0
+    nb_frames = 0
     for line in header[0].splitlines():
 #        print line
         it = line.find('Total')
         if it != -1:
             ifr = line.find('frames')
-            index_start=it+6
-            index_end=ifr-1
-            nb_frames=line[index_start:index_end]
+            index_start = it + 6
+            index_end = ifr - 1
+            nb_frames = line[index_start:index_end]
            
     return int(nb_frames)
 
@@ -496,146 +466,122 @@ def generate_uem_seg(filebasename):
     """Generate an initial segmentation file, with only one cluster, just with the number of features in the mfcc.
     
     :type filebasename: string
-    :param filebasename: the basename of the wav file to process
-    """
+    :param filebasename: the basename of the wav file to process"""
     out_file = filebasename + ".uem.seg"
-    nb_frames=get_features_number(filebasename)
-    text=filebasename +" 1 0 "+str(nb_frames)+" U U U 1"
+    nb_frames = get_features_number(filebasename)
+    text = filebasename + " 1 0 " + str(nb_frames) + " U U U 1"
     fout = open(out_file, "w")
     fout.write(text)
     fout.close()
     utils.ensure_file_exists(out_file)
 
-
 def _silence_segmentation(filebasename):
     """Make a basic segmentation file for the wave file, cutting off the silence.""" 
-    utils.start_subprocess( 'java -Xmx2024m -cp '+configuration.LIUM_JAR+' fr.lium.spkDiarization.programs.MSegInit --fInputMask=%s.mfcc --fInputDesc=audio16kHz2sphinx,1:1:0:0:0:0,13,0:0:0 --sInputMask= --sOutputMask=%s.s.seg ' +  filebasename )
-    utils.ensure_file_exists(filebasename+'.s.seg')
+    utils.start_subprocess('java -Xmx' + java_mem + 'm -cp ' + configuration.LIUM_JAR + ' fr.lium.spkDiarization.programs.MSegInit --fInputMask=%s.mfcc --fInputDesc=audio16kHz2sphinx,1:1:0:0:0:0,13,0:0:0 --sInputMask= --sOutputMask=%s.s.seg ' + filebasename)
+    utils.ensure_file_exists(filebasename + '.s.seg')
     
 def _gender_detection(filebasename):
     """Build a segmentation file where for every segment is identified the gender of the voice."""
-    utils.start_subprocess( 'java -Xmx2024m -cp '+configuration.LIUM_JAR+' fr.lium.spkDiarization.programs.MDecode  --fInputMask=%s.wav --fInputDesc=audio2sphinx,1:3:2:0:0:0,13,0:0:0 --sInputMask=%s.s.seg --sOutputMask=%s.g.seg --dPenality=10,10,50 --tInputMask=' + configuration.SMS_GMMS + ' ' + filebasename )
-    utils.ensure_file_exists(filebasename+'.g.seg')
-    cmd = 'java -Xmx2024m -cp '+configuration.LIUM_JAR+' fr.lium.spkDiarization.programs.MScore --help  --sGender --sByCluster --fInputDesc=audio16kHz2sphinx,1:3:2:0:0:0,13,1:1:0:0 --fInputMask=%s.mfcc --sInputMask=%s.g.seg --sOutputMask=%s.seg --tInputMask=' + configuration.GENDER_GMMS + ' ' + filebasename
-    utils.start_subprocess( cmd )
-    utils.ensure_file_exists(filebasename+'.seg')
+    utils.start_subprocess('java -Xmx' + java_mem + 'm -cp ' + configuration.LIUM_JAR + ' fr.lium.spkDiarization.programs.MDecode  --fInputMask=%s.wav --fInputDesc=audio2sphinx,1:3:2:0:0:0,13,0:0:0 --sInputMask=%s.s.seg --sOutputMask=%s.g.seg --dPenality=10,10,50 --tInputMask=' + configuration.SMS_GMMS + ' ' + filebasename)
+    utils.ensure_file_exists(filebasename + '.g.seg')
+    cmd = 'java -Xmx' + java_mem + 'm -cp ' + configuration.LIUM_JAR + ' fr.lium.spkDiarization.programs.MScore --help  --sGender --sByCluster --fInputDesc=audio16kHz2sphinx,1:3:2:0:0:0,13,1:1:0:0 --fInputMask=%s.mfcc --sInputMask=%s.g.seg --sOutputMask=%s.seg --tInputMask=' + configuration.GENDER_GMMS + ' ' + filebasename
+    utils.start_subprocess(cmd)
+    utils.ensure_file_exists(filebasename + '.seg')
 
 def diarization_standard(filebasename):
     """Take a wave file in the correct format and build a segmentation file. 
     The seg file shows how much speakers are in the audio and when they talk.
     
     :type filebasename: string
-    :param filebasename: the basename of the wav file to process
-    """
-    utils.start_subprocess( 'java -Xmx2024m -jar '+configuration.LIUM_JAR+' fr.lium.spkDiarization.system.Diarization --fInputMask=%s.wav --sOutputMask=%s.seg --doCEClustering ' +  filebasename )
-    utils.ensure_file_exists(filebasename+'.seg')
+    :param filebasename: the basename of the wav file to process"""
+    utils.start_subprocess('java -Xmx' + java_mem + 'm -jar ' + configuration.LIUM_JAR + ' fr.lium.spkDiarization.system.Diarization --fInputMask=%s.wav --sOutputMask=%s.seg --doCEClustering ' + filebasename)
+    utils.ensure_file_exists(filebasename + '.seg')
 
 def diarization(filebasename):
     """Take a mfcc and wave file in the correct format and build a segmentation file. 
     The seg file shows how much speakers are in the audio and when they talk.
     
     :type filebasename: string
-    :param filebasename: the basename of the wav file to process
-    """
+    :param filebasename: the basename of the wav file to process"""
 #    PAR=' --help --trace '
-    PAR=''
+    PAR = ''
     generate_uem_seg(filebasename)
     fDesc = "audio16kHz2sphinx,1:1:0:0:0:0,13,0:0:0"
-    utils.start_subprocess( 'java -Xmx2048m -classpath '+configuration.LIUM_JAR+' fr.lium.spkDiarization.programs.MSegInit  '+PAR+' --fInputMask=%s.mfcc --fInputDesc='+fDesc+'    --sInputMask=%s.uem.seg '+                                                    ' --sOutputMask=%s.i.seg '   + filebasename )
-    utils.ensure_file_exists(filebasename+'.i.seg')
+    utils.start_subprocess('java -Xmx' + java_mem + 'm -classpath ' + configuration.LIUM_JAR + ' fr.lium.spkDiarization.programs.MSegInit  ' + PAR + ' --fInputMask=%s.mfcc --fInputDesc=' + fDesc + '    --sInputMask=%s.uem.seg ' + ' --sOutputMask=%s.i.seg ' + filebasename)
+    utils.ensure_file_exists(filebasename + '.i.seg')
     
     #Speech/Music/Silence segmentation
     md_fdesk = 'audio2sphinx,1:3:2:0:0:0,13,0:0:0'
-    utils.start_subprocess( 'java -Xmx2048m -classpath '+configuration.LIUM_JAR+' fr.lium.spkDiarization.programs.MDecode  '+PAR+'  --fInputMask=%s.wav  --fInputDesc='+md_fdesk+' --sInputMask=%s.i.seg     --tInputMask=' + configuration.SMS_GMMS + ' --dPenality=10,10,50      --sOutputMask=%s.pms.seg '     + filebasename )
-    utils.ensure_file_exists(filebasename+'.pms.seg')
+    utils.start_subprocess('java -Xmx' + java_mem + 'm -classpath ' + configuration.LIUM_JAR + ' fr.lium.spkDiarization.programs.MDecode  ' + PAR + '  --fInputMask=%s.wav  --fInputDesc=' + md_fdesk + ' --sInputMask=%s.i.seg     --tInputMask=' + configuration.SMS_GMMS + ' --dPenality=10,10,50      --sOutputMask=%s.pms.seg ' + filebasename)
+    utils.ensure_file_exists(filebasename + '.pms.seg')
     
     #GLR based segmentation, make small segments
-    utils.start_subprocess( 'java -Xmx2048m -classpath '+configuration.LIUM_JAR+' fr.lium.spkDiarization.programs.MSeg     '+PAR+' --fInputMask=%s.mfcc --fInputDesc='+fDesc+'    --sInputMask=%s.i.seg  '+                              ' --kind=FULL --sMethod=GLR --sOutputMask=%s.s.seg '       + filebasename )
-    utils.ensure_file_exists(filebasename+'.s.seg')
+    utils.start_subprocess('java -Xmx' + java_mem + 'm -classpath ' + configuration.LIUM_JAR + ' fr.lium.spkDiarization.programs.MSeg     ' + PAR + ' --fInputMask=%s.mfcc --fInputDesc=' + fDesc + '    --sInputMask=%s.i.seg  ' + ' --kind=FULL --sMethod=GLR --sOutputMask=%s.s.seg ' + filebasename)
+    utils.ensure_file_exists(filebasename + '.s.seg')
     
     # linear clustering
-    utils.start_subprocess( 'java -Xmx2048m -classpath '+configuration.LIUM_JAR+' fr.lium.spkDiarization.programs.MClust   '+PAR+'  --fInputMask=%s.mfcc --fInputDesc='+fDesc+'    --sInputMask=%s.s.seg                                   --cMethod=l --cThr=2      --sOutputMask=%s.l.seg '       + filebasename )
-    utils.ensure_file_exists(filebasename+'.l.seg')
+    utils.start_subprocess('java -Xmx' + java_mem + 'm -classpath ' + configuration.LIUM_JAR + ' fr.lium.spkDiarization.programs.MClust   ' + PAR + '  --fInputMask=%s.mfcc --fInputDesc=' + fDesc + '    --sInputMask=%s.s.seg                                   --cMethod=l --cThr=2      --sOutputMask=%s.l.seg ' + filebasename)
+    utils.ensure_file_exists(filebasename + '.l.seg')
     
-    h='7'
+    h = '7'
     # hierarchical clustering
-    utils.start_subprocess( 'java -Xmx2048m -classpath '+configuration.LIUM_JAR+' fr.lium.spkDiarization.programs.MClust   '+PAR+'  --fInputMask=%s.mfcc --fInputDesc='+fDesc+'    --sInputMask=%s.l.seg                                   --cMethod=h --cThr='+h+'  --sOutputMask=%s.h.'+h+'.seg ' + filebasename )
-    utils.ensure_file_exists(filebasename+'.h.'+h+'.seg')
+    utils.start_subprocess('java -Xmx' + java_mem + 'm -classpath ' + configuration.LIUM_JAR + ' fr.lium.spkDiarization.programs.MClust   ' + PAR + '  --fInputMask=%s.mfcc --fInputDesc=' + fDesc + '    --sInputMask=%s.l.seg                                   --cMethod=h --cThr=' + h + '  --sOutputMask=%s.h.' + h + '.seg ' + filebasename)
+    utils.ensure_file_exists(filebasename + '.h.' + h + '.seg')
     
     # initialize GMM
-    utils.start_subprocess( 'java -Xmx2048m -classpath '+configuration.LIUM_JAR+' fr.lium.spkDiarization.programs.MTrainInit '+PAR+' --fInputMask=%s.mfcc --fInputDesc='+fDesc+'    --sInputMask=%s.h.'+h+'.seg                             --nbComp=8 --kind=DIAG    --tOutputMask=%s.init.gmms '   + filebasename )
-    utils.ensure_file_exists(filebasename+'.init.gmms')
+    utils.start_subprocess('java -Xmx' + java_mem + 'm -classpath ' + configuration.LIUM_JAR + ' fr.lium.spkDiarization.programs.MTrainInit ' + PAR + ' --fInputMask=%s.mfcc --fInputDesc=' + fDesc + '    --sInputMask=%s.h.' + h + '.seg                             --nbComp=8 --kind=DIAG    --tOutputMask=%s.init.gmms ' + filebasename)
+    utils.ensure_file_exists(filebasename + '.init.gmms')
     
     # EM computation
-    utils.start_subprocess( 'java -Xmx2048m -classpath '+configuration.LIUM_JAR+' fr.lium.spkDiarization.programs.MTrainEM  '+PAR+' --fInputMask=%s.mfcc --fInputDesc='+fDesc+'    --sInputMask=%s.h.'+h+'.seg  --tInputMask=%s.init.gmms   --nbComp=8 --kind=DIAG    --tOutputMask=%s.gmms '        + filebasename )
-    utils.ensure_file_exists(filebasename+'.gmms')       
+    utils.start_subprocess('java -Xmx' + java_mem + 'm -classpath ' + configuration.LIUM_JAR + ' fr.lium.spkDiarization.programs.MTrainEM  ' + PAR + ' --fInputMask=%s.mfcc --fInputDesc=' + fDesc + '    --sInputMask=%s.h.' + h + '.seg  --tInputMask=%s.init.gmms   --nbComp=8 --kind=DIAG    --tOutputMask=%s.gmms ' + filebasename)
+    utils.ensure_file_exists(filebasename + '.gmms')       
 
     #Viterbi decoding
-    utils.start_subprocess( 'java -Xmx2048m -classpath '+configuration.LIUM_JAR+' fr.lium.spkDiarization.programs.MDecode   '+PAR+' --fInputMask=%s.mfcc  --fInputDesc='+fDesc+'    --sInputMask=%s.h.'+h+'.seg  --tInputMask=%s.gmms        --dPenality=250           --sOutputMask=%s.d.'+h+'.seg ' + filebasename )
-    utils.ensure_file_exists(filebasename+'.d.'+h+'.seg')
+    utils.start_subprocess('java -Xmx' + java_mem + 'm -classpath ' + configuration.LIUM_JAR + ' fr.lium.spkDiarization.programs.MDecode   ' + PAR + ' --fInputMask=%s.mfcc  --fInputDesc=' + fDesc + '    --sInputMask=%s.h.' + h + '.seg  --tInputMask=%s.gmms        --dPenality=250           --sOutputMask=%s.d.' + h + '.seg ' + filebasename)
+    utils.ensure_file_exists(filebasename + '.d.' + h + '.seg')
 
     #Adjust segment boundaries
-    sDesc='audio16kHz2sphinx,1:1:0:0:0:0,13,0:0:0'
-    utils.start_subprocess( 'java -Xmx2048m -classpath '+configuration.LIUM_JAR+' fr.lium.spkDiarization.tools.SAdjSeg     '+PAR+'  --fInputMask=%s.mfcc  --fInputDesc='+sDesc+'    --sInputMask=%s.d.'+h+'.seg                                                        --sOutputMask=%s.adj.'+h+'.seg ' + filebasename )
-    utils.ensure_file_exists(filebasename+'.adj.'+h+'.seg')
+    sDesc = 'audio16kHz2sphinx,1:1:0:0:0:0,13,0:0:0'
+    utils.start_subprocess('java -Xmx' + java_mem + 'm -classpath ' + configuration.LIUM_JAR + ' fr.lium.spkDiarization.tools.SAdjSeg     ' + PAR + '  --fInputMask=%s.mfcc  --fInputDesc=' + sDesc + '    --sInputMask=%s.d.' + h + '.seg                                                        --sOutputMask=%s.adj.' + h + '.seg ' + filebasename)
+    utils.ensure_file_exists(filebasename + '.adj.' + h + '.seg')
     
     #filter spk segmentation according pms segmentation
-    flDesc='audio2sphinx,1:3:2:0:0:0,13,0:0:0'
-    utils.start_subprocess( 'java -Xmx2048m -classpath '+configuration.LIUM_JAR+' fr.lium.spkDiarization.tools.SFilter     '+PAR+'  --fInputMask=%s.mfcc  --fInputDesc='+flDesc+'   --sInputMask=%s.adj.'+h+'.seg  --fltSegMinLenSpeech=150 --fltSegMinLenSil=25 --sFilterClusterName=j --fltSegPadding=25 --sFilterMask=%s.pms.seg --sOutputMask=%s.flt.'+h+'.seg ' + filebasename )
-    utils.ensure_file_exists(filebasename+'.flt.'+h+'.seg')
+    flDesc = 'audio2sphinx,1:3:2:0:0:0,13,0:0:0'
+    utils.start_subprocess('java -Xmx' + java_mem + 'm -classpath ' + configuration.LIUM_JAR + ' fr.lium.spkDiarization.tools.SFilter     ' + PAR + '  --fInputMask=%s.mfcc  --fInputDesc=' + flDesc + '   --sInputMask=%s.adj.' + h + '.seg  --fltSegMinLenSpeech=150 --fltSegMinLenSil=25 --sFilterClusterName=j --fltSegPadding=25 --sFilterMask=%s.pms.seg --sOutputMask=%s.flt.' + h + '.seg ' + filebasename)
+    utils.ensure_file_exists(filebasename + '.flt.' + h + '.seg')
     
     #Split segment longer than 20s
-    ssDesc='audio16kHz2sphinx,1:3:2:0:0:0,13,0:0:0'
-    utils.start_subprocess( 'java -Xmx2048m -classpath '+configuration.LIUM_JAR+' fr.lium.spkDiarization.tools.SSplitSeg   '+PAR+'  --fInputMask=%s.mfcc  --fInputDesc='+ssDesc+'   --sInputMask=%s.flt.'+h+'.seg  --tInputMask='+configuration.S_GMMS+'  --sFilterMask=%s.pms.seg --sFilterClusterName=iS,iT,j  --sOutputMask=%s.spl.'+h+'.seg ' + filebasename )
-    utils.ensure_file_exists(filebasename+'.spl.'+h+'.seg')    
+    ssDesc = 'audio16kHz2sphinx,1:3:2:0:0:0,13,0:0:0'
+    utils.start_subprocess('java -Xmx' + java_mem + 'm -classpath ' + configuration.LIUM_JAR + ' fr.lium.spkDiarization.tools.SSplitSeg   ' + PAR + '  --fInputMask=%s.mfcc  --fInputDesc=' + ssDesc + '   --sInputMask=%s.flt.' + h + '.seg  --tInputMask=' + configuration.S_GMMS + '  --sFilterMask=%s.pms.seg --sFilterClusterName=iS,iT,j  --sOutputMask=%s.spl.' + h + '.seg ' + filebasename)
+    utils.ensure_file_exists(filebasename + '.spl.' + h + '.seg')    
 
-    c='1.4'
-#    if False:
-#        
-#        #Set gender and bandwith
-#        fDescCLR="audio16kHz2sphinx,1:3:2:0:0:0,13,1:1:300:4"
-#        utils.start_subprocess( 'java -Xmx2048m -classpath '+configuration.LIUM_JAR+' fr.lium.spkDiarization.programs.MScore   '+PAR+'    --fInputMask=%s.mfcc --fInputDesc='+fDescCLR+' --sInputMask=%s.spl.'+h+'.seg --tInputMask='+GENDER_GMMS+' --sGender --sByCluster   --sOutputMask=%s.g.'+h+'.seg '       + filebasename )
-#        utils.ensure_file_exists(filebasename+'.g.'+h+'.seg')
-#
-#        fDescCLR="audio16kHz2sphinx,1:3:2:0:0:0,13,1:1:300:4"
-#        utils.start_subprocess( 'java -Xmx2048m -classpath '+configuration.LIUM_JAR+' fr.lium.spkDiarization.programs.MClust   '+PAR+'    --fInputMask=%s.mfcc --fInputDesc='+fDescCLR+' --sInputMask=%s.flt.'+h+'.seg   --tInputMask='+UBM_PATH+' --cMethod=ce --cThr='+c+' --emCtrl=1,5,0.01 --sTop=5,'+UBM_PATH+' --tOutputMask=%s.c.gmm --sOutputMask=%s.c.seg ' + filebasename )
-#        utils.ensure_file_exists(filebasename+'.c.seg')
-#    
-#        
-##        #Set gender and bandwith
-##        utils.start_subprocess( 'java -Xmx2048m -classpath '+configuration.LIUM_JAR+' fr.lium.spkDiarization.programs.MScore   '+PAR+'    --fInputMask=%s.mfcc --fInputDesc='+fDescCLR+' --sInputMask=%s.c.seg --tInputMask='+GENDER_GMMS+' --sGender --sByCluster   --sOutputMask=%s.seg '       + filebasename )
-##        utils.ensure_file_exists(filebasename+'.seg')
-#
-#
-#    else:
+    c = '1.4'
 
     #Set gender and bandwith
-    fDescCLR="audio16kHz2sphinx,1:3:2:0:0:0,13,1:1:300:4"
-    utils.start_subprocess( 'java -Xmx2048m -classpath '+configuration.LIUM_JAR+' fr.lium.spkDiarization.programs.MScore   '+PAR+'    --fInputMask=%s.mfcc --fInputDesc='+fDescCLR+' --sInputMask=%s.spl.'+h+'.seg --tInputMask='+configuration.GENDER_GMMS+' --sGender --sByCluster   --sOutputMask=%s.g.'+h+'.seg '       + filebasename )
-    utils.ensure_file_exists(filebasename+'.g.'+h+'.seg')
+    fDescCLR = "audio16kHz2sphinx,1:3:2:0:0:0,13,1:1:300:4"
+    utils.start_subprocess('java -Xmx' + java_mem + 'm -classpath ' + configuration.LIUM_JAR + ' fr.lium.spkDiarization.programs.MScore   ' + PAR + '    --fInputMask=%s.mfcc --fInputDesc=' + fDescCLR + ' --sInputMask=%s.spl.' + h + '.seg --tInputMask=' + configuration.GENDER_GMMS + ' --sGender --sByCluster   --sOutputMask=%s.g.' + h + '.seg ' + filebasename)
+    utils.ensure_file_exists(filebasename + '.g.' + h + '.seg')
 
-    utils.start_subprocess( 'java -Xmx2048m -classpath '+configuration.LIUM_JAR+' fr.lium.spkDiarization.programs.MClust   '+PAR+'    --fInputMask=%s.mfcc --fInputDesc='+fDescCLR+' --sInputMask=%s.g.'+h+'.seg   --tInputMask='+configuration.UBM_PATH+' --cMethod=ce --cThr='+c+' --emCtrl=1,5,0.01 --sTop=5,'+configuration.UBM_PATH+' --tOutputMask=%s.c.gmm --sOutputMask=%s.seg ' + filebasename )
-    utils.ensure_file_exists(filebasename+'.seg')
+    utils.start_subprocess('java -Xmx' + java_mem + 'm -classpath ' + configuration.LIUM_JAR + ' fr.lium.spkDiarization.programs.MClust   ' + PAR + '    --fInputMask=%s.mfcc --fInputDesc=' + fDescCLR + ' --sInputMask=%s.g.' + h + '.seg   --tInputMask=' + configuration.UBM_PATH + ' --cMethod=ce --cThr=' + c + ' --emCtrl=1,5,0.01 --sTop=5,' + configuration.UBM_PATH + ' --tOutputMask=%s.c.gmm --sOutputMask=%s.seg ' + filebasename)
+    utils.ensure_file_exists(filebasename + '.seg')
     
     if not configuration.KEEP_INTERMEDIATE_FILES:
-        f_list = ['.i.seg', '.pms.seg', '.s.seg', '.l.seg', '.h.'+h+'.seg', '.init.gmms', '.gmms', '.d.'+h+'.seg', '.adj.'+h+'.seg', '.flt.'+h+'.seg', '.spl.'+h+'.seg', '.g.'+h+'.seg']
+        f_list = ['.i.seg', '.pms.seg', '.s.seg', '.l.seg', '.h.' + h + '.seg', '.init.gmms', '.gmms', '.d.' + h + '.seg', '.adj.' + h + '.seg', '.flt.' + h + '.seg', '.spl.' + h + '.seg', '.g.' + h + '.seg']
         for ext in f_list:
-            os.remove(filebasename+ext)
+            os.remove(filebasename + ext)
 
 
 def _train_init(filebasename):
     """Train the initial speaker gmm model."""
-    commandline = 'java -Xmx256m -cp '+configuration.LIUM_JAR+' fr.lium.spkDiarization.programs.MTrainInit --sInputMask=%s.ident.seg --fInputMask=%s.wav --fInputDesc=audio16kHz2sphinx,1:3:2:0:0:0,13,1:1:300:4 --emInitMethod=copy --tInputMask=' + configuration.UBM_PATH + ' --tOutputMask=%s.init.gmm ' + filebasename
+    commandline = 'java -Xmx256m -cp ' + configuration.LIUM_JAR + ' fr.lium.spkDiarization.programs.MTrainInit --sInputMask=%s.ident.seg --fInputMask=%s.wav --fInputDesc=audio16kHz2sphinx,1:3:2:0:0:0,13,1:1:300:4 --emInitMethod=copy --tInputMask=' + configuration.UBM_PATH + ' --tOutputMask=%s.init.gmm ' + filebasename
     utils.start_subprocess(commandline)
-    utils.ensure_file_exists(filebasename+'.init.gmm')
+    utils.ensure_file_exists(filebasename + '.init.gmm')
 
 def _train_map(filebasename):
     """Train the speaker model using a MAP adaptation method."""
-    commandline = 'java -Xmx256m -cp '+configuration.LIUM_JAR+' fr.lium.spkDiarization.programs.MTrainMAP --sInputMask=%s.ident.seg --fInputMask=%s.mfcc --fInputDesc=audio16kHz2sphinx,1:3:2:0:0:0,13,1:1:300:4 --tInputMask=%s.init.gmm --emCtrl=1,5,0.01 --varCtrl=0.01,10.0 --tOutputMask=%s.gmm ' + filebasename 
+    commandline = 'java -Xmx256m -cp ' + configuration.LIUM_JAR + ' fr.lium.spkDiarization.programs.MTrainMAP --sInputMask=%s.ident.seg --fInputMask=%s.mfcc --fInputDesc=audio16kHz2sphinx,1:3:2:0:0:0,13,1:1:300:4 --tInputMask=%s.init.gmm --emCtrl=1,5,0.01 --varCtrl=0.01,10.0 --tOutputMask=%s.gmm ' + filebasename 
     utils.start_subprocess(commandline)
-    utils.ensure_file_exists(filebasename+'.gmm')
-
-
+    utils.ensure_file_exists(filebasename + '.gmm')
 
 def mfcc_vs_gmm(filebasename, gmm_file, gender, custom_db_dir=None):
     """Match a mfcc file and a given gmm model file and produce a segmentation file containing the score obtained. 
@@ -650,13 +596,12 @@ def mfcc_vs_gmm(filebasename, gmm_file, gender, custom_db_dir=None):
     :param gender: F, M or U, the gender of the voice model
     
     :type custom_db_dir: None or string
-    :param custom_db_dir: the voice models database to use 
-    """
+    :param custom_db_dir: the voice models database to use"""
     database = configuration.DB_DIR
     if custom_db_dir != None:
         database = custom_db_dir
     gmm_name = os.path.split(gmm_file)[1]
-    commandline = 'java -Xmx256M -cp ' +configuration.LIUM_JAR + ' fr.lium.spkDiarization.programs.MScore --sInputMask=%s.seg --fInputMask=%s.mfcc --sOutputMask=%s.ident.' + gender + '.' + gmm_name + '.seg --sOutputFormat=seg,UTF8  --fInputDesc=audio16kHz2sphinx,1:3:2:0:0:0,13,1:0:300:4 --tInputMask=' + database + '/' + gender + '/' + gmm_file + ' --sTop=8,' + configuration.UBM_PATH + '  --sSetLabel=add --sByCluster ' + filebasename 
+    commandline = 'java -Xmx256M -cp ' + configuration.LIUM_JAR + ' fr.lium.spkDiarization.programs.MScore --sInputMask=%s.seg --fInputMask=%s.mfcc --sOutputMask=%s.ident.' + gender + '.' + gmm_name + '.seg --sOutputFormat=seg,UTF8  --fInputDesc=audio16kHz2sphinx,1:3:2:0:0:0,13,1:0:300:4 --tInputMask=' + database + '/' + gender + '/' + gmm_file + ' --sTop=8,' + configuration.UBM_PATH + '  --sSetLabel=add --sByCluster ' + filebasename 
     utils.start_subprocess(commandline)
     utils.ensure_file_exists(filebasename + '.ident.' + gender + '.' + gmm_name + '.seg')
     

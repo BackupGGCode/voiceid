@@ -22,8 +22,9 @@
 import os
 import shlex
 import subprocess
-from . import configuration
+from . import VConf
 
+configuration = VConf()
 
 def alive_threads(t):
     """Check how much threads are running and alive in a thread dictionary

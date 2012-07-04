@@ -32,7 +32,7 @@
 # using the scripts to create the gmm files.
 #
 
-from voiceid import configuration, sr, db
+from voiceid import VConf, sr, db
 import wx.lib.agw.ultimatelistctrl as ULC
 from wx.lib.pubsub import Publisher
 import MplayerCtrl as mpc
@@ -43,9 +43,14 @@ import threading
 import time
 import wx
 import wx.lib.buttons as buttons
-dirName = os.path.join(sys.prefix, 'local/share/voiceid')
+
+configuration = VConf()
+local = 'local'
+if sys.platform == 'win32':
+    local = ''
+dirName = os.path.join(sys.prefix, local, 'share', 'voiceid')
 bitmapDir = os.path.join(dirName, 'bitmaps')
-dbDir = os.path.expanduser('~/.voiceid/gmm_db')
+dbDir = os.path.join(os.path.expanduser('~'), '.voiceid', 'gmm_db')
 configuration.KEEP_INTERMEDIATE_FILES = True
 LIST_ID = 26
 PLAY_ID = 1
@@ -58,7 +63,7 @@ def get_length(filepath):
     
     :type filename: string
     :param filepath: video's path"""        
-    def check_output(command): 
+    def my_check_output(command): 
         process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True)
         output = process.communicate()
         retcode = process.poll()
@@ -68,12 +73,12 @@ def get_length(filepath):
     print filepath 
     try:     
         command = """mplayer  -vo null -ao null -frames 0 -identify %s 2>/dev/null |sed -ne '/^ID_/ {s/[]()|&;<>`'"'"'\\!$" []/\\&/g;p}'""" % filepath
-        result = check_output(command)
+        result = my_check_output(command)
         r = result[0].split('\n')
         for row in r:
             if row.startswith("ID_LENGTH"):
                 return row.split("=")[1]
-    except Exception,e:
+    except Exception, e:
         print  e
 
 
@@ -132,13 +137,13 @@ class Controller:
             defaultDir=self.currentFolder,
             defaultFile="",
             wildcard=wildcard,
-            style=wx.OPEN | wx.CHANGE_DIR )
+            style=wx.OPEN | wx.CHANGE_DIR)
         if dlg.ShowModal() == wx.ID_OK:
             path = dlg.GetPath()
             self.currentFolder = os.path.dirname(path[0])
             trackPath = '"%s"' % path.replace("\\", "/")
             self.player.load_file(trackPath)
-            json_path = os.path.splitext(trackPath)[0]+'.json'
+            json_path = os.path.splitext(trackPath)[0] + '.json'
             json_path = json_path.replace('"', '')
             
         self.frame.run_menu_item.Enable(True)
@@ -154,7 +159,7 @@ class Controller:
             
     def on_select_db(self, event):
         """Set database path"""
-        dialog = wx.DirDialog(None, "Choose a directory:",style=wx.DD_DEFAULT_STYLE | wx.DD_NEW_DIR_BUTTON)
+        dialog = wx.DirDialog(None, "Choose a directory:", style=wx.DD_DEFAULT_STYLE | wx.DD_NEW_DIR_BUTTON)
         global dbDir
         if dialog.ShowModal() == wx.ID_OK:
             dbDir = dialog.GetPath()
@@ -196,7 +201,7 @@ class Controller:
         
         :type msg: Message
         :param msg: text to update status bar"""
-        self.frame.set_status_text( msg.data )
+        self.frame.set_status_text(msg.data)
         
             
     def on_update_playback(self, event):
@@ -216,7 +221,7 @@ class Controller:
         if len(self.clusters_list.list.checked) > 0:  
             self.on_play_segments(event)
             
-    def on_save(self,event):
+    def on_save(self, event):
         """Exports info to json format"""
         wx.CallAfter(Publisher().sendMessage, "update_status", "Saving changes...")
         self.model.save_changes()
@@ -246,7 +251,7 @@ class Controller:
         clusters = self.model.get_clusters()
         clusters_review = []
         for c in clusters.values():
-            if float(c.get_duration())>3:
+            if float(c.get_duration()) > 3:
                 clusters_review.append(c)
         for c in clusters_review:
             self.clusters_list.add_cluster(c.get_name(), c.get_speaker(), c.get_duration())
@@ -258,7 +263,7 @@ class Controller:
         :type msg: Message
         :param msg: text to update video info"""
         u, k = self.model.get_clusters_info()
-        text = "*Video: \n %s \n Length: %.2f \n\n *Database folder: %s \n\n *Speakers : %s unknown + %s known" % (str(os.path.basename(self.player.video_path)), float(self.player.video_length)/60,str(os.path.basename(self.model.get_db())), str(u), str(k) )
+        text = "*Video: \n %s \n Length: %.2f \n\n *Database folder: %s \n\n *Speakers : %s unknown + %s known" % (str(os.path.basename(self.player.video_path)), float(self.player.video_length) / 60, str(os.path.basename(self.model.get_db())), str(u), str(k))
         self.clusters_list.set_info_video(text)
 
     def on_check_col_clusters_list(self, event):
@@ -270,7 +275,7 @@ class Controller:
             list_items.checked = []
         else:
             for index in range(list_items.GetItemCount()): 
-                cluster = list_items.GetItem(index,1)
+                cluster = list_items.GetItem(index, 1)
                 if not cluster.GetText() in list_items.checked:
                     list_items.checked.append(cluster.GetText())
                 #print cluster.GetText()
@@ -280,8 +285,8 @@ class Controller:
     def on_check_item_clusters_list(self, event):
         """Selects a checkbox, drawing it"""
         list_items = self.clusters_list.list    
-        cluster = list_items.GetItem(event.m_itemIndex,1)
-        col=list_items.GetColumn(0)        
+        cluster = list_items.GetItem(event.m_itemIndex, 1)
+        col = list_items.GetColumn(0)        
         if cluster.GetText() in list_items.checked:
             if col.IsChecked():
                 col.Check(False) #not work
@@ -294,19 +299,19 @@ class Controller:
     def on_edit_cluster(self, event):
         """Sets new name for the edited cluster"""
         list_items = self.clusters_list.list    
-        cluster = list_items.GetItem(event.m_itemIndex,1)
+        cluster = list_items.GetItem(event.m_itemIndex, 1)
         self.model.set_cluster(str(cluster.GetText()), str(event.GetText()))
         #print "cl %s sp %s " % ((str(cluster.GetText()), str(event.GetText())))
         wx.CallAfter(Publisher().sendMessage, "update_status", "WARNING: Unsaved changes!")
         
     def init_player_seek(self):
         """Seek video position"""
-        if len(self.clusters_list.list.checked) >0:
+        if len(self.clusters_list.list.checked) > 0:
             self.on_play_clusters()
         else:
             self.player.on_play(None)
         
-    def draw_selected_clusters(self, event = None):
+    def draw_selected_clusters(self, event=None):
         """Draws all selected clusters"""
         result = []
         list_items = self.clusters_list.list    
@@ -315,7 +320,7 @@ class Controller:
             cluster = self.model.get_cluster(c)
             color = self.clusters_list.get_color(c)
             for s in cluster._segments:                
-                result.append((s.get_start(), s.get_end(),color))             
+                result.append((s.get_start(), s.get_end(), color))             
         wx.CallAfter(self.player.draw_cluster_segs, result)
         
     def get_start_time(self):
@@ -327,7 +332,7 @@ class Controller:
                 start_time = c._segments[0].get_start()
         return start_time
         
-    def on_play_clusters(self,event = None):
+    def on_play_clusters(self, event=None):
         """Plays all selected clusters"""
         start_time = self.get_start_time() 
         self.player.mpc.Mute(1)
@@ -351,7 +356,7 @@ class Controller:
         for c in items:
             cluster = self.model.get_cluster(c)
             segments.extend(cluster._segments[:])
-        segments = sorted(segments, key = lambda seg: seg._start)
+        segments = sorted(segments, key=lambda seg: seg._start)
         segments_rev = segments[:]
         segments_rev.reverse()   
         offset = self.player.mpc.GetTimePos()
@@ -459,14 +464,14 @@ class Player(wx.Panel):
         self.video_pos = 0
         self.video_path = None
         #self.mpc = mpc.MplayerCtrl(self, 0, u'mplayer', [u'cache', u'1024'])
-        self.mpc = wx.Panel(self, -1, size=(400,300))
+        self.mpc = wx.Panel(self, -1, size=(400, 300))
         self.sizer = wx.BoxSizer(wx.VERTICAL)
         self.controlSizer = self.build_player_controls()
         self.sliderSizer = wx.BoxSizer(wx.HORIZONTAL)
-        self.colorSizer =  wx.BoxSizer(wx.VERTICAL)
+        self.colorSizer = wx.BoxSizer(wx.VERTICAL)
         self.playbackSlider = wx.Slider(self, size=wx.DefaultSize)
         self.colorPanel = ColorPanel(self, 99)
-        self.colorSizer.Add(self.colorPanel, 1, wx.ALL | wx.EXPAND,0)
+        self.colorSizer.Add(self.colorPanel, 1, wx.ALL | wx.EXPAND, 0)
         # create slider
         self.colorSizer.Add(self.playbackSlider, 1, wx.ALL | wx.EXPAND, 0)
         self.sliderSizer.Add(self.colorSizer, 1, wx.ALL | wx.EXPAND, 0)
@@ -498,13 +503,13 @@ class Player(wx.Panel):
         self.video_pos = 0
         self.video_path = None
         
-    def draw_cluster_segs(self,segs):
+    def draw_cluster_segs(self, segs):
         """Draws segments of all selected clusters
         
         :type segs: array
         :param segs: segments info of all selected clusters (seg_start, seg_end, seg_color )"""
         self.colorPanel.clear()
-        for s,e,c in segs:
+        for s, e, c in segs:
             self.colorPanel.write_slice(float(s) / 100, float(e) / 100, c)
             
     def repaint(self, event):
@@ -553,14 +558,14 @@ class Player(wx.Panel):
         """Set video path"""
         self.video_path = path
         
-    def load_file(self,path):
+    def load_file(self, path):
         self.init_objects()
         self.set_video_path(path)
         self.video_length = get_length(path)
-        path_srt = os.path.splitext(path)[0]+'.srt'
+        path_srt = os.path.splitext(path)[0] + '.srt'
         self.sizer.Detach(self.mpc)
-        self.mpc = mpc.MplayerCtrl(self, 0, u'mplayer',mplayer_args=['-sub', path_srt])
-        self.sizer.Insert(0,self.mpc,1, wx.EXPAND | wx.ALL, 5)
+        self.mpc = mpc.MplayerCtrl(self, 0, u'mplayer', mplayer_args=['-sub', path_srt])
+        self.sizer.Insert(0, self.mpc, 1, wx.EXPAND | wx.ALL, 5)
         self.sizer.Layout()
 
     def on_media_started(self, event):
@@ -627,7 +632,7 @@ class CheckListCtrl(ULC.UltimateListCtrl):
     """Builds a list with checkboxes an editable fields."""
     def __init__(self, parent):
         self.parent = parent
-        ULC.UltimateListCtrl.__init__(self, parent , agwStyle= ULC.ULC_AUTO_CHECK_CHILD |ULC.ULC_EDIT_LABELS | ULC.ULC_REPORT|ULC.ULC_SINGLE_SEL | ULC.ULC_VRULES|ULC.ULC_HRULES)
+        ULC.UltimateListCtrl.__init__(self, parent , agwStyle=ULC.ULC_AUTO_CHECK_CHILD | ULC.ULC_EDIT_LABELS | ULC.ULC_REPORT | ULC.ULC_SINGLE_SEL | ULC.ULC_VRULES | ULC.ULC_HRULES)
         self.checked = []
 
 class ClustersList(wx.Panel):
@@ -645,27 +650,27 @@ class ClustersList(wx.Panel):
         sb_list = wx.StaticBox(self, label=" Speakers ")
         sb_info = wx.StaticBox(self, label=" Info ")
         self.boxsizer_list = wx.StaticBoxSizer(sb_list, wx.VERTICAL)
-        self.boxsizer_list.Add(self.list, 5, wx.EXPAND|wx.EXPAND, 2)
+        self.boxsizer_list.Add(self.list, 5, wx.EXPAND | wx.EXPAND, 2)
         self.boxsizer_info = wx.StaticBoxSizer(sb_info, wx.VERTICAL)
         self.boxsizer_info.Add(self.info, 5, wx.EXPAND | wx.ALL, 2)
         first = ULC.UltimateListItem()
         first._mask = wx.LIST_MASK_TEXT | wx.LIST_MASK_FORMAT | ULC.ULC_MASK_CHECK
         first._kind = 1      
         first._text = 'Speaker'
-        first._font= wx.Font(13, wx.ROMAN, wx.NORMAL, wx.BOLD)
+        first._font = wx.Font(13, wx.ROMAN, wx.NORMAL, wx.BOLD)
         first.SetWidth(wx.LIST_AUTOSIZE_USEHEADER)
-        self.list.InsertColumnInfo(0,first)
+        self.list.InsertColumnInfo(0, first)
         second = ULC.UltimateListItem()
         second._mask = wx.LIST_MASK_TEXT | wx.LIST_MASK_FORMAT 
         second._text = 'Cluster'
         second.SetWidth(wx.LIST_AUTOSIZE_USEHEADER)
-        self.list.InsertColumnInfo(1,second)
+        self.list.InsertColumnInfo(1, second)
         self.list.InsertColumn(2, '', wx.LIST_AUTOSIZE_USEHEADER)
         fourty = ULC.UltimateListItem()
         fourty._mask = wx.LIST_MASK_TEXT | wx.LIST_MASK_FORMAT 
         fourty._text = 'Length'
         fourty.SetWidth(wx.LIST_AUTOSIZE_USEHEADER)
-        self.list.InsertColumnInfo(3,fourty)
+        self.list.InsertColumnInfo(3, fourty)
         self.list.SetBackgroundColour("white")
         self.Bind(wx.EVT_SIZE, self.on_size)
         self.info.Bind(wx.EVT_SIZE, self.on_size)
@@ -685,24 +690,24 @@ class ClustersList(wx.Panel):
         :param cluster_speaker: speaker name"""
         import random
         def randomColor():
-            return (int(random.random()*255),int(random.random()*255),int(random.random()*255))
+            return (int(random.random() * 255), int(random.random() * 255), int(random.random() * 255))
         color = randomColor()
         while color in self.speakers_GRB.keys():
             color = randomColor()
         self.speakers_GRB[cluster_label] = color
-        secs = time.strftime('%M:%S', time.gmtime(length/60))
-        data = {self.columns : (cluster_speaker,cluster_label,"",secs)}
+        secs = time.strftime('%M:%S', time.gmtime(length / 60))
+        data = {self.columns : (cluster_speaker, cluster_label, "", secs)}
         for key, d in data.items():
             index = self.list.Append(d)
             self.list.SetItemData(index, key)
-        item2 = self.list.GetItem(self.columns,2)
-        item1 = self.list.GetItem(self.columns,0)
+        item2 = self.list.GetItem(self.columns, 2)
+        item1 = self.list.GetItem(self.columns, 0)
         
         item2.SetMask(ULC.ULC_MASK_BACKCOLOUR)
-        item2.SetBackgroundColour(wx.Colour(color[0],color[1],color[2]))
+        item2.SetBackgroundColour(wx.Colour(color[0], color[1], color[2]))
         self.list.SetItem(item2)
         self.list.SetItemKind(item1, 0, 1)
-        self.columns+=1
+        self.columns += 1
     
     def clean(self):
         """Resets list objects"""
@@ -759,16 +764,16 @@ class ColorPanel(wx.Panel):
         :type color: string
         :param color: the color to be used to draw the segment"""
         
-        width = self.GetSizeTuple()[0] -5
+        width = self.GetSizeTuple()[0] - 5
         time_l = self.parent.video_length
-        pixel4sec =  float(width) / float( time_l )
+        pixel4sec = float(width) / float(time_l)
         duration = end_time - start_time
         w = duration * pixel4sec
-        if w<1:
+        if w < 1:
             w = 1
-        self._write_rectangle( start_time * pixel4sec, 10 , w, 10, color)  
+        self._write_rectangle(start_time * pixel4sec, 10 , w, 10, color)  
 
-    def _write_rectangle(self,x,y,w,h, color):
+    def _write_rectangle(self, x, y, w, h, color):
         """Draw a specific area
         
         :type x: float
@@ -783,10 +788,10 @@ class ColorPanel(wx.Panel):
         :param color: color to draw rectangle area"""
         self.dc = wx.PaintDC(self)
         self.dc.BeginDrawing()
-        self.dc.SetPen(wx.Pen("BLACK",1))
+        self.dc.SetPen(wx.Pen("BLACK", 1))
         # draw a few colorful rectangles ...
-        self.dc.SetBrush( wx.Brush(color, wx.SOLID ) )
-        self.dc.DrawRectangle(x,y,w,h)
+        self.dc.SetBrush(wx.Brush(color, wx.SOLID))
+        self.dc.DrawRectangle(x, y, w, h)
         self.dc.EndDrawing()
         # free up the device context now
         del self.dc
