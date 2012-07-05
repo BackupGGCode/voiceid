@@ -20,20 +20,22 @@
 #############################################################################
 """
 VoiceID is a speaker recognition/identification system written in Python,
-based on the `LIUM Speaker Diarization <http://lium3.univ-lemans.fr/diarization/doku.php>`_ framework.
+based on the 
+`LIUM Speaker Diarization <http://lium3.univ-lemans.fr/diarization/doku.php>`_ 
+framework.
 
 VoiceID can process video or audio files to identify in which slices of 
 time there is a person speaking (diarization); then it examines all those
 segments to identify who is speaking. To do so uses a voice models
 database. 
 
-To create the database you can do a "training phase" using the script ``vid`` in
-interactive mode, by assigning a label to the "unknown" speakers, or 
+To create the database you can do a "training phase" using the script ``vid``
+in interactive mode, by assigning a label to the "unknown" speakers, or 
 you can also build yourself manually the speaker models and put in the db
 using the scripts to create the gmm files.
 
-Here an example about how use the library to create a python script to add voices in db and to 
-process a file to extract the speakers in it.
+Here an example about how use the library to create a python script to add 
+voices in db and to process a file to extract the speakers in it.
 
 ::
 
@@ -46,7 +48,8 @@ process a file to extract the speakers in it.
     
     db = GMMVoiceDB('mydir')
     
-    #add models to db: params the basename of 'giov_wave.wav' and the speaker, Giovanni
+    # add models to db: params the basename of 'giov_wave.wav' and the speaker,
+    #  Giovanni
     db.add_model('giov_wave', 'Giovanni')
     db.add_model('fran_wave', 'Francesco')
     db.add_model('luca_wave', 'Luca')
@@ -57,13 +60,13 @@ process a file to extract the speakers in it.
     #   extract speakers from a file 
     #
     
-    #process a video/audio file containing various speakers
+    # process a video/audio file containing various speakers
     v = Voiceid(db, 'myfile.mp4')
     
-    #extract the speakers from file and search into db 
+    # extract the speakers from file and search into db 
     v.extract_speakers()
     
-    #print the clusters (one for every speaker) and relative speakers' names 
+    # print the clusters (one for every speaker) and relative speakers' names 
     for c in v.get_clusters():
         cluster = v.get_cluster(c)
         print cluster
@@ -71,7 +74,7 @@ process a file to extract the speakers in it.
         print
     
     
-    #output
+    # output
     
     S0 (Luca)
     00:00:42,980 to 00:00:49,140
@@ -124,7 +127,7 @@ class VConf(object):
         self.GENDER_GMMS = os.path.join(sys.prefix, local, 'share', 'voiceid', 'gender.gmms')
         self.SMS_GMMS = os.path.join(sys.prefix, local, 'share', 'voiceid', 'sms.gmms')
         self.S_GMMS = os.path.join(sys.prefix, local, 'share', 'voiceid', 's.gmms')
-        self.OUTPUT_FORMAT = 'srt' #default output format        
+        self.OUTPUT_FORMAT = 'srt'          # default output format        
         self.test_path = os.path.join(os.path.expanduser('~'), '.voiceid', 'test')
         self.output_redirect = open(os.path.devnull, 'w')
         if self.VERBOSE:

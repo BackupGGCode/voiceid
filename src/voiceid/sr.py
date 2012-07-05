@@ -30,7 +30,7 @@ import utils
 import fm
 from . import VConf
 
-configuration = VConf()
+CONFIGURATION = VConf()
 
 class Segment:
     """A Segment taken from a segmentation file, representing the smallest recognized
@@ -940,7 +940,7 @@ class Voiceid:
             
     def _match_voice_wrapper(self, cluster, mfcc_name, db_entry, gender):
         """A wrapper to match the voices each in a different Thread."""
-        results = self.get_db().match_voice(mfcc_name, db_entry, gender)
+        results = self.get_db()._match_voice(mfcc_name, db_entry, gender)
         for r in results:
             self[cluster].add_speaker(r, results[r])
 
@@ -990,7 +990,7 @@ class Voiceid:
                                            self[cluster].value, 
                                            self[cluster].gender )
                 self[cluster].set_speaker(new_speaker)
-            if not configuration.KEEP_INTERMEDIATE_FILES:
+            if not CONFIGURATION.KEEP_INTERMEDIATE_FILES:
                 try:
                     os.remove("%s.seg" % wave_b )
                     os.remove("%s.mfcc" % wave_b )
@@ -1199,7 +1199,7 @@ def manage_ident(filebasename, gmm, clusters):
                     _clusters[ cluster ][ speaker ] = float(value)
             """
     f.close()
-    if not configuration.KEEP_INTERMEDIATE_FILES:
+    if not CONFIGURATION.KEEP_INTERMEDIATE_FILES:
         os.remove("%s.ident.%s.seg" % (filebasename, gmm ) )
 
 def extract_clusters(segfilename, clusters):
@@ -1264,8 +1264,8 @@ def _interactive_training(filebasename, cluster, identifier):
             commandline = "play "+str(w)
             print "  Listening %s..." % cluster
             args = shlex.split(commandline)
-            p = subprocess.Popen(args, stdin=configuration.output_redirect, stdout=configuration.output_redirect, 
-                                 stderr=configuration.output_redirect)
+            p = subprocess.Popen(args, stdin=CONFIGURATION.output_redirect, stdout=CONFIGURATION.output_redirect, 
+                                 stderr=CONFIGURATION.output_redirect)
             time.sleep(1)
             continue
         if char == "2":

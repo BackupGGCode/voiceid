@@ -2,7 +2,7 @@
 #############################################################################
 #
 # VoiceID, Copyright (C) 2011-2012, Sardegna Ricerche.
-# Email: labcontdigit@sardegnaricerche.it, michela.fancello@crs4.it, 
+# Email: labcontdigit@sardegnaricerche.it, michela.fancello@crs4.it,
 #        mauro.mereu@crs4.it
 # Web: http://code.google.com/p/voiceid
 # Authors: Michela Fancello, Mauro Mereu
@@ -18,24 +18,27 @@
 #    GNU General Public License for more details.
 #
 #############################################################################
-"""Module containing some utilities about subprocess, threading and file checking."""
+"""Module containing some utilities about subprocess,
+threading and file checking."""
 import os
 import shlex
 import subprocess
 from . import VConf
 
-configuration = VConf()
+CONFIGURATION = VConf()
 
-def alive_threads(t):
+
+def alive_threads(t_dict):
     """Check how much threads are running and alive in a thread dictionary
 
     :type t: dictionary
-    :param t: thread dictionary like  { key : thread_obj, ... }""" 
+    :param t: thread dictionary like  { key : thread_obj, ... }"""
     num = 0
-    for thr in t:
-        if t[thr].is_alive():
+    for thr in t_dict:
+        if t_dict[thr].is_alive():
             num += 1
     return num
+
 
 def start_subprocess(commandline):
     """Start a subprocess using the given commandline and check for correct
@@ -45,45 +48,52 @@ def start_subprocess(commandline):
     :param commandline: the command to run in a subprocess"""
     args = shlex.split(commandline)
 #    try:
-    p = subprocess.Popen(args, stdin=configuration.output_redirect, stdout=configuration.output_redirect, 
-                         stderr=configuration.output_redirect)
-    retval = p.wait()
+    proc = subprocess.Popen(args, stdin=CONFIGURATION.output_redirect,
+                         stdout=CONFIGURATION.output_redirect,
+                         stderr=CONFIGURATION.output_redirect)
+    retval = proc.wait()
 #    except:
 #        print "except 1327"
 #        args = commandline.split(' ')
-#        p = subprocess.Popen(args, stdin=output_redirect, stdout=output_redirect, 
+#        proc = subprocess.Popen(args, stdin=output_redirect, 
+#                                stdout=output_redirect, 
 #                             stderr=output_redirect)
-#        retval = p.wait()        
-        
-        
+#        retval = proc.wait()        
+
     if retval != 0:
-        e = OSError("Subprocess %s closed unexpectedly [%s]" % (str(p), 
-                                                                    commandline))
-        e.errno = retval
-        raise e
+        err = OSError("Subprocess %s closed unexpectedly [%s]" % (str(proc),
+                                                                  commandline))
+        err.errno = retval
+        raise err
+
 
 def ensure_file_exists(filename):
     """Ensure file exists and is not empty, otherwise raise an IOError.
-    
+
     :type filename: string
     :param filename: file to check"""
     if not os.path.exists(filename):
-        raise IOError("File %s doesn't exist or not correctly created" % filename)
+        raise IOError("File %s doesn't exist or not correctly created" 
+                      % filename)
     if not (os.path.getsize(filename) > 0):
-        raise IOError("File %s empty"  % filename)
+        raise IOError("File %s empty" % filename)
+
 
 def check_deps():
     """Check for dependencies."""
-    ensure_file_exists(configuration.LIUM_JAR)
+    ensure_file_exists(CONFIGURATION.LIUM_JAR)
 
-    dir_m = os.path.join(configuration.DB_DIR, "M")
-    dir_f = os.path.join(configuration.DB_DIR, "F")
-    dir_u = os.path.join(configuration.DB_DIR, "U")
-    ensure_file_exists(configuration.UBM_PATH)
-    if not os.path.exists(configuration.DB_DIR):
-        raise IOError("No gmm db directory found in %s (take a look to the configuration, DB_DIR parameter)" % configuration.DB_DIR )
-    if os.listdir(configuration.DB_DIR) == []:
-        print "WARNING: Gmm db directory found in %s is empty" % configuration.DB_DIR
+    dir_m = os.path.join(CONFIGURATION.DB_DIR, "M")
+    dir_f = os.path.join(CONFIGURATION.DB_DIR, "F")
+    dir_u = os.path.join(CONFIGURATION.DB_DIR, "U")
+    ensure_file_exists(CONFIGURATION.UBM_PATH)
+    if not os.path.exists(CONFIGURATION.DB_DIR):
+        raise IOError("No gmm db directory found in"
+            + " %s (take a look to the CONFIGURATION, DB_DIR parameter)" 
+            % CONFIGURATION.DB_DIR)
+    if os.listdir(CONFIGURATION.DB_DIR) == []:
+        print("WARNING: Gmm db directory found in %s is empty" 
+                % CONFIGURATION.DB_DIR)
     if not os.path.exists(dir_m):
         os.makedirs(dir_m)
     if not os.path.exists(dir_f):
@@ -91,12 +101,14 @@ def check_deps():
     if not os.path.exists(dir_u):
         os.makedirs(dir_u)
 
+
 def humanize_time(secs):
     """Convert seconds into time format.
-    
+
     :type secs: integer
-    :param secs: the time in seconds to represent in human readable format 
+    :param secs: the time in seconds to represent in human readable format
            (hh:mm:ss)"""
     mins, secs = divmod(secs, 60)
     hours, mins = divmod(mins, 60)
-    return '%02d:%02d:%02d,%s' % (hours, mins, int(secs), str(("%0.3f" % secs ))[-3:] )
+    return '%02d:%02d:%02d,%s' % (hours, mins, int(secs), 
+                                  str(("%0.3f" % secs))[-3:])
