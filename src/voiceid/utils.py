@@ -88,6 +88,7 @@ def check_deps():
     dir_u = os.path.join(CONFIGURATION.DB_DIR, "U")
     ensure_file_exists(CONFIGURATION.UBM_PATH)
     if not os.path.exists(CONFIGURATION.DB_DIR):
+        os.makedirs(CONFIGURATION.DB_DIR)
         raise IOError("No gmm db directory found in"
             + " %s (take a look to the CONFIGURATION, DB_DIR parameter)" 
             % CONFIGURATION.DB_DIR)

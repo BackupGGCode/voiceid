@@ -35,7 +35,7 @@ class VoiceDB:
     def __init__(self, path):
         """
         :type path: string
-        :param path: the voice db path"""
+        :param path: the voice vdb path"""
         self._path = path
         self._genders = ['F', 'M', 'U']
         self._speakermodels = {}
@@ -409,6 +409,6 @@ class GMMVoiceDB(VoiceDB):
                 res[mfcc_key] = {}
             try:
                 res[mfcc_key].update(arr)
-            except (NameError, KeyError, AttributeError):
+            except (NameError, KeyError, AttributeError, TypeError):
                 print "missing out[" + thr + "]"
         return res

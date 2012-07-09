@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+
 from distutils.core import setup
 f = open('README', 'r')
 long_desc = f.read()
@@ -8,13 +9,16 @@ import os
 import os.path
 import subprocess
 
+
 which = 'which'
 if sys.platform == 'win32':
     which = 'where'
+
     
 basedir = os.path.dirname(os.path.join(os.getcwd(), sys.argv[0]))
 def my_check_output(command): 
-    process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True)
+    process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, 
+                               stderr=subprocess.STDOUT, universal_newlines=True)
     output = process.communicate()
     retcode = process.poll()
     if retcode:
@@ -98,7 +102,7 @@ setup(name='voiceid',
                    'Topic :: Software Development :: Libraries :: Python Modules', ],
       packages=['voiceid'],
       package_dir={'voiceid': os.path.join('src', 'voiceid')},
-      data_files=[(os.path.join('share', 'voiceid'), [ os.path.join('share', 'LIUM_SpkDiarization-4.22.jar'), os.path.join('share', 'sms.gmms'), os.path.join('share', 's.gmms'), os.path.join('share', 'gender.gmms'), os.path.join('share', 'ubm.gmm')]),
+      data_files=[(os.path.join('share', 'voiceid'), [ os.path.join('share', 'LIUM_SpkDiarization-4.7.jar'), os.path.join('share', 'sms.gmms'), os.path.join('share', 's.gmms'), os.path.join('share', 'gender.gmms'), os.path.join('share', 'ubm.gmm')]),
                   (os.path.join('share', 'voiceid', 'bitmaps'), image_files),
         (os.path.join('share', 'doc', 'voiceid', 'html'), doc_files) ],
       scripts=[os.path.join('scripts', 'vid'), os.path.join('scripts', 'voiceidplayer'), os.path.join('scripts', 'onevoiceidplayer'),
