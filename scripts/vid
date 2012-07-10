@@ -21,17 +21,17 @@
 #############################################################################
 """
 VoiceID is a speaker recognition/identification system written in Python,
-based on the 
-`LIUM Speaker Diarization <http://lium3.univ-lemans.fr/diarization/doku.php>`_ 
+based on the
+`LIUM Speaker Diarization <http://lium3.univ-lemans.fr/diarization/doku.php>`_
 framework.
 
-VoiceID can process video or audio files to identify in which slices of 
+VoiceID can process video or audio files to identify in which slices of
 time there is a person speaking (diarization); then it examines all those
 segments to identify who is speaking. To do so uses a voice models
-database. 
+database.
 
 To create the database you can do a "training phase" using the script ``vid``
-in interactive mode, by assigning a label to the "unknown" speakers, or 
+in interactive mode, by assigning a label to the "unknown" speakers, or
 you can also build yourself manually the speaker models and put in the db
 using the scripts to create the gmm files."""
 
@@ -50,7 +50,7 @@ def _multiargs_callback(option, opt_str, value, parser):
     """ Create an array from multiple args"""
     if len(parser.rargs) == 0:
         parser.error("incorrect number of arguments")
-    args=[]
+    args = []
     for arg in parser.rargs:
         if arg[0] != "-":
             args.append(arg)
@@ -67,26 +67,41 @@ if __name__ == '__main__':
 examples:
     speaker identification
         %prog [ -d GMM_DB ] [ -j JAR_PATH ] [ -b UBM_PATH ] -i INPUT_FILE
-    
+
         user interactive mode
-        %prog [ -d GMM_DB ] [ -j JAR_PATH ] [ -b UBM_PATH ] -i INPUT_FILE -u    
+        %prog [ -d GMM_DB ] [ -j JAR_PATH ] [ -b UBM_PATH ] -i INPUT_FILE -u
 
     speaker model creation
         %prog [ -j JAR_PATH ] [ -b UBM_PATH ] -s SPEAKER_ID -g INPUT_FILE
         %prog [ -j JAR_PATH ] [ -b UBM_PATH ] -s SPEAKER_ID -g WAVE WAVE ... WAVE  MERGED_WAVES """
 
     parser = optparse.OptionParser(usage)
-    parser.add_option("-v", "--verbose", dest="verbose", action="store_true", default=False, help="verbose mode")
-    parser.add_option("-q", "--quiet", dest="quiet_mode", action="store_true", default=False, help="suppress prints")
-    parser.add_option("-k", "--keep-intermediatefiles", dest="keep_intermediate_files", action="store_true", help="keep all the intermediate files")
-    parser.add_option("-i", "--identify",  dest="file_input", metavar="FILE", help="identify speakers in video or audio file")
-    parser.add_option("-g", "--gmm", action="callback", callback=_multiargs_callback, dest="waves_for_gmm", help="build speaker model ")
-    parser.add_option("-s", "--speaker", dest="speakerid", help="speaker identifier for model building")
-    parser.add_option("-d", "--db",type="string", dest="dir_gmm", metavar="PATH",help="set the speakers models db path (default: %s)" % configuration.DB_DIR )
-    parser.add_option("-j", "--jar",type="string", dest="jar", metavar="PATH",help="set the LIUM_SpkDiarization jar path (default: %s)" % configuration.LIUM_JAR )
-    parser.add_option("-b", "--ubm",type="string", dest="ubm", metavar="PATH",help="set the gmm UBM model path (default: %s)" % configuration.UBM_PATH)
-    parser.add_option("-u", "--user-interactive", dest="interactive", action="store_true", help="User interactive training")
-    parser.add_option("-f", "--output-format", dest="output_format",action="store", type="string", help="output file format [ srt | json | xmp ] (default srt)")
+    parser.add_option("-v", "--verbose", dest="verbose", action="store_true", 
+                      default=False, help="verbose mode")
+    parser.add_option("-q", "--quiet", dest="quiet_mode", action="store_true", 
+                      default=False, help="suppress prints")
+    parser.add_option("-k", "--keep-intermediatefiles", 
+                      dest="keep_intermediate_files", action="store_true", 
+                      help="keep all the intermediate files")
+    parser.add_option("-i", "--identify", dest="file_input", metavar="FILE", 
+                      help="identify speakers in video or audio file")
+    parser.add_option("-g", "--gmm", action="callback", 
+                      callback=_multiargs_callback, dest="waves_for_gmm", 
+                      help="build speaker model ")
+    parser.add_option("-s", "--speaker", dest="speakerid", 
+                      help="speaker identifier for model building")
+    parser.add_option("-d", "--db", type="string", dest="dir_gmm", 
+                      metavar="PATH", 
+                      help="set the speakers models db path (default: %s)" % configuration.DB_DIR)
+    parser.add_option("-j", "--jar", type="string", dest="jar", metavar="PATH",
+                      help="set the LIUM_SpkDiarization jar path (default: %s)" % configuration.LIUM_JAR)
+    parser.add_option("-b", "--ubm", type="string", dest="ubm", metavar="PATH",
+                      help="set the gmm UBM model path (default: %s)" % configuration.UBM_PATH)
+    parser.add_option("-u", "--user-interactive", dest="interactive",
+                      action="store_true", help="User interactive training")
+    parser.add_option("-f", "--output-format", dest="output_format",
+                      action="store", type="string", 
+                      help="output file format [ srt | json | xmp ] (default srt)")
 
     (options, args) = parser.parse_args()
     if options.keep_intermediate_files:
@@ -112,13 +127,13 @@ examples:
         #create voiceid instance
         cmanager = sr.Voiceid(vdb=default_db, filename=options.file_input)
         #extract the speakers
-        cmanager.extract_speakers(interactive=options.interactive, 
-                                  quiet=configuration.QUIET_MODE, 
+        cmanager.extract_speakers(interactive=options.interactive,
+                                  quiet=configuration.QUIET_MODE,
                                   thrd_n=multiprocessing.cpu_count() * 5)
         #write the output according to the given output format
-        cmanager.write_output( configuration.OUTPUT_FORMAT )
+        cmanager.write_output(configuration.OUTPUT_FORMAT)
         if not configuration.KEEP_INTERMEDIATE_FILES:
-            os.remove(cmanager.get_file_basename() + '.seg')            
+            os.remove(cmanager.get_file_basename() + '.seg')
             os.remove(cmanager.get_file_basename() + '.mfcc')
             w = cmanager.get_file_basename() + '.wav'
             if cmanager.get_filename() != w:
@@ -133,7 +148,7 @@ examples:
             print 'error: SPEAKER_ID must be alphanumeric'
             exit(1)
         w = None
-        if len(waves)>1:
+        if len(waves) > 1:
             fm.merge_waves(waves[:-1], waves[-1])
             w = waves[-1]
         else:

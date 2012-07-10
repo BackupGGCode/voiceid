@@ -66,6 +66,18 @@ def start_subprocess(commandline):
         err.errno = retval
         raise err
 
+def check_cmd_output(command):
+    "Run a shell command and return the result as string"
+    process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE,
+                               stderr=subprocess.STDOUT,
+                               universal_newlines=True)
+    output = process.communicate()
+    retcode = process.poll()
+    if retcode:
+        raise subprocess.CalledProcessError(retcode,
+                                            command)
+                                            # output=output[0]???
+    return output
 
 def ensure_file_exists(filename):
     """Ensure file exists and is not empty, otherwise raise an IOError.

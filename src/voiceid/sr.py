@@ -939,7 +939,7 @@ class Voiceid:
                     try:
                         mean = self[clu].get_mean()
                         m_distance = self[clu].get_m_distance()
-                    except KeyError:
+                    except (KeyError, ValueError):
                         mean = 0
                         m_distance = 0
                     print """\t best speaker: %s (distance from 2nd %f - mean %f - distance from mean %f ) """ % (self[clu],

@@ -2,7 +2,7 @@
 #############################################################################
 #
 # VoiceID, Copyright (C) 2011-2012, Sardegna Ricerche.
-# Email: labcontdigit@sardegnaricerche.it, michela.fancello@crs4.it, 
+# Email: labcontdigit@sardegnaricerche.it, michela.fancello@crs4.it,
 #        mauro.mereu@crs4.it
 # Web: http://code.google.com/p/voiceid
 # Authors: Michela Fancello, Mauro Mereu
@@ -22,9 +22,7 @@
 import os
 import re
 import struct
-from . import utils
-import subprocess
-from . import VConf
+from . import VConf, utils
 
 CONFIGURATION = VConf()
 
@@ -307,7 +305,7 @@ def build_gmm(filebasename, identifier):
     :type identifier: string
     :param identifier: the name or identifier of the speaker"""
 
-    diarization(filebasename)
+    diarization_standard(filebasename)
     ident_seg(filebasename, identifier)
     extract_mfcc(filebasename)
     _train_init(filebasename)
@@ -387,10 +385,11 @@ def seg2srt(segfile):
 def extract_mfcc(filebasename):
     """Extract audio features from the wave file, in particular the
     mel-frequency cepstrum using a sphinx tool."""
-    cline = "sphinx_fe -verbose no "
+    cline = "sphinx_fe -blocksize 2048 -verbose no "
     cline += " -mswav yes -i %s.wav -o %s.mfcc" % (filebasename, filebasename)
     utils.start_subprocess(cline)
     utils.ensure_file_exists(filebasename + '.mfcc')
+#    utils.check_cmd_output(command)
 
 
 def ident_seg(filebasename, identifier):
@@ -472,22 +471,8 @@ def file2trim(filename):
 #--------------------------------------------
 def get_features_number(filebasename):
     """Return mfcc features number"""
-
-    def my_check_output(command):
-        "Run a shell command and return the result as string"
-        process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE,
-                                   stderr=subprocess.STDOUT,
-                                   universal_newlines=True)
-        output = process.communicate()
-        retcode = process.poll()
-        if retcode:
-            raise subprocess.CalledProcessError(retcode,
-                                                command)
-                                                # output=output[0]???
-        return output
-
     #get the header in a temporary file
-    header = my_check_output('sphinx_cepview '
+    header = utils.check_cmd_output('sphinx_cepview '
                           + '-d 0 -e 1 -header 1 -f %s.mfcc' % filebasename)
 #    print header[0]
 

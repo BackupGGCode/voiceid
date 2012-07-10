@@ -32,7 +32,7 @@
 # using the scripts to create the gmm files.
 #
 
-from voiceid import VConf, sr, db
+from voiceid import VConf, sr, db, utils
 import wx.lib.agw.ultimatelistctrl as ULC
 from wx.lib.pubsub import Publisher
 import MplayerCtrl as mpc
@@ -63,17 +63,10 @@ def get_length(filepath):
     
     :type filename: string
     :param filepath: video's path"""        
-    def my_check_output(command): 
-        process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True)
-        output = process.communicate()
-        retcode = process.poll()
-        if retcode:
-                raise subprocess.CalledProcessError(retcode, command, output=output[0])
-        return output
     print filepath 
     try:     
         command = """mplayer  -vo null -ao null -frames 0 -identify %s 2>/dev/null |sed -ne '/^ID_/ {s/[]()|&;<>`'"'"'\\!$" []/\\&/g;p}'""" % filepath
-        result = my_check_output(command)
+        result = utils.check_cmd_output(command)
         r = result[0].split('\n')
         for row in r:
             if row.startswith("ID_LENGTH"):
@@ -198,12 +191,11 @@ class Controller:
         
     def update_status(self, msg):
         """Receives data from thread and updates the status bar
-        
+
         :type msg: Message
         :param msg: text to update status bar"""
         self.frame.set_status_text(msg.data)
-        
-            
+
     def on_update_playback(self, event):
         """Updates playback slider and track counter"""
         try:
