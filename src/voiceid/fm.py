@@ -472,8 +472,8 @@ def file2trim(filename):
 def get_features_number(filebasename):
     """Return mfcc features number"""
     #get the header in a temporary file
-    header = utils.check_cmd_output('sphinx_cepview '
-                          + '-d 0 -e 1 -header 1 -f %s.mfcc' % filebasename)
+    header = utils.check_cmd_output(
+        'sphinx_cepview -d 0 -e 1 -header 1 -f %s.mfcc' % filebasename)
 #    print header[0]
 
     #get the number of computed MFCC vectors

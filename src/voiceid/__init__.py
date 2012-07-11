@@ -142,4 +142,3 @@ class VConf(object):
         self.output_redirect = open(os.path.devnull, 'w')
         if self.VERBOSE:
             self.output_redirect = open(sys.stdout, 'w')
-
