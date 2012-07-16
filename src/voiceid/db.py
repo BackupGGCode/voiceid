@@ -172,7 +172,7 @@ class GMMVoiceDB(VoiceDB):
 
         :type gender: char F, M or U
         :param gender: the gender of the speaker (optional)"""
-
+        
         fm.extract_mfcc(basefilename)
         utils.ensure_file_exists(basefilename + ".mfcc")
         fm.build_gmm(basefilename, identifier)

@@ -98,6 +98,7 @@ class Controller:
         """ Binding toolbar buttons to control's function """
         self.frame.Bind(wx.EVT_MENU, self.on_add_file, self.frame.add_file_menu_item)
         self.frame.Bind(wx.EVT_MENU, self.on_run, self.frame.run_menu_item)
+        self.frame.Bind(wx.EVT_MENU, self.on_match_clusters, self.frame.match_menu_item)
         self.frame.Bind(wx.EVT_MENU, self.on_save, self.frame.train_menu_item)
         self.frame.Bind(wx.EVT_MENU, self.on_select_db, self.frame.db_menu_item)
         
@@ -140,7 +141,8 @@ class Controller:
             json_path = json_path.replace('"', '')
             
         self.frame.run_menu_item.Enable(True)
-        self.clusters_list.clean()
+        self.frame.match_menu_item.Enable(True)
+        self.clusters_list.clean_list()
         
         #self.clusters_list.set_info_video("")
         
@@ -148,7 +150,8 @@ class Controller:
             self.model.load_json(json_path)
             self.frame.train_menu_item.Enable(True)
             wx.CallAfter(Publisher().sendMessage, "update_list", "Loading finished")
-            wx.CallAfter(Publisher().sendMessage, "update_info")
+        
+        wx.CallAfter(Publisher().sendMessage, "update_info")
             
     def on_select_db(self, event):
         """Set database path"""
@@ -157,6 +160,7 @@ class Controller:
         if dialog.ShowModal() == wx.ID_OK:
             dbDir = dialog.GetPath()
             self.model.set_db(dbDir)
+            wx.CallAfter(Publisher().sendMessage, "update_info")
             try:
                 path_video = self.player.video_path.replace('"', '')
                 self.model.load_video(str(path_video))
@@ -186,6 +190,7 @@ class Controller:
         self.frame.train_menu_item.Enable(True)
         self.frame.db_menu_item.Enable(True)
         self.frame.run_menu_item.Enable(True)
+        self.frame.match_menu_item.Enable(True)
         wx.CallAfter(Publisher().sendMessage, "update_list", "Process finished")
         wx.CallAfter(Publisher().sendMessage, "update_info")
         
@@ -223,8 +228,8 @@ class Controller:
             
     def on_run(self, event):
         """Runs Speaker Recognition"""
-        self.clusters_list.set_info_video("")
-        self.clusters_list.clean()
+        self.clusters_list.clean_list()
+        self.player.colorPanel.clear()
         self.frame.run_menu_item.Enable(False)
         self.frame.db_menu_item.Enable(False)
         path = self.player.video_path.replace('"', '')
@@ -234,12 +239,30 @@ class Controller:
         self.thread_extraction = threading.Thread(target=self.model.extract_speakers)
         self.thread_extraction.start()
 
+    def on_match_clusters(self,event):
+        """Match clusters"""      
+        path = self.player.video_path.replace('"', '')
+        path_basename=str(os.path.basename(str(path)))
+        path_without_ext= os.path.splitext(str(path))[0]
+        if os.path.exists(path_without_ext+".seg") and os.path.exists(path_without_ext+'.wav'):
+            self.clusters_list.clean_list()
+            self.frame.run_menu_item.Enable(False)
+            self.frame.db_menu_item.Enable(False)
+            self.model.load_video(str(path))
+            self.thread_logger = threading.Thread(target=self.on_extraction_speakers)
+            self.thread_logger.start()
+            self.thread_match = threading.Thread(target=self.model.match_clusters)
+            self.thread_match.start()
+        else:
+            dlg= wx.MessageDialog(self.frame,"You need the wave and seg files","ERROR!",wx.OK)
+            result = dlg.ShowModal()
+            dlg.Destroy()
     def update_list(self, msg):
         """Receives data to updates clusters list
         
         :type msg: Message
         :param msg: text to update list"""
-        self.clusters_list.clean()
+        self.clusters_list.clean_list()
         clusters = self.model.get_clusters()
         clusters_review = []
         for c in clusters.values():
@@ -254,8 +277,16 @@ class Controller:
         
         :type msg: Message
         :param msg: text to update video info"""
-        u, k = self.model.get_clusters_info()
-        text = "*Video: \n %s \n Length: %.2f \n\n *Database folder: %s \n\n *Speakers : %s unknown + %s known" % (str(os.path.basename(self.player.video_path)), float(self.player.video_length) / 60, str(os.path.basename(self.model.get_db())), str(u), str(k))
+        text=""
+        
+        try:
+            u, k = self.model.get_clusters_info()
+            text = "*Video: \n %s \n Length: %.2f \n\n *Database folder: %s \n\n *Speakers : %s unknown + %s known" % (str(os.path.basename(self.player.video_path)), float(self.player.video_length) / 60, str(os.path.basename(self.model.get_db())), str(u), str(k))
+        except:
+            if self.player.video_length!=None:
+                text = "*Video: \n %s \n Length: %.2f \n\n *Database folder: %s \n\n" % (str(os.path.basename(self.player.video_path)), float(self.player.video_length) / 60, str(os.path.basename(self.model.get_db())))
+            else:
+                text = "*Database folder: %s \n\n" %str(os.path.basename(self.model.get_db()))
         self.clusters_list.set_info_video(text)
 
     def on_check_col_clusters_list(self, event):
@@ -429,10 +460,13 @@ class MainFrame(wx.Frame):
         srSettings = wx.Menu()
         self.add_file_menu_item = fileMenu.Append(wx.NewId(), "&Open video", "Add Media File")
         self.run_menu_item = srMenu.Append(wx.NewId(), "&Run Recognition", "Extracts speakers and recognize them")
+        self.match_menu_item = srMenu.Append(wx.NewId(), "&Match clusters", "Recognize speakers loading a seg file")
         self.db_menu_item = srMenu.Append(wx.NewId(), "&Select Db", "Creates new db or select an existing")
+        
         self.train_menu_item = srMenu.Append(wx.NewId(), "&Save ", "Save data in json file")
         self.train_menu_item.Enable(False)
         self.run_menu_item.Enable(False)
+        self.match_menu_item.Enable(False)
         menubar.Append(fileMenu, '&File')
         menubar.Append(srMenu, '&Speaker Recognition')
         #menubar.Append(srSettings, '&Settings')
@@ -626,6 +660,7 @@ class CheckListCtrl(ULC.UltimateListCtrl):
         self.parent = parent
         ULC.UltimateListCtrl.__init__(self, parent , agwStyle=ULC.ULC_AUTO_CHECK_CHILD | ULC.ULC_EDIT_LABELS | ULC.ULC_REPORT | ULC.ULC_SINGLE_SEL | ULC.ULC_VRULES | ULC.ULC_HRULES)
         self.checked = []
+        
 
 class ClustersList(wx.Panel):
     """Builds the cluster's list"""
@@ -667,6 +702,7 @@ class ClustersList(wx.Panel):
         self.Bind(wx.EVT_SIZE, self.on_size)
         self.info.Bind(wx.EVT_SIZE, self.on_size)
         self.list.Bind(wx.EVT_SIZE, self.on_size)
+        self.list.Bind(wx.EVT_MOTION, self.on_mouse_over)
         self.columns = 0
         self.sizer.Add(self.boxsizer_info, 2, wx.EXPAND | wx.ALL, 2)
         self.sizer.Add(self.boxsizer_list, 5, wx.EXPAND | wx.ALL, 2)
@@ -701,12 +737,14 @@ class ClustersList(wx.Panel):
         self.list.SetItemKind(item1, 0, 1)
         self.columns += 1
     
-    def clean(self):
+    def clean_list(self):
         """Resets list objects"""
         self.speakers_GRB = {}
         self.columns = 0
         self.list.DeleteAllItems()
         self.list.checked = []
+        
+    def clean_info(self):
         self.set_info_video("")
         
     def set_info_video(self, text):
@@ -731,7 +769,10 @@ class ClustersList(wx.Panel):
         self.info.Layout()
         self.Refresh()
         self.Layout()
-           
+        
+    def on_mouse_over(self, event):
+        pass     
+         
 class ColorPanel(wx.Panel):
     """Draws a graphical representation of clusters"""
     
@@ -821,6 +862,14 @@ class Model:
         self.voiceid.extract_speakers(False, False, 4)
         self.voiceid._automerge_segments() # experimental
         self._clusters = self.voiceid.get_clusters()
+        
+    def match_clusters(self):
+        """
+        Match clusters 
+        """
+        self.voiceid._to_trim()
+        self.voiceid._cluster_matching(thrd_n=4)
+        self._clusters = self.voiceid.get_clusters()
 
     def get_status(self):
         """Return last completed step status"""
@@ -838,12 +887,15 @@ class Model:
         """Return the number of unknown and known speakers"""
         unknown = 0
         known = 0
-        for c in self._clusters:
-            if self._clusters[c].get_speaker() == 'unknown':
-                unknown += 1
-            else:
-                known += 1
-        return unknown, known
+        if self._clusters and len(self._clusters)>0:
+            for c in self._clusters:
+                if self._clusters[c].get_speaker() == 'unknown':
+                    unknown += 1
+                else:
+                    known += 1
+            return unknown, known
+        else:
+            raise "Not clusters found!"
     
     def get_cluster(self, label):
         """Return specific cluster

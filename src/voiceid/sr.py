@@ -734,11 +734,10 @@ class Voiceid:
                 if not quiet:
                     print '\t ------------------------'"""
             if interactive == True:
-                self._set_interactive(True)
-                speakers[clu] = best = _interactive_training(basename,
+                self._set_interactive( True )
+                speakers[clu] = best = _interactive_training(basename, 
                                                           clu, speakers[clu])
                 self[clu].set_speaker(best)
-
     def _rename_clusters(self):
         """Rename all clusters from S0 to Sn"""
         all_clusters = []
@@ -945,15 +944,28 @@ class Voiceid:
                     print """\t best speaker: %s (distance from 2nd %f - mean %f - distance from mean %f ) """ % (self[clu],
                                                               distance, mean, m_distance)
                 speakers_in_db = self.get_db().get_speakers()
-                tot_voices = len(speakers_in_db['F']) + len(speakers_in_db['M']) + len(speakers_in_db['U'])
-                voice_time = float(total_time - diarization_time)
-                t_f_s = voice_time / len(speakers_in_db)
-                print """\nwav duration: %s\nall done in %dsec (%s) (diarization %dsec time:%s )  with %s threads and %d voices in db (%f) """ % (utils.humanize_time(sec),
-                                  total_time, utils.humanize_time(total_time),
-                                  diarization_time,
-                                  utils.humanize_time(diarization_time),
-                                  thrd_n, tot_voices, t_f_s)
-
+                tot_voices = len(speakers_in_db['F']) + \
+                    len(speakers_in_db['M'])+len(speakers_in_db['U'])
+                
+                if diarization_time!=None:
+                    voice_time = float(total_time - diarization_time ) 
+                    t_f_s = voice_time / len(speakers_in_db) 
+                    print """\nwav duration: %s\nall done in %dsec (%s) (diarization %dsec time:%s )  with %s threads and %d voices in db (%f) """ % (utils.humanize_time(sec), 
+                                                                                                                                                  total_time, 
+                                                                                                                                                  utils.humanize_time(total_time), 
+                                                                                                                                                  diarization_time, 
+                                                                                                                                                  utils.humanize_time(diarization_time), 
+                                                                                                                                                  thrd_n, 
+                                                                                                                                                  tot_voices, 
+                                                                                                                                                  t_f_s)
+                else:
+                    print """\nwav duration: %s\nmatch clusters done in %dsec (%s)  with %s threads and %d voices in db """ % (utils.humanize_time(sec), 
+                                                                                                                                                  total_time, 
+                
+                                                                                                                                                  utils.humanize_time(total_time), 
+                                                                                                                                                  thrd_n, 
+                                                                                                                                                  tot_voices 
+                                                                                                                                                )
     def _match_voice_wrapper(self, cluster, mfcc_name, db_entry, gender):
         """A wrapper to match the voices each in a different Thread."""
         results = self.get_db().match_voice(mfcc_name, db_entry, gender)
