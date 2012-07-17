@@ -97,9 +97,10 @@ class Controller:
         
         """ Binding toolbar buttons to control's function """
         self.frame.Bind(wx.EVT_MENU, self.on_add_file, self.frame.add_file_menu_item)
-        self.frame.Bind(wx.EVT_MENU, self.on_run, self.frame.run_menu_item)
-        self.frame.Bind(wx.EVT_MENU, self.on_match_clusters, self.frame.match_menu_item)
-        self.frame.Bind(wx.EVT_MENU, self.on_save, self.frame.train_menu_item)
+        self.frame.Bind(wx.EVT_MENU, self.on_run_all, self.frame.all_menu_item)
+        self.frame.Bind(wx.EVT_MENU, self.on_run_recognition, self.frame.recognition_menu_item)
+        self.frame.Bind(wx.EVT_MENU, self.on_run_diarization, self.frame.diarization_menu_item)
+        self.frame.Bind(wx.EVT_MENU, self.on_save, self.frame.save_menu_item)
         self.frame.Bind(wx.EVT_MENU, self.on_select_db, self.frame.db_menu_item)
         
         self.player.Bind(wx.EVT_TIMER, self.on_update_playback)
@@ -141,14 +142,14 @@ class Controller:
             json_path = json_path.replace('"', '')
             
         self.frame.run_menu_item.Enable(True)
-        self.frame.match_menu_item.Enable(True)
+        self.frame.recognition_menu_item.Enable(True)
         self.clusters_list.clean_list()
         
         #self.clusters_list.set_info_video("")
         
         if os.path.exists(json_path):
             self.model.load_json(json_path)
-            self.frame.train_menu_item.Enable(True)
+            #self.frame.save_menu_item.Enable(True)
             wx.CallAfter(Publisher().sendMessage, "update_list", "Loading finished")
         
         wx.CallAfter(Publisher().sendMessage, "update_info")
@@ -169,11 +170,11 @@ class Controller:
                 #print "No video to load"
         dialog.Destroy()
      
-    def on_extraction_speakers(self):
-        """Updates status bar while extracting speakers"""
+    def on_processing(self):
+        """Updates status bar while process input file"""
         old_status = self.model.get_status()
         wx.CallAfter(Publisher().sendMessage, "update_status", self.model.get_working_status() + " ...")
-        while self.model.get_status() < 5:
+        while self.thread_processing.isAlive():
             time.sleep(2)
             status = self.model.get_status()
             try:
@@ -182,18 +183,34 @@ class Controller:
                     wx.CallAfter(Publisher().sendMessage, "update_status", self.model.get_working_status() + " ...")
             except StandardError:
                 print "Error in print_logger"
-        self.on_finish_extraction_speakers()
         
-    def on_finish_extraction_speakers(self):
+        self.on_finish_processing()
+        
+    def on_finish_processing(self):
         """Enables Speaker Recognition button and update speakers list"""
-        wx.CallAfter(Publisher().sendMessage, "update_status", self.model.get_working_status())
-        self.frame.train_menu_item.Enable(True)
+        wx.CallAfter(Publisher().sendMessage, "update_status", self.model.get_map_status())
+        self.frame.save_menu_item.Enable(True)
         self.frame.db_menu_item.Enable(True)
         self.frame.run_menu_item.Enable(True)
-        self.frame.match_menu_item.Enable(True)
+        self.frame.recognition_menu_item.Enable(True)
         wx.CallAfter(Publisher().sendMessage, "update_list", "Process finished")
         wx.CallAfter(Publisher().sendMessage, "update_info")
         
+    def on_save_changes(self):
+        self.frame.add_file_menu_item.Enable(False)
+        self.frame.save_menu_item.Enable(False)
+        self.frame.db_menu_item.Enable(False)
+        self.frame.run_menu_item.Enable(False)
+        while self.thread_saving.isAlive():
+            time.sleep(2)
+            wx.CallAfter(Publisher().sendMessage, "update_status", "Saving changes...")
+        wx.CallAfter(Publisher().sendMessage, "update_list", "Changes saved")
+        wx.CallAfter(Publisher().sendMessage, "update_info")
+        wx.CallAfter(Publisher().sendMessage, "update_status", "Changes saved")
+        self.frame.add_file_menu_item.Enable(True)
+        self.frame.save_menu_item.Enable(True)
+        self.frame.db_menu_item.Enable(True)
+        self.frame.run_menu_item.Enable(True)
     def update_status(self, msg):
         """Receives data from thread and updates the status bar
 
@@ -220,43 +237,68 @@ class Controller:
             
     def on_save(self, event):
         """Exports info to json format"""
-        wx.CallAfter(Publisher().sendMessage, "update_status", "Saving changes...")
-        self.model.save_changes()
-        wx.CallAfter(Publisher().sendMessage, "update_list", "Changes saved")
-        wx.CallAfter(Publisher().sendMessage, "update_info")
-        wx.CallAfter(Publisher().sendMessage, "update_status", "Changes saved")
+        
+        self.thread_saving = threading.Thread(target=self.model.save_changes)
+        self.thread_saving.start()
+        thread_logger= threading.Thread(target=self.on_save_changes)
+        thread_logger.start()
             
-    def on_run(self, event):
+    def on_run_all(self, event):
         """Runs Speaker Recognition"""
-        self.clusters_list.clean_list()
-        self.player.colorPanel.clear()
-        self.frame.run_menu_item.Enable(False)
-        self.frame.db_menu_item.Enable(False)
-        path = self.player.video_path.replace('"', '')
-        self.model.load_video(str(path))
-        self.thread_logger = threading.Thread(target=self.on_extraction_speakers)
-        self.thread_logger.start()
-        self.thread_extraction = threading.Thread(target=self.model.extract_speakers)
-        self.thread_extraction.start()
-
-    def on_match_clusters(self,event):
-        """Match clusters"""      
-        path = self.player.video_path.replace('"', '')
-        path_basename=str(os.path.basename(str(path)))
-        path_without_ext= os.path.splitext(str(path))[0]
-        if os.path.exists(path_without_ext+".seg") and os.path.exists(path_without_ext+'.wav'):
+        if self.player.video_path == None:
+            self.show_alert("Select a file video/audio!", "ERROR!")
+        else:
             self.clusters_list.clean_list()
+            self.player.colorPanel.clear()
             self.frame.run_menu_item.Enable(False)
             self.frame.db_menu_item.Enable(False)
+            path = self.player.video_path.replace('"', '')
             self.model.load_video(str(path))
-            self.thread_logger = threading.Thread(target=self.on_extraction_speakers)
+            self.thread_processing = threading.Thread(target=self.model.extract_speakers)
+            self.thread_processing.start()
+            self.thread_logger = threading.Thread(target=self.on_processing)
             self.thread_logger.start()
-            self.thread_match = threading.Thread(target=self.model.match_clusters)
-            self.thread_match.start()
-        else:
-            dlg= wx.MessageDialog(self.frame,"You need the wave and seg files","ERROR!",wx.OK)
-            result = dlg.ShowModal()
-            dlg.Destroy()
+
+    def on_run_recognition(self,event):
+        """Match clusters"""   
+        if self.player.video_path == None:
+            self.show_alert("Select a file video/audio!", "ERROR!")
+        else:   
+            path = self.player.video_path.replace('"', '')
+            path_basename=str(os.path.basename(str(path)))
+            path_without_ext= os.path.splitext(str(path))[0]
+            if os.path.exists(path_without_ext+".seg") and os.path.exists(path_without_ext+'.wav'):
+                self.clusters_list.clean_list()
+                self.frame.run_menu_item.Enable(False)
+                self.frame.db_menu_item.Enable(False)
+                self.model.load_video(str(path))
+                self.thread_processing = threading.Thread(target=self.model.match_clusters)
+                self.thread_processing.start()
+                self.thread_logger = threading.Thread(target=self.on_processing)
+                self.thread_logger.start()
+            else:
+                self.show_alert("You need the wave and seg files","ERROR!")
+                
+    def on_run_diarization(self, event):
+        if self.player.video_path == None:
+            self.show_alert("Select a file video/audio!", "ERROR!")
+        else:   
+            path = self.player.video_path.replace('"', '')
+            path_basename=str(os.path.basename(str(path)))
+            path_without_ext= os.path.splitext(str(path))[0]
+            if os.path.exists(path_without_ext+'.wav'):
+                self.clusters_list.clean_list()
+                self.frame.run_menu_item.Enable(False)
+                self.frame.db_menu_item.Enable(False)
+                self.frame.save_menu_item.Enable(False)
+                self.model.load_video(str(path))
+                self.thread_processing = threading.Thread(target=self.model.diarization)
+                self.thread_processing.start()
+                self.thread_logger = threading.Thread(target=self.on_processing)
+                self.thread_logger.start()
+            else:
+                self.show_alert("You need the wave files","ERROR!")
+                
     def update_list(self, msg):
         """Receives data to updates clusters list
         
@@ -419,7 +461,12 @@ class Controller:
         if self.player.playbackTimer.IsRunning():
             self.player.mpc.Pause()
             self.player.playbackTimer.Stop()  
-            
+   
+    def show_alert(self, text, type):
+        dlg= wx.MessageDialog(self.frame, text, type, wx.OK)
+        result = dlg.ShowModal()
+        dlg.Destroy()
+        
 class ClusterForm(wx.Dialog):
     """Build a form to insert the correct speaker name"""
     def __init__(self, parent, title):
@@ -459,14 +506,18 @@ class MainFrame(wx.Frame):
         srMenu = wx.Menu()
         srSettings = wx.Menu()
         self.add_file_menu_item = fileMenu.Append(wx.NewId(), "&Open video", "Add Media File")
-        self.run_menu_item = srMenu.Append(wx.NewId(), "&Run Recognition", "Extracts speakers and recognize them")
-        self.match_menu_item = srMenu.Append(wx.NewId(), "&Match clusters", "Recognize speakers loading a seg file")
+        #self.run_menu_item = srMenu.Append(wx.NewId(), "&Run", "Extracts speakers and recognize them")
         self.db_menu_item = srMenu.Append(wx.NewId(), "&Select Db", "Creates new db or select an existing")
         
-        self.train_menu_item = srMenu.Append(wx.NewId(), "&Save ", "Save data in json file")
-        self.train_menu_item.Enable(False)
-        self.run_menu_item.Enable(False)
-        self.match_menu_item.Enable(False)
+        submenu = wx.Menu()
+        self.all_menu_item = submenu.Append(wx.NewId(), 'All', 'Make diarization and match voices', kind=wx.ITEM_NORMAL)
+        self.diarization_menu_item = submenu.Append(wx.NewId(), 'Diarization','Make segmentation file', kind=wx.ITEM_NORMAL)
+        self.recognition_menu_item = submenu.Append(wx.NewId(), 'Recognition', 'Compare voices with models in the db by loading a seg file', kind=wx.ITEM_NORMAL)
+        
+        self.run_menu_item = srMenu.AppendMenu(wx.NewId(), "&Run", submenu, "Extracts speakers and recognize them")
+        self.save_menu_item = srMenu.Append(wx.NewId(), "&Save ", "Save data in json file")
+        self.save_menu_item.Enable(False)
+        self.run_menu_item.Enable(True)
         menubar.Append(fileMenu, '&File')
         menubar.Append(srMenu, '&Speaker Recognition')
         #menubar.Append(srSettings, '&Settings')
@@ -871,9 +922,18 @@ class Model:
         self.voiceid._cluster_matching(thrd_n=4)
         self._clusters = self.voiceid.get_clusters()
 
+    def diarization(self):
+        self.voiceid.diarization()
+        self.voiceid._extract_clusters()
+        self._clusters = self.voiceid.get_clusters()
+
     def get_status(self):
-        """Return last completed step status"""
+        """Return step number status"""
         return self.voiceid.get_status()
+    
+    def get_map_status(self):
+        """Return step status"""
+        return self.voiceid.status_map[self.voiceid.get_status()]
     
     def get_working_status(self):
         """Return current step status"""

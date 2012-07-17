@@ -600,7 +600,9 @@ class Voiceid:
     def _to_wav(self):
         """In case the input file is a video or the wave is in a wrong format,
          convert to wave."""
+        self._status = 0
         fm.file2wav(self.get_filename())
+        self._status = 1
 
     def generate_seg_file(self, set_speakers=True):
         """Generate a seg file according to the information acquired about the
@@ -616,6 +618,7 @@ class Voiceid:
         """Run the diarization process. In case of single mode (single speaker
         in the input file) just create the seg file with silence and gender
         detection."""
+        self._status = 1
         if self._single:
             self._to_mfcc()
             try:
@@ -680,6 +683,7 @@ class Voiceid:
         else:
             self._to_mfcc()
             fm.diarization(self._basename)
+        self._status = 2
 
     def _to_mfcc(self):
         """Extract the mfcc of the wave input file. Needs the wave file so a
@@ -689,9 +693,12 @@ class Voiceid:
     def _to_trim(self):
         """Trim the wave input file according to the segmentation in the seg
         file. Run after diarization."""
+        self._status = 2
         fm.seg2trim(self._basename)
+        self._status = 3
 
     def _extract_clusters(self):
+        
         extract_clusters(self._basename + '.seg', self._clusters)
 
     def _match_clusters(self, interactive=False, quiet=False):
@@ -887,12 +894,10 @@ class Voiceid:
             print self.get_working_status()
         # convert your input file to a Wave file having some tech requirements
         self._to_wav()
-        self._status = 1
         if not quiet:
             print self.get_working_status()
         self.diarization()  # start diarization over your wave file
         diarization_time = time.time() - start_time
-        self._status = 2
         if not quiet:
             print self.get_working_status()
         # trim the original wave file according to segs given by diarization
@@ -909,8 +914,7 @@ class Voiceid:
     def _cluster_matching(self, diarization_time=None, interactive=False,
                           quiet=False, thrd_n=1, start_t=0):
         """Match for voices in the db"""
-        if not quiet:
-            print self.get_working_status()
+        self._status = 4
         basename = self.get_file_basename()
         self._extract_clusters()
         self._match_clusters(interactive, quiet)
