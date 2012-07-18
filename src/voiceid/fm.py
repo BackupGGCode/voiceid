@@ -553,7 +553,7 @@ def diarization_standard(filebasename):
     utils.ensure_file_exists(filebasename + '.seg')
 
 
-def diarization(filebasename):
+def diarization(filebasename, h_par='3', c_par='1.5'):
     """Take a mfcc and wave file in the correct format and build a
     segmentation file.
     The seg file shows how much speakers are in the audio and when they talk.
@@ -601,7 +601,6 @@ def diarization(filebasename):
            + '--sOutputMask=%s.l.seg ' + filebasename)
     utils.ensure_file_exists(filebasename + '.l.seg')
 
-    h_par = '7'
     # hierarchical clustering
     utils.start_subprocess('java -Xmx' + JAVA_MEM + 'm -classpath '
            + CONFIGURATION.LIUM_JAR
@@ -673,8 +672,6 @@ def diarization(filebasename):
            + '.seg ' + filebasename)
     utils.ensure_file_exists(filebasename + '.spl.' + h_par + '.seg')
 
-    c_par = '1.4'
-
     #Set gender and bandwith
     f_desc_clr = "audio16kHz2sphinx,1:3:2:0:0:0,13,1:1:300:4"
     utils.start_subprocess('java -Xmx' + JAVA_MEM + 'm -classpath '
@@ -705,7 +702,6 @@ def diarization(filebasename):
                   '.g.' + h_par + '.seg']
         for ext in f_list:
             os.remove(filebasename + ext)
-
 
 def _train_init(filebasename):
     """Train the initial speaker gmm model."""

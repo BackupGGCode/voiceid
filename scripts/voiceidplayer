@@ -170,7 +170,7 @@ class Controller:
                 #print "No video to load"
         dialog.Destroy()
      
-    def on_processing(self):
+    def log_on_processing(self):
         """Updates status bar while process input file"""
         old_status = self.model.get_status()
         wx.CallAfter(Publisher().sendMessage, "update_status", self.model.get_working_status() + " ...")
@@ -196,7 +196,7 @@ class Controller:
         wx.CallAfter(Publisher().sendMessage, "update_list", "Process finished")
         wx.CallAfter(Publisher().sendMessage, "update_info")
         
-    def on_save_changes(self):
+    def log_on_save_changes(self):
         self.frame.add_file_menu_item.Enable(False)
         self.frame.save_menu_item.Enable(False)
         self.frame.db_menu_item.Enable(False)
@@ -211,6 +211,7 @@ class Controller:
         self.frame.save_menu_item.Enable(True)
         self.frame.db_menu_item.Enable(True)
         self.frame.run_menu_item.Enable(True)
+        
     def update_status(self, msg):
         """Receives data from thread and updates the status bar
 
@@ -240,7 +241,7 @@ class Controller:
         
         self.thread_saving = threading.Thread(target=self.model.save_changes)
         self.thread_saving.start()
-        thread_logger= threading.Thread(target=self.on_save_changes)
+        thread_logger= threading.Thread(target=self.log_on_save_changes)
         thread_logger.start()
             
     def on_run_all(self, event):
@@ -256,7 +257,7 @@ class Controller:
             self.model.load_video(str(path))
             self.thread_processing = threading.Thread(target=self.model.extract_speakers)
             self.thread_processing.start()
-            self.thread_logger = threading.Thread(target=self.on_processing)
+            self.thread_logger = threading.Thread(target=self.log_on_processing)
             self.thread_logger.start()
 
     def on_run_recognition(self,event):
@@ -274,7 +275,7 @@ class Controller:
                 self.model.load_video(str(path))
                 self.thread_processing = threading.Thread(target=self.model.match_clusters)
                 self.thread_processing.start()
-                self.thread_logger = threading.Thread(target=self.on_processing)
+                self.thread_logger = threading.Thread(target=self.log_on_processing)
                 self.thread_logger.start()
             else:
                 self.show_alert("You need the wave and seg files","ERROR!")
@@ -294,7 +295,7 @@ class Controller:
                 self.model.load_video(str(path))
                 self.thread_processing = threading.Thread(target=self.model.diarization)
                 self.thread_processing.start()
-                self.thread_logger = threading.Thread(target=self.on_processing)
+                self.thread_logger = threading.Thread(target=self.log_on_processing)
                 self.thread_logger.start()
             else:
                 self.show_alert("You need the wave files","ERROR!")
