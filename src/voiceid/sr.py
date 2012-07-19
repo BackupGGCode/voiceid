@@ -468,7 +468,8 @@ class Voiceid:
         self._set_filename(filename)
         self._status = 0
         self._single = single
-
+        self._diar_conf=(3,1.5)
+        
     def __getitem__(self, key):
         return self._clusters.__getitem__(key)
 
@@ -682,7 +683,9 @@ class Voiceid:
             utils.ensure_file_exists(segname)
         else:
             self._to_mfcc()
-            fm.diarization(self._basename)
+            print str(self._diar_conf[0])
+            print str(self._diar_conf[1])
+            fm.diarization(self._basename,str(self._diar_conf[0]),str(self._diar_conf[1]))
         self._status = 2
 
     def _to_mfcc(self):
@@ -975,6 +978,14 @@ class Voiceid:
         results = self.get_db().match_voice(mfcc_name, db_entry, gender)
         for res in results:
             self[cluster].add_speaker(res, results[res])
+
+    def set_noise_mode(self, mode):
+        """Set a diarization configuration for noisy videos """
+        
+        if mode==0:
+            self._diar_conf=(3,1.5)
+        else:
+            self._diar_conf=(7,1.4)
 
     def update_db(self, t_num=4, automerge=False):
         """Update voice db after some changes, for example after a train

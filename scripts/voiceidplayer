@@ -55,6 +55,8 @@ configuration.KEEP_INTERMEDIATE_FILES = True
 LIST_ID = 26
 PLAY_ID = 1
 EDIT_ID = 0
+MODE_DEFAULT=311
+MODE_NOISE=312
 OK_DIALOG = 33
 CANCEL_DIALOG = 34
 
@@ -100,6 +102,8 @@ class Controller:
         self.frame.Bind(wx.EVT_MENU, self.on_run_all, self.frame.all_menu_item)
         self.frame.Bind(wx.EVT_MENU, self.on_run_recognition, self.frame.recognition_menu_item)
         self.frame.Bind(wx.EVT_MENU, self.on_run_diarization, self.frame.diarization_menu_item)
+        self.frame.Bind(wx.EVT_MENU, self.on_change_mode, self.frame.def_mode_menu_item)
+        self.frame.Bind(wx.EVT_MENU, self.on_change_mode, self.frame.noise_mode_menu_item)
         self.frame.Bind(wx.EVT_MENU, self.on_save, self.frame.save_menu_item)
         self.frame.Bind(wx.EVT_MENU, self.on_select_db, self.frame.db_menu_item)
         
@@ -110,6 +114,8 @@ class Controller:
         self.clusters_list.list.Bind(ULC.EVT_LIST_ITEM_CHECKED, self.on_check_item_clusters_list)
         self.clusters_list.list.Bind(ULC.EVT_LIST_END_LABEL_EDIT, self.on_edit_cluster)
         self.player.colorPanel.Bind(wx.EVT_PAINT, self.draw_selected_clusters)
+        
+        self._setting_mode = -1
         
         Publisher().subscribe(self.update_status, "update_status")
         Publisher().subscribe(self.update_list, "update_list")
@@ -141,8 +147,7 @@ class Controller:
             json_path = os.path.splitext(trackPath)[0] + '.json'
             json_path = json_path.replace('"', '')
             
-        self.frame.run_menu_item.Enable(True)
-        self.frame.recognition_menu_item.Enable(True)
+        self.frame.enable_menu(True)
         self.clusters_list.clean_list()
         
         #self.clusters_list.set_info_video("")
@@ -189,29 +194,27 @@ class Controller:
     def on_finish_processing(self):
         """Enables Speaker Recognition button and update speakers list"""
         wx.CallAfter(Publisher().sendMessage, "update_status", self.model.get_map_status())
-        self.frame.save_menu_item.Enable(True)
-        self.frame.db_menu_item.Enable(True)
-        self.frame.run_menu_item.Enable(True)
-        self.frame.recognition_menu_item.Enable(True)
+        self.frame.enable_menu(True)
         wx.CallAfter(Publisher().sendMessage, "update_list", "Process finished")
         wx.CallAfter(Publisher().sendMessage, "update_info")
         
     def log_on_save_changes(self):
-        self.frame.add_file_menu_item.Enable(False)
-        self.frame.save_menu_item.Enable(False)
-        self.frame.db_menu_item.Enable(False)
-        self.frame.run_menu_item.Enable(False)
+        sself.frame.enable_menu(False)
         while self.thread_saving.isAlive():
             time.sleep(2)
             wx.CallAfter(Publisher().sendMessage, "update_status", "Saving changes...")
         wx.CallAfter(Publisher().sendMessage, "update_list", "Changes saved")
         wx.CallAfter(Publisher().sendMessage, "update_info")
         wx.CallAfter(Publisher().sendMessage, "update_status", "Changes saved")
-        self.frame.add_file_menu_item.Enable(True)
-        self.frame.save_menu_item.Enable(True)
-        self.frame.db_menu_item.Enable(True)
-        self.frame.run_menu_item.Enable(True)
-        
+        self.frame.enable_menu(True)
+     
+    def on_change_mode(self, event):
+        id=event.GetId()
+        if id==MODE_DEFAULT:
+            self.model.set_mode(0)
+        else:
+            self.model.set_mode(1)
+       
     def update_status(self, msg):
         """Receives data from thread and updates the status bar
 
@@ -251,8 +254,7 @@ class Controller:
         else:
             self.clusters_list.clean_list()
             self.player.colorPanel.clear()
-            self.frame.run_menu_item.Enable(False)
-            self.frame.db_menu_item.Enable(False)
+            self.frame.enable_menu(False)
             path = self.player.video_path.replace('"', '')
             self.model.load_video(str(path))
             self.thread_processing = threading.Thread(target=self.model.extract_speakers)
@@ -270,8 +272,7 @@ class Controller:
             path_without_ext= os.path.splitext(str(path))[0]
             if os.path.exists(path_without_ext+".seg") and os.path.exists(path_without_ext+'.wav'):
                 self.clusters_list.clean_list()
-                self.frame.run_menu_item.Enable(False)
-                self.frame.db_menu_item.Enable(False)
+                self.frame.enable_menu(False)
                 self.model.load_video(str(path))
                 self.thread_processing = threading.Thread(target=self.model.match_clusters)
                 self.thread_processing.start()
@@ -289,9 +290,7 @@ class Controller:
             path_without_ext= os.path.splitext(str(path))[0]
             if os.path.exists(path_without_ext+'.wav'):
                 self.clusters_list.clean_list()
-                self.frame.run_menu_item.Enable(False)
-                self.frame.db_menu_item.Enable(False)
-                self.frame.save_menu_item.Enable(False)
+                self.frame.enable_menu(False)
                 self.model.load_video(str(path))
                 self.thread_processing = threading.Thread(target=self.model.diarization)
                 self.thread_processing.start()
@@ -448,7 +447,7 @@ class Controller:
                 #print "offset <= float(start_time) / 100"
                 break
             n += 1
-                
+    
     def toggle_play(self):
         """If player is not running, play it"""
         #wx.CallAfter(Publisher().sendMessage, "update_status", "Train ON ...")
@@ -510,18 +509,26 @@ class MainFrame(wx.Frame):
         #self.run_menu_item = srMenu.Append(wx.NewId(), "&Run", "Extracts speakers and recognize them")
         self.db_menu_item = srMenu.Append(wx.NewId(), "&Select Db", "Creates new db or select an existing")
         
-        submenu = wx.Menu()
-        self.all_menu_item = submenu.Append(wx.NewId(), 'All', 'Make diarization and match voices', kind=wx.ITEM_NORMAL)
-        self.diarization_menu_item = submenu.Append(wx.NewId(), 'Diarization','Make segmentation file', kind=wx.ITEM_NORMAL)
-        self.recognition_menu_item = submenu.Append(wx.NewId(), 'Recognition', 'Compare voices with models in the db by loading a seg file', kind=wx.ITEM_NORMAL)
+        submenu_run = wx.Menu()
+        self.all_menu_item = submenu_run.Append(wx.NewId(), 'All', 'Make diarization and match voices', kind=wx.ITEM_NORMAL)
+        self.diarization_menu_item = submenu_run.Append(wx.NewId(), 'Diarization','Make segmentation file', kind=wx.ITEM_NORMAL)
+        self.recognition_menu_item = submenu_run.Append(wx.NewId(), 'Recognition', 'Compare voices with models in the db by loading a seg file', kind=wx.ITEM_NORMAL)
         
-        self.run_menu_item = srMenu.AppendMenu(wx.NewId(), "&Run", submenu, "Extracts speakers and recognize them")
+        self.run_menu_item = srMenu.AppendMenu(wx.NewId(), "&Run", submenu_run, "Extracts speakers and recognize them")
         self.save_menu_item = srMenu.Append(wx.NewId(), "&Save ", "Save data in json file")
+        
+        submenu_set = wx.Menu()
+        self.def_mode_menu_item = submenu_set.Append(MODE_DEFAULT, 'Default', 'Make diarization standard', kind=wx.ITEM_RADIO, )
+        self.noise_mode_menu_item = submenu_set.Append(MODE_NOISE, 'Noise','Make diarization for video with noise (ex. meetings)', kind=wx.ITEM_RADIO)
+        self.mode_menu_item = srSettings.AppendMenu(wx.NewId(), "&Mode", submenu_set, "Chooce different processing mode")
+
         self.save_menu_item.Enable(False)
-        self.run_menu_item.Enable(True)
+        self.run_menu_item.Enable(False)
+        self.mode_menu_item.Enable(False)
+        
         menubar.Append(fileMenu, '&File')
         menubar.Append(srMenu, '&Speaker Recognition')
-        #menubar.Append(srSettings, '&Settings')
+        menubar.Append(srSettings, '&Settings')
         self.SetMenuBar(menubar)
      
     def set_status_text(self, text):
@@ -531,6 +538,22 @@ class MainFrame(wx.Frame):
         
     def on_size(self, event):
         self.Layout()
+    
+    def enable_menu(self, enable):
+        if enable:
+            self.add_file_menu_item.Enable(True)
+            self.db_menu_item.Enable(True)
+            self.run_menu_item.Enable(True)
+            self.db_menu_item.Enable(True)
+            self.mode_menu_item.Enable(True)
+            self.save_menu_item.Enable(True)
+        else:
+            self.add_file_menu_item.Enable(False)
+            self.db_menu_item.Enable(False)
+            self.run_menu_item.Enable(False)
+            self.db_menu_item.Enable(False)
+            self.mode_menu_item.Enable(False)
+            self.save_menu_item.Enable(False)
 
 class Player(wx.Panel):
     """Builds a MpLayerCtrl Player"""
@@ -909,6 +932,15 @@ class Model:
         self.voiceid._automerge_segments() # experimental
         self._clusters = self.voiceid.get_clusters()    
         
+    def set_mode(self, mode):
+        """
+        Set diarization mode between a default configuration and a configuration for noisy video 
+        
+        :type mode: integer
+        :param mode: 1 ->Default conf | 2->Noisy video conf
+        """    
+        self.voiceid.set_noise_mode(mode)
+        
     def extract_speakers(self):
         """Extracts speakers"""
         self.voiceid.extract_speakers(False, False, 4)
@@ -924,6 +956,7 @@ class Model:
         self._clusters = self.voiceid.get_clusters()
 
     def diarization(self):
+        #self.voiceid.Set
         self.voiceid.diarization()
         self.voiceid._extract_clusters()
         self._clusters = self.voiceid.get_clusters()
