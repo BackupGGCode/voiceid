@@ -199,7 +199,7 @@ class Controller:
         wx.CallAfter(Publisher().sendMessage, "update_info")
         
     def log_on_save_changes(self):
-        sself.frame.enable_menu(False)
+        self.frame.enable_menu(False)
         while self.thread_saving.isAlive():
             time.sleep(2)
             wx.CallAfter(Publisher().sendMessage, "update_status", "Saving changes...")
