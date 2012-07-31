@@ -3,7 +3,7 @@
 #############################################################################
 #
 # VoiceID, Copyright (C) 2011-2012, Sardegna Ricerche.
-# Email: labcontdigit@sardegnaricerche.it, michela.fancello@crs4.it, 
+# Email: labcontdigit@sardegnaricerche.it, michela.fancello@crs4.it,
 #        mauro.mereu@crs4.it
 # Web: http://code.google.com/p/voiceid
 # Authors: Michela Fancello, Mauro Mereu
@@ -122,15 +122,15 @@ examples:
         configuration.UBM_PATH = options.ubm
     utils.check_deps()
     if options.file_input:
-        #create db istance
+        # create db istance
         default_db = db.GMMVoiceDB(path=configuration.DB_DIR)
-        #create voiceid instance
+        # create voiceid instance
         cmanager = sr.Voiceid(vdb=default_db, filename=options.file_input)
-        #extract the speakers
+        # extract the speakers
         cmanager.extract_speakers(interactive=options.interactive,
                                   quiet=configuration.QUIET_MODE,
                                   thrd_n=multiprocessing.cpu_count() * 5)
-        #write the output according to the given output format
+        # write the output according to the given output format
         cmanager.write_output(configuration.OUTPUT_FORMAT)
         if not configuration.KEEP_INTERMEDIATE_FILES:
             os.remove(cmanager.get_file_basename() + '.seg')

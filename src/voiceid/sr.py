@@ -144,7 +144,7 @@ class Cluster(object):
 
         self.gender = gender
         self._frames = frames
-        self._env = None  #environment (studio, telephone, unknown)
+        self._env = None  # environment (studio, telephone, unknown)
         self._label = label
         self._speaker = identifier
         self._segments = []
@@ -191,11 +191,11 @@ class Cluster(object):
         :param score: score computed between the cluster
                 wave and speaker model"""
         val = float(score)
-        if self.speakers.has_key(identifier) == False:
-            self.speakers[ identifier ] = val
+        if not identifier in self.speakers:
+            self.speakers[identifier] = val
         else:
-            if self.speakers[ identifier ] < val:
-                self.speakers[ identifier ] = val
+            if self.speakers[identifier] < val:
+                self.speakers[identifier] = val
 
     def get_speaker(self):
         """Set the right speaker for the cluster if not set and returns
@@ -263,7 +263,7 @@ class Cluster(object):
 
         :rtype: char
         :returns: the gender of the cluster"""
-        gen = {'M':0, 'F':0, 'U':0}
+        gen = {'M': 0, 'F': 0, 'U': 0}
         differ = False
         for seg in self._segments:
             ggg = seg.get_gender()
@@ -392,7 +392,7 @@ class Cluster(object):
         return dur
 
 
-class Voiceid:
+class Voiceid(object):
     """The main object that represents the file audio/video to manage.
 
     :type db: object
@@ -434,7 +434,7 @@ class Voiceid:
                                   elm['speakerLabel'])
                 seg = Segment([dirname, 1, int(elm['startTime'] * 100),
                              int(100 * (elm['endTime'] - elm['startTime'])),
-                             elm['gender'], 'U', 'U', elm['speaker'] ])
+                             elm['gender'], 'U', 'U', elm['speaker']])
                 clu._segments.append(seg)
                 vid.add_update_cluster(elm['speakerLabel'], clu)
         except (ValueError):
@@ -452,12 +452,12 @@ class Voiceid:
         :type single: boolean
         :param single: set to True to force to avoid diarization (a faster
         approach) only in case you have just a single speaker in the file"""
-        self.status_map = {0:'file_loaded', 1:'file_converted',
-                           2:'diarization_done', 3:'trim_done',
-                           4:'mfcc extracted', 5:'speakers matched'}
-        self.working_map = {0:'converting_file', 1:'diarization',
-                            2:'trimming', 3:'mfcc extraction',
-                            4:'voice matching', 5:'extraction finished'}
+        self.status_map = {0: 'file_loaded', 1: 'file_converted',
+                           2: 'diarization_done', 3: 'trim_done',
+                           4: 'mfcc extracted', 5: 'speakers matched'}
+        self.working_map = {0: 'converting_file', 1: 'diarization',
+                            2: 'trimming', 3: 'mfcc extraction',
+                            4: 'voice matching', 5: 'extraction finished'}
         self._clusters = {}
         self._ext = ''
         self._time = 0
@@ -468,8 +468,8 @@ class Voiceid:
         self._set_filename(filename)
         self._status = 0
         self._single = single
-        self._diar_conf=(3,1.5)
-        
+        self._diar_conf = (3, 1.5)
+
     def __getitem__(self, key):
         return self._clusters.__getitem__(key)
 
@@ -497,7 +497,7 @@ class Voiceid:
             4:'voice matching',
             5:'extraction finished'"""
         #TODO: fix some issue on restarting and so on about current status
-        return self.working_map[ self.get_status() ]
+        return self.working_map[self.get_status()]
 
     def get_db(self):
         """Get the VoiceDB instance used."""
@@ -525,11 +525,15 @@ class Voiceid:
 
     def _set_filename(self, filename):
         """Set the filename of the current working file"""
-        new_file = filename
-        new_file = new_file.replace("'",
-                                    '_').replace('-',
-                             '_').replace(' ', 
-                            '_').replace('(', '_').replace(')', '_')
+        tmp_file = '_'.join(filename.split())
+#        new_file = new_file.replace("'",
+#                        '_').replace('-',
+#                        '_').replace(' ',
+#                        '_').replace('(', '_').replace(')', '_')
+        new_file = ''
+        for char in tmp_file:
+            if char.isalnum() or char in  ['.', '_', ':', os.path.sep]:
+                new_file += char
         try:
             shutil.copy(filename, new_file)
         except shutil.Error, err:
@@ -560,7 +564,7 @@ class Voiceid:
         :type label: string
         :param label: the cluster label (i.e. S0, S12, S44...)"""
         try:
-            return self._clusters[ label ]
+            return self._clusters[label]
         except KeyError:
             return None
 
@@ -572,7 +576,7 @@ class Voiceid:
 
         :type cluster: object
         :param cluster: a Cluster object"""
-        self._clusters[ label ] = cluster
+        self._clusters[label] = cluster
 
     def remove_cluster(self, label):
         """Remove and delete a cluster.
@@ -635,7 +639,7 @@ class Voiceid:
             values = []
             differ = False
             basic = None
-            gen = {'M' : 0, 'F' : 0, 'U' : 0}
+            gen = {'M': 0, 'F': 0, 'U': 0}
             for line in f_seg.readlines():
                 if line.startswith(';;'):
                     headers.append(line[line.index('['):])
@@ -683,9 +687,10 @@ class Voiceid:
             utils.ensure_file_exists(segname)
         else:
             self._to_mfcc()
-            print str(self._diar_conf[0])
-            print str(self._diar_conf[1])
-            fm.diarization(self._basename,str(self._diar_conf[0]),str(self._diar_conf[1]))
+#            print str(self._diar_conf[0])
+#            print str(self._diar_conf[1])
+            fm.diarization(self._basename, str(self._diar_conf[0]),
+                            str(self._diar_conf[1]))
         self._status = 2
 
     def _to_mfcc(self):
@@ -701,7 +706,6 @@ class Voiceid:
         self._status = 3
 
     def _extract_clusters(self):
-        
         extract_clusters(self._basename + '.seg', self._clusters)
 
     def _match_clusters(self, interactive=False, quiet=False):
@@ -744,8 +748,8 @@ class Voiceid:
                 if not quiet:
                     print '\t ------------------------'"""
             if interactive == True:
-                self._set_interactive( True )
-                speakers[clu] = best = _interactive_training(basename, 
+                self._set_interactive(True)
+                speakers[clu] = best = _interactive_training(basename,
                                                           clu, speakers[clu])
                 self[clu].set_speaker(best)
     def _rename_clusters(self):
@@ -790,21 +794,21 @@ class Voiceid:
         # set a struct (array of dictionaries) to put the segments to merge
         to_merge = []
         to_merge.append({})
-        idx = 0 # index of to_merge, starting from 0 
+        idx = 0  # index of to_merge, starting from 0
         prev = None
         for seg in all_segs:
-            current = seg[:] # a copy of the current seg to avoid reference
+            current = seg[:]  # a copy of the current seg to avoid reference
             # if is not the first for run (so we have two segments to compare)
             if prev:
-                p_cluster = prev[1]  # the cluster of the previous segment
-                cluster = current[1] # the cluster of the current segment
-                segment = current[0] # a copy of the current segment
+                p_cluster = prev[1]   # the cluster of the previous segment
+                cluster = current[1]  # the cluster of the current segment
+                segment = current[0]  # a copy of the current segment
                 # if previous and current segments belong to the same cluster
                 if p_cluster == cluster:
                     # if the dictionary is still empty (has not key 'cluster')
                     if not cluster in to_merge[idx]:
-                        to_merge[idx][cluster] = []  # initialize the dictionary
-                        # the current and prev segment                     
+                        to_merge[idx][cluster] = []  # initialize the dict
+                        # the current and prev segment
                         to_merge[idx][cluster].extend([segment, prev[0]])
                     else:   # if the dictionary has already the key 'cluster'
                         try:
@@ -817,9 +821,9 @@ class Voiceid:
                 # and current idx points to an already used dictionary
                 elif len(to_merge[idx]) > 0:
                     idx += 1                # then increment idx and
-                    # prepare a new empty dictionary for the next group 
+                    # prepare a new empty dictionary for the next group
                     to_merge.append({})
-            # update prev before ending the run       
+            # update prev before ending the run
             prev = current[:]
         # cicle the array containing the groups to merge as dictionaries
         for groupdict in to_merge:
@@ -952,27 +956,28 @@ class Voiceid:
                                                               distance, mean, m_distance)
                 speakers_in_db = self.get_db().get_speakers()
                 tot_voices = len(speakers_in_db['F']) + \
-                    len(speakers_in_db['M'])+len(speakers_in_db['U'])
-                
-                if diarization_time!=None:
-                    voice_time = float(total_time - diarization_time ) 
-                    t_f_s = voice_time / len(speakers_in_db) 
-                    print """\nwav duration: %s\nall done in %dsec (%s) (diarization %dsec time:%s )  with %s threads and %d voices in db (%f) """ % (utils.humanize_time(sec), 
-                                                                                                                                                  total_time, 
-                                                                                                                                                  utils.humanize_time(total_time), 
-                                                                                                                                                  diarization_time, 
-                                                                                                                                                  utils.humanize_time(diarization_time), 
-                                                                                                                                                  thrd_n, 
-                                                                                                                                                  tot_voices, 
+                    len(speakers_in_db['M']) + len(speakers_in_db['U'])
+
+                if diarization_time != None:
+                    voice_time = float(total_time - diarization_time)
+                    t_f_s = voice_time / len(speakers_in_db)
+                    print """\nwav duration: %s\nall done in %dsec (%s) (diarization %dsec time:%s )  with %s threads and %d voices in db (%f) """ % (utils.humanize_time(sec),
+                                                                                                                                                  total_time,
+                                                                                                                                                  utils.humanize_time(total_time),
+                                                                                                                                                  diarization_time,
+                                                                                                                                                  utils.humanize_time(diarization_time),
+                                                                                                                                                  thrd_n,
+                                                                                                                                                  tot_voices,
                                                                                                                                                   t_f_s)
                 else:
-                    print """\nwav duration: %s\nmatch clusters done in %dsec (%s)  with %s threads and %d voices in db """ % (utils.humanize_time(sec), 
-                                                                                                                                                  total_time, 
-                
-                                                                                                                                                  utils.humanize_time(total_time), 
-                                                                                                                                                  thrd_n, 
-                                                                                                                                                  tot_voices 
+                    print """\nwav duration: %s\nmatch clusters done in %dsec (%s)  with %s threads and %d voices in db """ % (utils.humanize_time(sec),
+                                                                                                                                                  total_time,
+
+                                                                                                                                                  utils.humanize_time(total_time),
+                                                                                                                                                  thrd_n,
+                                                                                                                                                  tot_voices
                                                                                                                                                 )
+
     def _match_voice_wrapper(self, cluster, mfcc_name, db_entry, gender):
         """A wrapper to match the voices each in a different Thread."""
         results = self.get_db().match_voice(mfcc_name, db_entry, gender)
@@ -981,7 +986,6 @@ class Voiceid:
 
     def set_noise_mode(self, mode):
         """Set a diarization configuration for noisy videos """
-        
         if mode==0:
             self._diar_conf=(3,1.5)
         else:
@@ -1003,7 +1007,7 @@ class Voiceid:
             label = os.path.join(basedir, label)
             wav_name = label + ".wav"
             if os.path.exists(wav_name):
-                while True: #search an inexistent name for new gmm
+                while True:  # search an inexistent name for new gmm
                     cont = cont + 1
                     wav_name = label + "" + str(cont) + ".wav"
                     if not os.path.exists(wav_name):
@@ -1220,16 +1224,16 @@ class Voiceid:
 def manage_ident(filebasename, gmm, clusters):
     """Take all the files created by the call of mfcc_vs_gmm() on the whole
     speakers db and put all the results in a bidimensional dictionary."""
-    seg_f = open("%s.ident.%s.seg" % (filebasename, gmm) , "r")
+    seg_f = open("%s.ident.%s.seg" % (filebasename, gmm), "r")
     for line in seg_f:
         if line.startswith(";;"):
-            cluster, speaker = line.split()[ 1 ].split(':')[ 1 ].split('_')
+            cluster, speaker = line.split()[1].split(':')[1].split('_')
             idx = line.index('score:' + speaker) + len('score:' + speaker + " = ")
             iidx = line.index(']', idx) - 1
             value = line[idx:iidx]
             if not cluster in clusters:
-                clusters[ cluster ] = Cluster(cluster, 'U', '0', '', cluster)
-            clusters[ cluster ].add_speaker(speaker, value)
+                clusters[cluster] = Cluster(cluster, 'U', '0', '', cluster)
+            clusters[cluster].add_speaker(speaker, value)
     seg_f.close()
     if not CONFIGURATION.KEEP_INTERMEDIATE_FILES:
         os.remove("%s.ident.%s.seg" % (filebasename, gmm))
@@ -1244,7 +1248,7 @@ def extract_clusters(segfilename, clusters):
         for line in rows:
             if line.startswith(";;"):
                 speaker_id = line.split()[1].split(':')[1]
-                clusters[ speaker_id ] = Cluster(identifier='unknown',
+                clusters[speaker_id] = Cluster(identifier='unknown',
                                                  gender='U',
                                                  frames=0,
                                                  dirname=os.path.splitext(
@@ -1262,17 +1266,17 @@ def extract_clusters(segfilename, clusters):
         for line in rows:
             line = line.split()
             speaker_id = line[-1]
-            if not clusters.has_key(speaker_id):
-                clusters[ speaker_id ] = Cluster(identifier='unknown',
+            if not speaker_id in clusters:
+                clusters[speaker_id] = Cluster(identifier='unknown',
                                                  gender='U',
                                                  frames=0,
                                                  dirname=os.path.splitext(
                                                             segfilename)[0],
                                                  label=speaker_id)
-            clusters[ speaker_id ]._segments.append(Segment(line))
-            clusters[ speaker_id ]._frames += int(line[3])
-            clusters[ speaker_id ].gender = line[4]
-            clusters[ speaker_id ]._env = line[5]
+            clusters[speaker_id]._segments.append(Segment(line))
+            clusters[speaker_id]._frames += int(line[3])
+            clusters[speaker_id].gender = line[4]
+            clusters[speaker_id]._env = line[5]
 
 
 def _interactive_training(filebasename, cluster, identifier):
@@ -1316,9 +1320,9 @@ def _interactive_training(filebasename, cluster, identifier):
                 while True:
                     if len(name) == 0:
                         name = "unknown"
-                    if not name.isalnum() :
+                    if not name.isalnum():
                         print 'No blank, dash or special chars allowed! Retry'
-#                        menu = True        
+#                        menu = True
                         break
                     okk = raw_input("Save as '" + name + "'? [Y/n/m] ")
                     if okk in ('y', 'ye', 'yes', ''):

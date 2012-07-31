@@ -19,33 +19,20 @@
 #
 #############################################################################
 
+from tests import TEMP_DIR, TEST_DIR, TEST_WAV, TEST_NAME, TEST_GMM, \
+    TWO_SPKRS_WAV, TWO_SPKRS_SEG, TWO_SPKRS_SEG_ST, TEST_WAV_B, TEST_MFCC, \
+    TEST_MFCC_B, DB_DIR, TEST_MFCC_ID_SEG
 from voiceid import fm
 import filecmp
 import os
 import shutil
 import unittest
 
-DATA_DIR = os.path.join(os.path.dirname(__file__), 'data')
-test_dir = DATA_DIR
-temp_dir = os.path.join(os.path.dirname(__file__), 'tmp')
-test_wav = os.path.join(temp_dir, 'mr_arkadin.wav')
-test_mfcc = os.path.join(temp_dir, 'mr_arkadin_test.mfcc')
-test_mfcc_b = os.path.splitext(test_mfcc)[0]
-test_mfcc_id_seg = os.path.join(temp_dir, 
-                    'mr_arkadin_test.ident.M.mrarkadin.gmm_test.seg')
-two_spkrs_wav = os.path.join(temp_dir, 'twospeakers.wav')
-two_spkrs_seg = os.path.join(temp_dir, 'twospeakers_test.seg')
-two_spkrs_seg_st = os.path.join(temp_dir, 'twospeakers_test_st.seg')
-test_wav_b = os.path.splitext(test_wav)[0]
-test_gmm = os.path.join(temp_dir, 'db', 'M', 'mrarkadin.gmm')
-test_name = 'mrarkadin'
-db_dir = os.path.join(temp_dir, 'db')
-
 
 def setUpModule():
-    if os.path.isdir(temp_dir):
-        shutil.rmtree(temp_dir)
-    shutil.copytree(test_dir, temp_dir)
+    if os.path.isdir(TEMP_DIR):
+        shutil.rmtree(TEMP_DIR)
+    shutil.copytree(TEST_DIR, TEMP_DIR)
 
 
 def compare_seg(seg_1, seg_2, headers=False):
@@ -78,51 +65,51 @@ class FMTest(unittest.TestCase):
     """voiceid.fm tests"""
 
     def test_build_gmm(self):
-        newname = test_wav.replace('_', '')
-        shutil.copy(test_wav, newname)
+        newname = TEST_WAV.replace('_', '')
+        shutil.copy(TEST_WAV, newname)
         newname = os.path.splitext(newname)[0]
         try:
             shutil.rmtree(newname + '.mfcc')
         except:
             pass
-        fm.build_gmm(newname, test_name)
-        self.assertTrue(filecmp.cmp(newname + '.gmm', test_gmm))
+        fm.build_gmm(newname, TEST_NAME)
+        self.assertTrue(filecmp.cmp(newname + '.gmm', TEST_GMM))
 
     def test_diarization(self):
-        filebasename = os.path.splitext(two_spkrs_wav)[0]
+        filebasename = os.path.splitext(TWO_SPKRS_WAV)[0]
         fm.extract_mfcc(filebasename)
         fm.diarization(filebasename)
-        self.assertTrue(compare_seg(filebasename + '.seg', two_spkrs_seg))
+        self.assertTrue(compare_seg(filebasename + '.seg', TWO_SPKRS_SEG))
 
     def test_diarization_standard(self):
-        filebasename = os.path.splitext(two_spkrs_wav)[0]
+        filebasename = os.path.splitext(TWO_SPKRS_WAV)[0]
         fm.diarization_standard(filebasename)
-        self.assertTrue(compare_seg(filebasename + '.seg', two_spkrs_seg_st))
+        self.assertTrue(compare_seg(filebasename + '.seg', TWO_SPKRS_SEG_ST))
 
     def test_extract_mfcc(self):
-        fm.extract_mfcc(test_wav_b)
-        self.assertTrue(filecmp.cmp(test_wav_b + '.mfcc', test_mfcc))
+        fm.extract_mfcc(TEST_WAV_B)
+        self.assertTrue(filecmp.cmp(TEST_WAV_B + '.mfcc', TEST_MFCC))
 
     def test_get_gender(self):
-        self.assertEqual(fm.get_gender(test_gmm), 'M')
+        self.assertEqual(fm.get_gender(TEST_GMM), 'M')
 
     def test_get_features_number(self):
-        test_mfcc_b = os.path.splitext(test_mfcc)[0]
-        self.assertEqual(fm.get_features_number(test_mfcc_b), 4305)
+        TEST_MFCC_B = os.path.splitext(TEST_MFCC)[0]
+        self.assertEqual(fm.get_features_number(TEST_MFCC_B), 4305)
 
     def test_mfcc_vs_gmm(self):
-        gmm_file = test_gmm.split(os.path.sep)[-1]
-        mfcc_filename = test_mfcc_b.split(os.path.sep)[-1]
-        if not os.path.isfile(test_mfcc_b + '.seg'):
-            fm.generate_uem_seg(test_mfcc_b)
-            os.rename(test_mfcc_b + '.uem.seg', test_mfcc_b + '.seg')
-        fm.mfcc_vs_gmm(test_mfcc_b, gmm_file, 'M', custom_db_dir=db_dir)
-        ident_seg = os.path.join(temp_dir,
+        gmm_file = TEST_GMM.split(os.path.sep)[-1]
+        mfcc_filename = TEST_MFCC_B.split(os.path.sep)[-1]
+        if not os.path.isfile(TEST_MFCC_B + '.seg'):
+            fm.generate_uem_seg(TEST_MFCC_B)
+            os.rename(TEST_MFCC_B + '.uem.seg', TEST_MFCC_B + '.seg')
+        fm.mfcc_vs_gmm(TEST_MFCC_B, gmm_file, 'M', custom_db_dir=DB_DIR)
+        ident_seg = os.path.join(TEMP_DIR,
                     mfcc_filename + '.ident.M.' + gmm_file + '.seg')
-        self.assertTrue(compare_seg(ident_seg, test_mfcc_id_seg, True))
+        self.assertTrue(compare_seg(ident_seg, TEST_MFCC_ID_SEG, True))
 
     def test_wave_duration(self):
-        self.assertEqual(fm.wave_duration(test_wav), 43)
+        self.assertEqual(fm.wave_duration(TEST_WAV), 43)
 
 if __name__ == "__main__":
     suite = unittest.TestLoader().loadTestsFromTestCase(FMTest)

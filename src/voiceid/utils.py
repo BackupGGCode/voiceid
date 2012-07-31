@@ -66,6 +66,7 @@ def start_subprocess(commandline):
         err.errno = retval
         raise err
 
+
 def check_cmd_output(command):
     "Run a shell command and return the result as string"
     process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE,
@@ -101,9 +102,9 @@ def check_deps():
     ensure_file_exists(CONFIGURATION.UBM_PATH)
     if not os.path.exists(CONFIGURATION.DB_DIR):
         os.makedirs(CONFIGURATION.DB_DIR)
-        raise IOError("No gmm db directory found in"
-            + " %s (take a look to the CONFIGURATION, DB_DIR parameter)" 
-            % CONFIGURATION.DB_DIR)
+#        raise IOError("No gmm db directory found in"
+#            + " %s (take a look to the CONFIGURATION, DB_DIR parameter)" 
+#            % CONFIGURATION.DB_DIR)
     if os.listdir(CONFIGURATION.DB_DIR) == []:
         print("WARNING: Gmm db directory found in %s is empty" 
                 % CONFIGURATION.DB_DIR)

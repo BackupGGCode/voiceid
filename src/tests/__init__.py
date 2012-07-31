@@ -18,3 +18,19 @@
 #    GNU General Public License for more details.
 #
 #############################################################################
+import os
+BASE_DIR = os.path.dirname(__file__)
+TEST_DIR = os.path.join(BASE_DIR, 'data')
+TEMP_DIR = os.path.join(BASE_DIR, 'tmp')
+TEST_WAV = os.path.join(TEMP_DIR, 'mr_arkadin.wav')
+TEST_MFCC = os.path.join(TEMP_DIR, 'mr_arkadin_test.mfcc')
+TEST_MFCC_B = os.path.splitext(TEST_MFCC)[0]
+TEST_MFCC_ID_SEG = os.path.join(TEMP_DIR,
+                    'mr_arkadin_test.ident.M.mrarkadin.gmm_test.seg')
+TWO_SPKRS_WAV = os.path.join(TEMP_DIR, 'twospeakers.wav')
+TWO_SPKRS_SEG = os.path.join(TEMP_DIR, 'twospeakers_test.seg')
+TWO_SPKRS_SEG_ST = os.path.join(TEMP_DIR, 'twospeakers_test_st.seg')
+TEST_WAV_B = os.path.splitext(TEST_WAV)[0]
+TEST_GMM = os.path.join(TEMP_DIR, 'db', 'M', 'mrarkadin.gmm')
+TEST_NAME = 'mrarkadin'
+DB_DIR = os.path.join(TEMP_DIR, 'db')
