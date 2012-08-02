@@ -68,30 +68,19 @@ def file2wav(filename):
 
     :type filename: string
     :param filename: the input audio/video file to convert"""
-    def is_bad_wave(filename):
-        """Check if the wave is in correct format for LIUM."""
-        import wave
-        par = None
-        try:
-            w_file = wave.open(filename)
-            par = w_file.getparams()
-            w_file.close()
-        except wave.Error, exc:
-            print exc
-            return True
-        if par[:3] == (1, 2, 16000) and par[-1:] == ('not compressed',):
-            return False
-        else:
-            return True
-
     name, ext = os.path.splitext(filename)
-    if ext != '.wav' or is_bad_wave(filename):
+    if ext == '.wav' and utils.is_good_wave(filename):
+        pass
+    else:
+        if ext == '.wav':
+            name += '_'
         utils.start_subprocess("gst-launch filesrc location='" + filename
            + "' ! decodebin ! audioresample ! 'audio/x-raw-int,rate=16000' !"
            + " audioconvert !"
            + " 'audio/x-raw-int,rate=16000,depth=16,signed=true,channels=1' !"
            + "wavenc ! filesink location=" + name + ".wav ")
     utils.ensure_file_exists(name + '.wav')
+    return name + ext
 
 
 def merge_gmms(input_files, output_file):

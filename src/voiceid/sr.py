@@ -606,7 +606,9 @@ class Voiceid(object):
         """In case the input file is a video or the wave is in a wrong format,
          convert to wave."""
         self._status = 0
-        fm.file2wav(self.get_filename())
+        filename = fm.file2wav(self.get_filename()) 
+        if filename != self.get_filename():  # can change the name
+            self._set_filename(filename)     # in case of wave transcoding
         self._status = 1
 
     def generate_seg_file(self, set_speakers=True):
@@ -752,6 +754,7 @@ class Voiceid(object):
                 speakers[clu] = best = _interactive_training(basename,
                                                           clu, speakers[clu])
                 self[clu].set_speaker(best)
+                
     def _rename_clusters(self):
         """Rename all clusters from S0 to Sn"""
         all_clusters = []

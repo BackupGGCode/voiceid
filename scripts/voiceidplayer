@@ -150,7 +150,10 @@ class Controller(object):
 
         self.frame.enable_menu(True)
         self.clusters_list.clean_list()
-
+        try:
+            self.player.colorPanel.clear()
+        except:
+            pass
         #self.clusters_list.set_info_video("")
 
         if os.path.exists(json_path):

@@ -92,6 +92,25 @@ def ensure_file_exists(filename):
         raise IOError("File %s empty" % filename)
 
 
+def is_good_wave(filename):
+    """Check if the wave is in correct format for LIUM.
+
+    :type filename: string
+    :param filename: file to check"""
+    import wave
+    par = None
+    try:
+        w_file = wave.open(filename)
+        par = w_file.getparams()
+        w_file.close()
+    except wave.Error, exc:
+        print exc
+        return False
+    if par[:3] == (1, 2, 16000) and par[-1:] == ('not compressed',):
+        return True
+    else:
+        return False
+
 def check_deps():
     """Check for dependencies."""
     ensure_file_exists(CONFIGURATION.LIUM_JAR)
