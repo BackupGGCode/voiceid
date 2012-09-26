@@ -18,16 +18,17 @@
 #    GNU General Public License for more details.
 #
 #############################################################################
-"""Module containing high level classes relatives to the speaker recognition
-task."""
-
+from voiceid import VConf, utils, fm
 import os
 import shlex
 import shutil
 import subprocess
-import time
+import sys
 import threading
-from voiceid import VConf, utils, fm
+import time
+"""Module containing high level classes relatives to the speaker recognition
+task."""
+
 
 CONFIGURATION = VConf()
 
@@ -531,8 +532,11 @@ class Voiceid(object):
 #                        '_').replace(' ',
 #                        '_').replace('(', '_').replace(')', '_')
         new_file = ''
+        pathsep = os.path.sep 
+        if sys.platform == 'win32':
+            pathsep = '/'
         for char in tmp_file:
-            if char.isalnum() or char in  ['.', '_', ':', os.path.sep]:
+            if char.isalnum() or char in  ['.', '_', ':', pathsep]:
                 new_file += char
         try:
             shutil.copy(filename, new_file)
@@ -1308,6 +1312,9 @@ def _interactive_training(filebasename, cluster, identifier):
             listw = [os.path.join(videocluster, f) for f in listwaves]
             wrd = " ".join(listw)
             commandline = "play " + str(wrd)
+            if sys.platform == 'win32':
+                commandline = "vlc " + str(wrd)
+                commandline = commandline.replace('\\','\\\\')
             print "  Listening %s..." % cluster
             args = shlex.split(commandline)
             prc = subprocess.Popen(args, stdin=CONFIGURATION.output_redirect,

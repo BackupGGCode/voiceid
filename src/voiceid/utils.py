@@ -18,12 +18,13 @@
 #    GNU General Public License for more details.
 #
 #############################################################################
-"""Module containing some utilities about subprocess,
-threading and file checking."""
+from . import VConf
 import os
 import shlex
 import subprocess
-from . import VConf
+import sys
+"""Module containing some utilities about subprocess,
+threading and file checking."""
 
 CONFIGURATION = VConf()
 
@@ -46,6 +47,10 @@ def start_subprocess(commandline):
 
     :type commandline: string
     :param commandline: the command to run in a subprocess"""
+    
+    if sys.platform == 'win32':
+        commandline = commandline.replace('\\','\\\\')
+    
     args = shlex.split(commandline)
 #    try:
     proc = subprocess.Popen(args, stdin=CONFIGURATION.output_redirect,
