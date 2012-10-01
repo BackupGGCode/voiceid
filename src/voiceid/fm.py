@@ -185,11 +185,10 @@ def _read_gaussian_container(g_file):
         raise Exception("Error: the gaussian container" +
                         " is not of GAUSSVEC kind %s" % chk)
     gcs = g_file.read(4)   # readint 4bytes representing the size of
-                     # the gaussian container
+    # the gaussian container
     stuff = chk + gcs
     for index in range(int(struct.unpack('>i', gcs)[0])):
         stuff += _read_gaussian(g_file)
-        len(index)
     return stuff
 
 
@@ -691,6 +690,7 @@ def diarization(filebasename, h_par='3', c_par='1.5'):
                   '.g.' + h_par + '.seg']
         for ext in f_list:
             os.remove(filebasename + ext)
+
 
 def _train_init(filebasename):
     """Train the initial speaker gmm model."""

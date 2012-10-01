@@ -355,6 +355,27 @@ class Cluster(object):
         except IOError:
             fm.extract_mfcc(file_basename)
 
+    def has_generated_waves(self, dirname):
+        """Check if the wave files generated for the cluster are still
+        present. In case you load a json file you shold not have those
+        files.
+
+        :type dirname: string
+        :param dirname: the output dirname"""
+        name = self.get_name()
+        videocluster = os.path.join(dirname, name)
+        try:
+            listwaves = os.listdir(videocluster)
+        except OSError:
+            return False
+        listw = [os.path.join(videocluster, fil) for fil in listwaves]
+        for wav in listw:
+            if os.path.isfile(wav) == True:
+                continue
+            else:
+                return False
+        return True
+
     def to_dict(self):
         """A dictionary representation of a Cluster."""
         speaker = self.get_speaker()
@@ -610,9 +631,9 @@ class Voiceid(object):
         """In case the input file is a video or the wave is in a wrong format,
          convert to wave."""
         self._status = 0
-        filename = fm.file2wav(self.get_filename()) 
-        if filename != self.get_filename():  # can change the name
-            self._set_filename(filename)     # in case of wave transcoding
+        fname = fm.file2wav(self.get_filename()) 
+        if fname != self.get_filename():  # can change the name
+            self._set_filename(fname)     # in case of wave transcoding
         self._status = 1
 
     def generate_seg_file(self, set_speakers=True):
@@ -651,11 +672,11 @@ class Voiceid(object):
                     headers.append(line[line.index('['):])
                 else:
                     a_line = line.split(' ')
-                    if basic == None :
+                    if basic == None:
                         basic = a_line[4]
-                    if a_line[4] != basic :
+                    if a_line[4] != basic:
                         differ = True
-                    gen[ a_line[4] ] += int(a_line[ 3 ])
+                    gen[a_line[4]] += int(a_line[3])
                     values.append(a_line)
             header = ";; cluster:S0 %s" % headers[0]
             from operator import itemgetter
@@ -758,7 +779,7 @@ class Voiceid(object):
                 speakers[clu] = best = _interactive_training(basename,
                                                           clu, speakers[clu])
                 self[clu].set_speaker(best)
-                
+
     def _rename_clusters(self):
         """Rename all clusters from S0 to Sn"""
         all_clusters = []
@@ -1065,6 +1086,9 @@ class Voiceid(object):
                                                          os.getcwd())
                     wav_name = b_file + '.wav'
                     basename = self.get_file_basename()
+                    if not clu.has_generated_waves(basename):
+                        self._to_wav()
+                        self._to_trim()
                     clu.merge_waves(basename)
                     shutil.move(clu.wave, wav_name)
                     cluster_label = clu.get_name()
