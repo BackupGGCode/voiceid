@@ -317,6 +317,7 @@ class Cluster(object):
         line[0] = first_col_name
         line[2] = 0
         line[3] = self._frames - 1
+        #line[-1] = self._speaker
         f_desc.write("%s %s %s %s %s %s %s %s\n" % tuple(line))
         f_desc.close()
 
@@ -345,10 +346,17 @@ class Cluster(object):
         :param dirname: the output dirname"""
         name = self.get_name()
         videocluster = os.path.join(dirname, name)
+        if sys.platform == 'win32':
+            videocluster = dirname+ '/' + name
         listwaves = os.listdir(videocluster)
         listw = [os.path.join(videocluster, fil) for fil in listwaves]
         file_basename = os.path.join(dirname, name)
+        if sys.platform == 'win32':
+            listw = [videocluster+'/'+ fil for fil in listwaves] 
+            file_basename = dirname + '/' + name
         self.wave = os.path.join(dirname, name + ".wav")
+        if sys.platform == 'win32':
+            self.wave = dirname + '/' + name + ".wav"
         fm.merge_waves(listw, self.wave)
         try:
             utils.ensure_file_exists(file_basename + '.mfcc')
@@ -750,7 +758,7 @@ class Voiceid(object):
         result = self.get_db().voices_lookup(mfcc_files)
 
         def mfcc_to_cluster(mfcc):
-            return mfcc.split("/")[-1].split(".")[0]
+            return mfcc.split(os.path.sep)[-1].split(".")[0]
 
         for spk in result:
             cluster = mfcc_to_cluster(spk)
@@ -1090,7 +1098,10 @@ class Voiceid(object):
                         self._to_wav()
                         self._to_trim()
                     clu.merge_waves(basename)
-                    shutil.move(clu.wave, wav_name)
+                    try:
+                        shutil.move(clu.wave, wav_name)
+                    except OSError:
+                        print 'WARNING: error renaming some wave files'
                     cluster_label = clu.get_name()
                     thrds[cluster_label] = threading.Thread(
                                               target=_build_model_wrapper,

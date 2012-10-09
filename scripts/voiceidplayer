@@ -66,7 +66,6 @@ def get_length(filepath):
 
     :type filename: string
     :param filepath: video's path"""
-    print filepath
     try:
             
         command = """mplayer  -vo null -ao null -frames 0 -identify %s""" % filepath
@@ -164,9 +163,10 @@ class Controller(object):
 
         if os.path.exists(json_path):
             self.model.load_json(json_path)
-            #self.frame.save_menu_item.Enable(True)
+            self.frame.save_menu_item.Enable(True)
             wx.CallAfter(Publisher().sendMessage, "update_list", "Loading finished")
-
+        else:
+            self.frame.save_menu_item.Enable(False)
         wx.CallAfter(Publisher().sendMessage, "update_info")
 
     def on_select_db(self, event):
@@ -376,7 +376,16 @@ class Controller(object):
         """Sets new name for the edited cluster"""
         list_items = self.clusters_list.list
         cluster = list_items.GetItem(event.m_itemIndex, 1)
-        self.model.set_cluster(str(cluster.GetText()), str(event.GetText()))
+        speaker_item = list_items.GetItem(event.m_itemIndex, 0)
+        
+        speaker = event.GetText()
+        if str(event.GetText()) == "":
+            speaker = "unknown"
+            speaker_item.SetText("unknown")#not work
+        list_items.Refresh()
+        list_items.Update()
+        
+        self.model.set_cluster(str(cluster.GetText()), str(speaker))
         wx.CallAfter(Publisher().sendMessage, "update_status", "WARNING: Unsaved changes!")
 
     def init_player_seek(self):
@@ -837,6 +846,7 @@ class ClustersList(wx.Panel):
         """Resets list objects"""
         self.speakers_GRB = {}
         self.columns = 0
+        self.list.SetFocus()
         self.list.DeleteAllItems()
         self.list.checked = []
 

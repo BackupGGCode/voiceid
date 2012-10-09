@@ -29,7 +29,7 @@ CONFIGURATION = VConf()
 JAVA_MEM = '2048'
 import sys
 if sys.platform == 'win32':
-    JAVA_MEM = '1280'
+    JAVA_MEM = '1024'
 
 
 def wave_duration(wavfile):
@@ -57,6 +57,7 @@ def merge_waves(input_waves, wavename):
     waves = [w_names.replace(" ", "\ ") for w_names in input_waves]
     w_names = " ".join(waves)
     commandline = "sox " + str(w_names) + " " + str(wavename)
+    
     utils.start_subprocess(commandline)
 
 
@@ -93,18 +94,28 @@ def merge_gmms(input_files, output_file):
     :param output_file: the merged gmm output file"""
     num_gmm = 0
     gmms = ''
-
     for ifile in input_files:
         try:
-            current_f = open(ifile, 'r')
+            current_f = open(ifile, 'rb')
+            
         except (IOError, OSError):
+            print "error in open file merge gmms"
             continue
         kind = current_f.read(8)
         if kind != 'GMMVECT_':
             raise Exception('different kinds of models!')
-        num = struct.unpack('>i', current_f.read(4))
+        
+        line = current_f.read(4)
+        num = struct.unpack('>i', line)
         num_gmm += int(num[0])
-        all_other = current_f.read()
+        byte = current_f.read(1)
+        all_other = ""
+        
+        while byte:
+            # Do stuff with byte.
+            all_other += byte
+            byte = current_f.read(1)
+            
         gmms += all_other
         current_f.close()
 
@@ -122,13 +133,12 @@ def get_gender(input_file):
     :type input_file: string
     :param input_file: the gmm file
     """
-    gmm = open(input_file, 'r')
+    gmm = open(input_file, 'rb')
     gmm.read(8)  # kind
     num_gmm_string = gmm.read(4)
     num_gmm = struct.unpack('>i', num_gmm_string)
 
     if num_gmm != (1,):
-        print str(num_gmm) + " gmms"
         raise Exception('Loop needed for gmms')
 
     gmm.read(8)  # gmm_1
@@ -224,7 +234,7 @@ def split_gmm(input_file, output_dir=None):
     :param output_dir: the directory where is splitted the gmm input file"""
 
 
-    g_file = open(input_file, 'r')
+    g_file = open(input_file, 'rb')
     key = g_file.read(8)
     if key != 'GMMVECT_':  # gmm container
         raise Exception('Error: Not a GMMVECT_ file!')
@@ -257,14 +267,13 @@ def rename_gmm(input_file, identifier):
 
     :type identifier: string
     :param identifier: the new name or identifier of the gmm model"""
-    gmm = open(input_file, 'r')
+    gmm = open(input_file, 'rb')
     new_gmm = open(input_file + '.new', 'w')
     kind = gmm.read(8)
     new_gmm.write(kind)
     num_gmm_string = gmm.read(4)
     num_gmm = struct.unpack('>i', num_gmm_string)
     if num_gmm != (1,):
-        print str(num_gmm) + " gmms"
         raise Exception('Loop needed for gmms')
     new_gmm.write(num_gmm_string)
     gmm_1 = gmm.read(8)
@@ -273,7 +282,6 @@ def rename_gmm(input_file, identifier):
     new_gmm.write(nothing)
     str_len = struct.unpack('>i', gmm.read(4))
     name = gmm.read(str_len[0])
-    print name
     new_len = struct.pack('>i', len(identifier))
     new_gmm.write(new_len)
     new_gmm.write(identifier)
@@ -292,13 +300,23 @@ def build_gmm(filebasename, identifier):
 
     :type identifier: string
     :param identifier: the name or identifier of the speaker"""
-
-    diarization_standard(filebasename)
+    if sys.platform == 'win32':
+        diarization(filebasename)
+        
+        if os.path.exists(filebasename+'.g.3.seg'):
+            os.remove(filebasename+'.seg')
+            os.rename(filebasename+'.g.3.seg', filebasename+'.seg')
+        if sys.platform == 'win32':
+            import fileinput
+            for line in fileinput.FileInput(filebasename+'.seg',inplace=0):
+                line = line.replace("\\\\","/")
+    else:
+        diarization_standard(filebasename)
     ident_seg(filebasename, identifier)
     extract_mfcc(filebasename)
     _train_init(filebasename)
     _train_map(filebasename)
-
+    
 
 #-------------------------------------
 #   seg files and trim functions
@@ -319,6 +337,8 @@ def seg2trim(filebasename):
             end = float(arr[3]) / 100
             try:
                 mydir = os.path.join(filebasename, clust)
+                if sys.platform == 'win32':
+                    mydir = filebasename +'/'+ clust
                 os.makedirs(mydir)
             except os.error, err:
                 if err.errno == 17:
@@ -328,9 +348,14 @@ def seg2trim(filebasename):
             wave_path = os.path.join(filebasename, clust,
                                      "%s_%07d.%07d.wav" % (clust, int(start),
                                                            int(end)))
+            
+            if sys.platform == 'win32':
+                wave_path = filebasename +"/"+ clust +"/"+ "%s_%07d.%07d.wav" % (clust, int(start), int(end))
+            
             commandline = "sox %s.wav %s trim  %s %s" % (filebasename,
                                                          wave_path,
-                                                         start, end)
+                                                         start, end)    
+                        
             utils.start_subprocess(commandline)
             utils.ensure_file_exists(wave_path)
     seg.close()
@@ -711,6 +736,7 @@ def _train_map(filebasename):
         + '--fInputDesc=audio16kHz2sphinx,1:3:2:0:0:0,13,1:1:300:4 '
         + '--tInputMask=%s.init.gmm --emCtrl=1,5,0.01 --varCtrl=0.01,10.0 '
         + '--tOutputMask=%s.gmm ' + filebasename)
+    
     utils.ensure_file_exists(filebasename + '.gmm')
 
 
@@ -733,7 +759,17 @@ def mfcc_vs_gmm(filebasename, gmm_file, gender, custom_db_dir=None):
     if custom_db_dir != None:
         database = custom_db_dir
     gmm_name = os.path.split(gmm_file)[1]
-    utils.start_subprocess('java -Xmx256M -cp ' + CONFIGURATION.LIUM_JAR
+    if sys.platform == 'win32':
+        utils.start_subprocess('java -Xmx256M -cp ' + CONFIGURATION.LIUM_JAR
+        + ' fr.lium.spkDiarization.programs.MScore --sInputMask=%s.seg '
+        + '--fInputMask=%s.mfcc --sOutputMask=%s.ident.' + gender + '.'
+        + gmm_name + '.seg --sOutputFormat=seg,UTF8 '
+        + '--fInputDesc=audio16kHz2sphinx,1:3:2:0:0:0,13,1:0:300:4 '
+        + '--tInputMask=' + database + '\\' + gender + '\\' + gmm_file
+        + ' --sTop=8,' + CONFIGURATION.UBM_PATH
+        + '  --sSetLabel=add --sByCluster ' + filebasename)
+    else:
+        utils.start_subprocess('java -Xmx256M -cp ' + CONFIGURATION.LIUM_JAR
         + ' fr.lium.spkDiarization.programs.MScore --sInputMask=%s.seg '
         + '--fInputMask=%s.mfcc --sOutputMask=%s.ident.' + gender + '.'
         + gmm_name + '.seg --sOutputFormat=seg,UTF8 '

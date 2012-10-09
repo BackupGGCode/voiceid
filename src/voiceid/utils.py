@@ -47,12 +47,9 @@ def start_subprocess(commandline):
 
     :type commandline: string
     :param commandline: the command to run in a subprocess"""
-    
     if sys.platform == 'win32':
         commandline = commandline.replace('\\','\\\\')
-    
     args = shlex.split(commandline)
-#    try:
     proc = subprocess.Popen(args, stdin=CONFIGURATION.output_redirect,
                          stdout=CONFIGURATION.output_redirect,
                          stderr=CONFIGURATION.output_redirect)
@@ -95,8 +92,12 @@ def ensure_file_exists(filename):
                       % filename)
     if not (os.path.getsize(filename) > 0):
         raise IOError("File %s empty" % filename)
-
-
+    
+    (shortname, extension) = os.path.splitext(filename)
+    if sys.platform == 'win32' and extension=='.seg':
+        import fileinput
+        for line in fileinput.FileInput(filename,inplace=0):
+            line = line.replace("\\\\","/")
 def is_good_wave(filename):
     """Check if the wave is in correct format for LIUM.
 
