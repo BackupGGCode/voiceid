@@ -1383,3 +1383,4 @@ def _interactive_training(filebasename, cluster, identifier):
         if char == "":
             return identifier
         print "Type 1, 2 or enter to skip, please"
+

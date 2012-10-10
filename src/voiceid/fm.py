@@ -124,6 +124,7 @@ def merge_gmms(input_files, output_file):
     new_gmm.write("GMMVECT_")
     new_gmm.write(num_gmm_string)
     new_gmm.write(gmms)
+
     new_gmm.close()
 
 

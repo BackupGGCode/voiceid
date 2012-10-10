@@ -75,7 +75,6 @@ def get_length(filepath):
         r = result[0].split('\n')
         for row in r:
             if row.startswith("ID_LENGTH"):
-                print row.split("=")[1]
                 return row.split("=")[1]
         
     except Exception, e:
@@ -283,6 +282,7 @@ class Controller(object):
             self.model.load_video(str(path))
             if os.path.exists(self.model.voiceid.get_file_basename() + ".seg") and os.path.exists(self.model.voiceid.get_file_basename() + '.wav'):
                 self.clusters_list.clean_list()
+                self.player.colorPanel.clear()
                 self.frame.enable_menu(False)
                 self.thread_processing = threading.Thread(target=self.model.match_clusters)
                 self.thread_processing.start()
@@ -301,6 +301,7 @@ class Controller(object):
             self.model.load_video(str(path))
             if os.path.exists(self.model.voiceid.get_file_basename() + '.wav'):
                 self.clusters_list.clean_list()
+                self.player.colorPanel.clear()
                 self.frame.enable_menu(False)
                 self.thread_processing = threading.Thread(target=self.model.diarization)
                 self.thread_processing.start()
@@ -318,7 +319,7 @@ class Controller(object):
         clusters = self.model.get_clusters()
         clusters_review = []
         for c in clusters.values():
-            if float(c.get_duration()) > 3:
+            if float(c.get_duration())/100 > 3:
                 clusters_review.append(c)
         for c in clusters_review:
             self.clusters_list.add_cluster(c.get_name(), c.get_speaker(), c.get_duration())
@@ -384,7 +385,6 @@ class Controller(object):
             speaker_item.SetText("unknown")#not work
         list_items.Refresh()
         list_items.Update()
-        
         self.model.set_cluster(str(cluster.GetText()), str(speaker))
         wx.CallAfter(Publisher().sendMessage, "update_status", "WARNING: Unsaved changes!")
 
@@ -946,6 +946,7 @@ class Model:
         self.voiceid = None
         self.db = db.GMMVoiceDB(dbDir)
         self._clusters = None
+        self.mode = 0
 
     def load_video(self, video_path):
         """Init Voiceid object
@@ -970,10 +971,11 @@ class Model:
         :type mode: integer
         :param mode: 1 ->Default conf | 2->Noisy video conf
         """
-        self.voiceid.set_noise_mode(mode)
+        self.mode = mode
 
     def extract_speakers(self):
         """Extracts speakers"""
+        self.voiceid.set_noise_mode(mode)
         self.voiceid.extract_speakers(False, False, 4)
         self.voiceid._automerge_segments()  # experimental
         self._clusters = self.voiceid.get_clusters()
@@ -989,6 +991,7 @@ class Model:
         #self.voiceid.Set
         self.voiceid.diarization()
         self.voiceid._extract_clusters()
+        self.voiceid._automerge_segments()  # experimental
         self._clusters = self.voiceid.get_clusters()
 
     def get_status(self):
