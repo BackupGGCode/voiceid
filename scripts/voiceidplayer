@@ -975,7 +975,7 @@ class Model:
 
     def extract_speakers(self):
         """Extracts speakers"""
-        self.voiceid.set_noise_mode(mode)
+        self.voiceid.set_noise_mode(self.mode)
         self.voiceid.extract_speakers(False, False, 4)
         self.voiceid._automerge_segments()  # experimental
         self._clusters = self.voiceid.get_clusters()
