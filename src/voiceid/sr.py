@@ -561,11 +561,12 @@ class Voiceid(object):
 #                        '_').replace(' ',
 #                        '_').replace('(', '_').replace(')', '_')
         new_file = ''
+        print filename
         pathsep = os.path.sep 
         if sys.platform == 'win32':
             pathsep = '/'
         for char in tmp_file:
-            if char.isalnum() or char in  ['.', '_', ':', pathsep]:
+            if char.isalnum() or char in  ['.', '_', ':', pathsep, '-']:
                 new_file += char
         try:
             shutil.copy(filename, new_file)
