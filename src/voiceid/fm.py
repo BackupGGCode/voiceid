@@ -301,6 +301,7 @@ def build_gmm(filebasename, identifier):
 
     :type identifier: string
     :param identifier: the name or identifier of the speaker"""
+    extract_mfcc(filebasename)
     if sys.platform == 'win32':
         diarization(filebasename)
         
@@ -314,7 +315,7 @@ def build_gmm(filebasename, identifier):
     else:
         diarization_standard(filebasename)
     ident_seg(filebasename, identifier)
-    extract_mfcc(filebasename)
+    #extract_mfcc(filebasename)
     _train_init(filebasename)
     _train_map(filebasename)
     

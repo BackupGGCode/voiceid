@@ -19,6 +19,12 @@
 #    GNU General Public License for more details.
 #
 #############################################################################
+from voiceid import utils, db, sr, fm, VConf
+import multiprocessing
+import optparse
+import os
+import shutil
+import sys
 """
 VoiceID is a speaker recognition/identification system written in Python,
 based on the
@@ -37,11 +43,6 @@ using the scripts to create the gmm files."""
 
 __version__ = '$Rev$'
 
-import multiprocessing
-import optparse
-from voiceid import utils, db, sr, fm, VConf
-import os
-import shutil
 
 configuration = VConf()
 
@@ -156,6 +157,23 @@ examples:
         basename, extension = os.path.splitext(w)
         file_basename = basename
         fm.file2wav(w)
-        fm.build_gmm(file_basename, speaker)
+        #fm.build_gmm(file_basename, speaker)
+        default_db = db.GMMVoiceDB(path=configuration.DB_DIR)
+        default_db.add_model(file_basename, speaker)
+        if not configuration.KEEP_INTERMEDIATE_FILES:
+            try:
+                os.remove("%s.seg" % file_basename)
+                os.remove("%s.mfcc" % file_basename)
+                os.remove("%s.init.gmm" % file_basename)
+                os.remove("%s.ident.seg" % file_basename)
+                if sys.platform == 'win32':
+                    os.remove("%s.ident.seg" % file_basename)
+                    os.remove("%s.c.gmm" % file_basename)
+                    os.remove("%s.uem.seg" % file_basename)
+                    os.remove("%s.gmm" % file_basename)
+                    #os.remove("%s.init.gmms" % file_basename) 
+                    
+            except OSError:
+                print 'WARNING: error deleting some intermediate files'
         exit(0)
     parser.print_help()
