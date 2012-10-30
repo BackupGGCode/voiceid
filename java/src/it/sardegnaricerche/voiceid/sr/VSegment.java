@@ -3,6 +3,8 @@
  */
 package it.sardegnaricerche.voiceid.sr;
 
+import java.io.File;
+
 /**
  * VoiceID, Copyright (C) 2011-2013, Sardegna Ricerche. Email:
  * labcontdigit@sardegnaricerche.it, michela.fancello@crs4.it,
@@ -26,6 +28,7 @@ public class VSegment {
 
 	private float start;
 	private float duration;
+	private File audio;
 
 	public float getStart() {
 		return start;
@@ -43,6 +46,10 @@ public class VSegment {
 		this.duration = duration;
 	}
 
+	public String toString() {
+		return "start: " + start + " duration: " + duration;
+	}
+
 	/**
 	 * @param start
 	 * @param duration
@@ -51,6 +58,20 @@ public class VSegment {
 		super();
 		this.start = start;
 		this.duration = duration;
+	}
+
+	/**
+	 * @return the audio
+	 */
+	public File getAudio() {
+		return audio;
+	}
+
+	/**
+	 * @param audio the audio to set
+	 */
+	public void setAudio(File audio) {
+		this.audio = audio;
 	}
 
 }

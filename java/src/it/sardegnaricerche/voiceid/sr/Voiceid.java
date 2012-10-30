@@ -1,21 +1,19 @@
-/**
- * 
- */
 package it.sardegnaricerche.voiceid.sr;
 
 import it.sardegnaricerche.voiceid.db.VoiceDB;
 import it.sardegnaricerche.voiceid.db.gmm.GMMVoiceDB;
-import it.sardegnaricerche.voiceid.fm.DiarizationManager;
-import it.sardegnaricerche.voiceid.fm.LIUMDiarizationStandardAdapter;
+import it.sardegnaricerche.voiceid.fm.Diarizator;
+import it.sardegnaricerche.voiceid.fm.LIUMStandardDiarizator;
 import it.sardegnaricerche.voiceid.utils.Utils;
 import it.sardegnaricerche.voiceid.utils.VLogging;
 import it.sardegnaricerche.voiceid.utils.VoiceidException;
-import it.sardegnaricerche.voiceid.utils.wav.WavFileException;
 
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.logging.Logger;
+
+import javax.sound.sampled.UnsupportedAudioFileException;
 
 /**
  * VoiceID, Copyright (C) 2011-2013, Sardegna Ricerche. Email:
@@ -34,6 +32,18 @@ import java.util.logging.Logger;
  * details.
  * 
  * @author Michela Fancello, Mauro Mereu
+
+ * 
+ */
+
+/**
+ * Voiceid is a class that represents a whole file diarization and
+ * identification workflow. More in deep, the Voiceid class is associated to a
+ * VoiceDB, the voice model database instance that implements all the methods to
+ * compare audio against models, an input file, which can be a Video or audio
+ * file, and a DiarizationManager, which implements the diarization algorithms.
+ * The Voiceid class gives some simple methods to extract speakers' information
+ * from the audio.
  * 
  */
 public class Voiceid {
@@ -43,14 +53,15 @@ public class Voiceid {
 	private VoiceDB voicedb;
 	private File inputfile;
 	private File wavPath;
-	private DiarizationManager diarizationManager;
+	private Diarizator diarizationManager;
 
 	/**
+	 * 
 	 * @throws IOException
 	 * @throws ClassNotFoundException
 	 * 
 	 */
-	public Voiceid(VoiceDB voicedb, File inputFile, DiarizationManager manager)
+	public Voiceid(VoiceDB voicedb, File inputFile, Diarizator manager)
 			throws IOException, ClassNotFoundException {
 		clusters = null;
 		this.voicedb = voicedb;
@@ -67,38 +78,65 @@ public class Voiceid {
 	public Voiceid(String dbDir, File inpuFile) throws IOException,
 			ClassNotFoundException {
 		this(new GMMVoiceDB(dbDir), inpuFile,
-				new LIUMDiarizationStandardAdapter());
+				new LIUMStandardDiarizator());
 	}
 
-	public void verifyInputFile() throws IOException {
+	private void verifyInputFile() throws IOException {
 		if (!this.inputfile.isFile())
 			throw new IOException(this.inputfile + " not a regular file");
 	}
 
-	public void extractClusters() throws WavFileException, VoiceidException {
+	public void extractClusters() throws VoiceidException, IOException {
 		try {
-			if (!Utils.isWave(this.inputfile)) {
-				this.toWav();
-			} else if (!Utils.isGoodWave(this.inputfile)) {
+			if (!Utils.isGoodWave(this.inputfile)) {
 				logger.info("Ok, let's transcode this wav"); // TODO: rename to
 																// another wav e
 																// resample
 				throw new VoiceidException(
 						"Transcoding of bad(format) wav files still not implemented!");
 			}
+			this.wavPath = new File(Utils.getBasename(this.inputfile) + ".wav");
+		} catch (UnsupportedAudioFileException e) {
+			logger.severe(e.getMessage());
+			this.toWav();
 		} catch (IOException e) {
 			logger.severe(e.getMessage());
 		}
 		clusters = diarizationManager.extractClusters(inputfile);
+		this.trimClusters();
 	}
 
 	public boolean matchClusters() {
-		for (VCluster c : this.clusters)
+		for (VCluster c : this.clusters) {
 			logger.info(c.toString());
+			voicedb.voiceLookup(null);
+		}
+
+		// TODO: compare the clusters with the database
 		return true;
 	}
 
-	private void toWav() throws IOException, WavFileException {
+	private void trimClusters() throws IOException {
+		for (VCluster c : this.clusters) {
+			c.trimSegments(this.wavPath);
+			// String base = "";
+			// base = Utils.getBasename(this.wavPath);
+			// logger.fine(base);
+			// File mydir = new File(base + "/" + c.getLabel());
+			// mydir.mkdirs();
+			// c.setDir(mydir);
+			// logger.fine(mydir.getAbsolutePath());
+			// for (VSegment s : c.getSegments()) {
+			// String mywav = mydir.getAbsolutePath() + "/" + c.getLabel()
+			// + "_s" + s.getStart() + "_d" + s.getDuration() + ".wav";
+			// Utils.copyAudio(this.wavPath, mywav, s.getStart(),
+			// s.getDuration());
+			// logger.fine("filename: " + mywav);
+			// }
+		}
+	}
+
+	private void toWav() throws IOException {
 		logger.fine("Gstreamer initialized");
 		String filename = inputfile.getAbsolutePath();
 		String name = Utils.getBasename(inputfile);
@@ -110,8 +148,8 @@ public class Voiceid {
 						+ "' ! decodebin ! audioresample ! 'audio/x-raw-int,rate=16000' ! audioconvert !"
 						+ " 'audio/x-raw-int,rate=16000,depth=16,signed=true,channels=1' ! wavenc ! filesink location="
 						+ name + ".wav " };
-		// logger.info(System.getProperty("os.name").toLowerCase()); //TODO: fix
-		// for other OS'
+		// TODO: fix for other OS' vvvvvvvvvv
+		// logger.info(System.getProperty("os.name").toLowerCase());
 		logger.fine(line[2]);
 		try {
 			Process p = Runtime.getRuntime().exec(line);
@@ -129,16 +167,18 @@ public class Voiceid {
 	public static void main(String[] args) {
 		logger.info("Voiceid main method");
 		logger.info("First argument: '" + args[0] + "'");
+		long startTime = System.currentTimeMillis();
 		try {
 			Voiceid voiceid = new Voiceid((String) args[0], new File(args[1]));
 			voiceid.extractClusters();
 			voiceid.matchClusters();
-			// voiceid.toWav();
 		} catch (IOException e) {
 			logger.severe(e.getMessage());
 		} catch (Exception ex) {
 			logger.severe(ex.getMessage());
 		}
-		logger.info("Exit");
+		long endTime = System.currentTimeMillis();
+		long duration = endTime - startTime;
+		logger.info("Exit (" + ((float) duration / 1000) + " s)");
 	}
 }

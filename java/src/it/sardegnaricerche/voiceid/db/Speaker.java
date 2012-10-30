@@ -25,7 +25,7 @@ package it.sardegnaricerche.voiceid.db;
 public class Speaker {
 
 	private String firstName, secondName, lastName;
-	private char[] id;
+	private long id;
 
 	/**
 	 * @param firstName
@@ -34,7 +34,7 @@ public class Speaker {
 	 * @param id
 	 */
 	public Speaker(String firstName, String secondName, String lastName,
-			char[] id) {
+			long id) {
 		super();
 		this.firstName = firstName;
 		this.secondName = secondName;

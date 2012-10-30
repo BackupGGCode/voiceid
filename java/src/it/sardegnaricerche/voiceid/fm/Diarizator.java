@@ -27,7 +27,7 @@ import java.util.ArrayList;
  * @author Michela Fancello, Mauro Mereu
  * 
  */
-public interface DiarizationManager {
+public interface Diarizator {
 
 	/**
 	 * @return

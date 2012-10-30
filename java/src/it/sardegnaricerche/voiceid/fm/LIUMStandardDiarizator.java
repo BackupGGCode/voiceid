@@ -5,7 +5,6 @@ package it.sardegnaricerche.voiceid.fm;
 
 import fr.lium.spkDiarization.lib.DiarizationException;
 import fr.lium.spkDiarization.lib.MainTools;
-import fr.lium.spkDiarization.lib.libDiarizationError.DiarizationError;
 import fr.lium.spkDiarization.libClusteringData.Cluster;
 import fr.lium.spkDiarization.libClusteringData.ClusterSet;
 import fr.lium.spkDiarization.libClusteringData.Segment;
@@ -22,7 +21,6 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Iterator;
-import java.util.TreeMap;
 import java.util.logging.Logger;
 
 /**
@@ -44,14 +42,14 @@ import java.util.logging.Logger;
  * @author Michela Fancello, Mauro Mereu
  * 
  */
-public class LIUMDiarizationStandardAdapter implements DiarizationManager {
+public class LIUMStandardDiarizator implements Diarizator {
 	private static Logger logger = VLogging.getDefaultLogger();
 	private Diarization diarization;
 
 	/**
 	 * 
 	 */
-	public LIUMDiarizationStandardAdapter() {
+	public LIUMStandardDiarizator() {
 		super();
 	}
 
@@ -157,6 +155,8 @@ public class LIUMDiarizationStandardAdapter implements DiarizationManager {
 						parameterDiarization.getThreshold("c"), "ce",
 						clustersSegInit, clustersGender, featureSet, parameter);
 
+				clustersCLR.collapse();
+				
 				ArrayList<Cluster> cvect = clustersCLR
 						.getClusterVectorRepresentation();
 
@@ -164,6 +164,7 @@ public class LIUMDiarizationStandardAdapter implements DiarizationManager {
 //					logger.info(c.getName() + " "
 //							+ c.firstSegment().getLengthInSecond() + " ");
 //					logger.info(toVCluster(c).toString());
+					logger.info(c.getInformations());
 					outputList.add(toVCluster(c));
 				}
 				// for (clustersCLR.getFirstCluster())

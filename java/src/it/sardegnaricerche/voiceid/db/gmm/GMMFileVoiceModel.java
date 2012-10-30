@@ -3,12 +3,15 @@
  */
 package it.sardegnaricerche.voiceid.db.gmm;
 
+import java.io.File;
 import java.io.IOException;
+import java.util.logging.Logger;
 
 import it.sardegnaricerche.voiceid.db.AbstractFileVoiceModel;
 import it.sardegnaricerche.voiceid.db.Sample;
 import it.sardegnaricerche.voiceid.fm.VoiceScorer;
 import it.sardegnaricerche.voiceid.utils.Scores;
+import it.sardegnaricerche.voiceid.utils.VLogging;
 
 /**
  * VoiceID, Copyright (C) 2011-2013, Sardegna Ricerche. Email:
@@ -31,7 +34,9 @@ import it.sardegnaricerche.voiceid.utils.Scores;
  */
 public class GMMFileVoiceModel extends AbstractFileVoiceModel {
 
+	private static Logger logger = VLogging.getDefaultLogger();
 	private static final long serialVersionUID = 7297011177725502307L;
+	
 
 	/**
 	 * @param path
@@ -40,7 +45,7 @@ public class GMMFileVoiceModel extends AbstractFileVoiceModel {
 	public GMMFileVoiceModel(String path) throws IOException {
 		super(path);
 		if (!this.verifyGMMFormat())
-			throw new IOException(this.getName() + " is not in right format");
+			throw new IOException(this.getName() + " is not in right format");		
 	}
 
 	private boolean verifyGMMFormat() {
@@ -55,7 +60,11 @@ public class GMMFileVoiceModel extends AbstractFileVoiceModel {
 	 * .voiceid.db.Sample)
 	 */
 	public Scores scoreSample(Sample sample, VoiceScorer voicescorer) {
-		return voicescorer.score(sample, this);
+		try {
+			return voicescorer.score(sample, this);
+		} catch (Exception e) {
+			logger.severe(e.getMessage());
+		}
+		return null;
 	}
-
 }

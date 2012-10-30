@@ -154,10 +154,9 @@ examples:
             w = waves[-1]
         else:
             w = waves[0]
-        basename, extension = os.path.splitext(w)
+        ww = fm.file2wav(w)
+        basename, extension = os.path.splitext(ww)
         file_basename = basename
-        fm.file2wav(w)
-        #fm.build_gmm(file_basename, speaker)
         default_db = db.GMMVoiceDB(path=configuration.DB_DIR)
         default_db.add_model(file_basename, speaker)
         if not configuration.KEEP_INTERMEDIATE_FILES:
@@ -167,12 +166,9 @@ examples:
                 os.remove("%s.init.gmm" % file_basename)
                 os.remove("%s.ident.seg" % file_basename)
                 if sys.platform == 'win32':
-                    os.remove("%s.ident.seg" % file_basename)
                     os.remove("%s.c.gmm" % file_basename)
                     os.remove("%s.uem.seg" % file_basename)
                     os.remove("%s.gmm" % file_basename)
-                    #os.remove("%s.init.gmms" % file_basename) 
-                    
             except OSError:
                 print 'WARNING: error deleting some intermediate files'
         exit(0)

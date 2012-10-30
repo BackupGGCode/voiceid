@@ -3,16 +3,15 @@
  */
 package it.sardegnaricerche.voiceid.utils;
 
-import it.sardegnaricerche.voiceid.utils.wav.WavFile;
-import it.sardegnaricerche.voiceid.utils.wav.WavFileException;
-
 import java.io.File;
 import java.io.IOException;
 import java.util.logging.Logger;
 
-import javax.swing.JFileChooser;
-
-import com.sun.media.sound.WaveFileReader;
+import javax.sound.sampled.AudioFileFormat;
+import javax.sound.sampled.AudioFormat;
+import javax.sound.sampled.AudioInputStream;
+import javax.sound.sampled.AudioSystem;
+import javax.sound.sampled.UnsupportedAudioFileException;
 
 /**
  * VoiceID, Copyright (C) 2011-2013, Sardegna Ricerche. Email:
@@ -81,34 +80,126 @@ public class Utils {
 	}
 
 	public static boolean isWave(File file) {
-		String ext = getExtension(file);
-		logger.fine("File extension: " + ext);
-		if (ext.toLowerCase().equals("wav")) {
+		AudioFileFormat a = null;
+		try {
+			a = AudioSystem.getAudioFileFormat(file);
+			// logger.info(a.toString());
+		} catch (UnsupportedAudioFileException e) {
+			logger.severe(e.getMessage());
+			return false;
+		} catch (IOException e) {
+			logger.severe(e.getMessage());
+			return false;
+		}
+
+		if (a.getType().equals(AudioFileFormat.Type.WAVE)) {
+			logger.fine("YES IT IS A WAVE");
 			return true;
 		}
 		return false;
 	}
 
-	public static boolean isGoodWave(File file) throws IOException {
-		WavFile wavFile;
+	public static boolean isGoodWave(File file) throws IOException,
+			UnsupportedAudioFileException {
+		AudioFileFormat a = null;
 		try {
-			wavFile = WavFile.openWavFile(file);
-		} catch (WavFileException e) {
+			a = AudioSystem.getAudioFileFormat(file);
+			logger.fine(a.toString());
+		} catch (UnsupportedAudioFileException e) {
 			logger.severe(e.getMessage());
-			logger.severe("BAD WAVE FILE :" + file);
+			throw e;
+		} catch (IOException e) {
+			logger.severe(e.getMessage());
 			return false;
 		}
-		long rate = wavFile.getSampleRate();
-		logger.fine("Wave Sample Rate :" + rate);
-		if (rate != 16000) {
+		if (!a.getType().equals(AudioFileFormat.Type.WAVE)) {
 			return false;
 		}
-		int channels = wavFile.getNumChannels();
-		logger.fine("Wave channels: " + channels);
-		if (channels != 1)
+		AudioFormat af = a.getFormat();
+		logger.info("Frame size = "+af.getFrameSize());
+		logger.info("Frame rate = "+af.getFrameRate());
+		logger.fine(af.toString());
+		if (af.getChannels() != 1)
 			return false;
-		// wavFile.display();
-
+		if (af.getSampleRate() != 16000.0)
+			return false;
+		if (af.isBigEndian())
+			return false;
+		if (af.getFrameSize() != 2)
+			return false;
 		return true;
+	}
+
+	public static void copyAudio(String sourceFileName,
+			String destinationFileName, int startSecond, int secondsToCopy) {
+		AudioInputStream inputStream = null;
+		AudioInputStream shortenedStream = null;
+		try {
+			File file = new File(sourceFileName);
+			AudioFileFormat fileFormat = AudioSystem.getAudioFileFormat(file);
+			AudioFormat format = fileFormat.getFormat();
+			inputStream = AudioSystem.getAudioInputStream(file);
+			int bytesPerSecond = format.getFrameSize()
+					* (int) format.getFrameRate();
+			inputStream.skip(startSecond * bytesPerSecond);
+			long framesOfAudioToCopy = secondsToCopy
+					* (int) format.getFrameRate();
+			shortenedStream = new AudioInputStream(inputStream, format,
+					framesOfAudioToCopy);
+			File destinationFile = new File(destinationFileName);
+			AudioSystem.write(shortenedStream, fileFormat.getType(),
+					destinationFile);
+		} catch (Exception e) {
+			logger.severe(e.getMessage());
+		} finally {
+			if (inputStream != null)
+				try {
+					inputStream.close();
+				} catch (Exception e) {
+					logger.severe(e.getMessage());
+				}
+			if (shortenedStream != null)
+				try {
+					shortenedStream.close();
+				} catch (Exception e) {
+					logger.severe(e.getMessage());
+				}
+		}
+	}
+	
+	public static void copyAudio(File sourceFile,
+			String destinationFileName, float startSecond, float secondsToCopy) {
+		AudioInputStream inputStream = null;
+		AudioInputStream shortenedStream = null;
+		try {
+			AudioFileFormat fileFormat = AudioSystem.getAudioFileFormat(sourceFile);
+			AudioFormat format = fileFormat.getFormat();			
+			inputStream = AudioSystem.getAudioInputStream(sourceFile);			
+			int bytesPerSecond = format.getFrameSize()
+					* (int) format.getFrameRate();
+			inputStream.skip((int)(startSecond*100) * bytesPerSecond/100);			
+			long framesOfAudioToCopy = (int)(secondsToCopy*100)
+					* (int) format.getFrameRate()/100;
+			shortenedStream = new AudioInputStream(inputStream, format,
+					framesOfAudioToCopy);			
+			File destinationFile = new File(destinationFileName);
+			AudioSystem.write(shortenedStream, fileFormat.getType(),
+					destinationFile);
+		} catch (Exception e) {
+			logger.severe(e.getMessage());
+		} finally {
+			if (inputStream != null)
+				try {
+					inputStream.close();
+				} catch (Exception e) {
+					logger.severe(e.getMessage());
+				}
+			if (shortenedStream != null)
+				try {
+					shortenedStream.close();
+				} catch (Exception e) {
+					logger.severe(e.getMessage());
+				}
+		}
 	}
 }

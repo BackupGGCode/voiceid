@@ -4,8 +4,20 @@
 package it.sardegnaricerche.voiceid.sr;
 
 import it.sardegnaricerche.voiceid.db.Speaker;
+import it.sardegnaricerche.voiceid.utils.Utils;
+import it.sardegnaricerche.voiceid.utils.VLogging;
 
+import java.io.File;
+import java.io.IOException;
+import java.io.SequenceInputStream;
 import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.logging.Logger;
+
+import javax.sound.sampled.AudioFileFormat;
+import javax.sound.sampled.AudioFormat;
+import javax.sound.sampled.AudioInputStream;
+import javax.sound.sampled.AudioSystem;
 
 /**
  * VoiceID, Copyright (C) 2011-2013, Sardegna Ricerche. Email:
@@ -27,18 +39,99 @@ import java.util.ArrayList;
  * 
  */
 public class VCluster {
-
+	private static Logger logger = VLogging.getDefaultLogger();
 	private ArrayList<VSegment> vseg;
 	private String label;
+	private File wavFile;
+
+	public String getLabel() {
+		return label;
+	}
+
+	public void setLabel(String label) {
+		this.label = label;
+	}
 
 	private Speaker speaker;
 
 	public Speaker getSpeaker() {
-		return speaker;		
+		return speaker;
 	}
 
 	public void setSpeaker(Speaker speaker) {
 		this.speaker = speaker;
+	}
+
+	@SuppressWarnings("unchecked")
+	public ArrayList<VSegment> getSegments() {
+		return (ArrayList<VSegment>) vseg.clone();
+	}
+
+	public void trimSegments(File inputFile) throws IOException {
+		String base = Utils.getBasename(inputFile);
+		File mydir = new File(base);
+		mydir.mkdirs();
+		String mywav = mydir.getAbsolutePath() + "/" + this.getLabel() + ".wav";
+		AudioFileFormat fileFormat = null;
+		AudioInputStream inputStream = null;
+		AudioInputStream shortenedStream = null;
+		AudioInputStream current = null;
+		int bytesPerSecond = 0;
+		long framesOfAudioToCopy = 0;
+		wavFile = new File(mywav);
+		try {
+			fileFormat = AudioSystem.getAudioFileFormat(inputFile);
+			AudioFormat format = fileFormat.getFormat();
+			boolean firstTime = true;
+
+			for (VSegment s : this.getSegments()) {
+				bytesPerSecond = format.getFrameSize()
+						* (int) format.getFrameRate();
+				inputStream = AudioSystem.getAudioInputStream(inputFile);
+				inputStream.skip(0);
+				inputStream.skip((int) (s.getStart() * 100) * bytesPerSecond
+						/ 100);
+				framesOfAudioToCopy = (int) (s.getDuration() * 100)
+						* (int) format.getFrameRate() / 100;
+
+				if (firstTime) {
+					shortenedStream = new AudioInputStream(inputStream, format,
+							framesOfAudioToCopy);
+				} else {
+					current = new AudioInputStream(inputStream, format,
+							framesOfAudioToCopy);
+					shortenedStream = new AudioInputStream(
+							new SequenceInputStream(shortenedStream, current),
+							format, shortenedStream.getFrameLength()
+									+ framesOfAudioToCopy);
+				}
+				firstTime = false;
+			}
+			AudioSystem.write(shortenedStream, fileFormat.getType(), wavFile);
+		} catch (Exception e) {
+			logger.severe(e.getMessage());
+			e.printStackTrace();
+		} finally {
+			if (inputStream != null)
+				try {
+					inputStream.close();
+				} catch (Exception e) {
+					logger.severe(e.getMessage());
+				}
+			if (shortenedStream != null)
+				try {
+					shortenedStream.close();
+				} catch (Exception e) {
+					logger.severe(e.getMessage());
+				}
+			if (current != null)
+				try {
+					current.close();
+				} catch (Exception e) {
+					logger.severe(e.getMessage());
+				}
+		}
+		logger.fine("filename: " + wavFile.getAbsolutePath());
 	}
 
 	/**
@@ -50,16 +143,37 @@ public class VCluster {
 		this.label = label;
 	}
 
-	/* (non-Javadoc)
+	/*
+	 * (non-Javadoc)
+	 * 
 	 * @see java.lang.Object#toString()
 	 */
 	@Override
 	public String toString() {
-		return "("+label+")" ;
+		String temp = "";
+		for (VSegment s : vseg)
+			temp += s.toString() + '\n';
+
+		return "(" + label + ") \n" + temp;
 	}
-	
+
 	public boolean add(VSegment vsegment) {
 		return vseg.add(vsegment);
+	}
+
+	/**
+	 * @return the dir
+	 */
+	public File getDir() {
+		return wavFile;
+	}
+
+	/**
+	 * @param dir
+	 *            the dir to set
+	 */
+	public void setDir(File dir) {
+		this.wavFile = dir;
 	}
 
 }
