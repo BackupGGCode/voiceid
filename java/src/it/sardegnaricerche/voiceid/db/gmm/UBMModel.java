@@ -3,6 +3,8 @@
  */
 package it.sardegnaricerche.voiceid.db.gmm;
 
+import java.io.File;
+
 import it.sardegnaricerche.voiceid.db.Sample;
 import it.sardegnaricerche.voiceid.db.VoiceModel;
 import it.sardegnaricerche.voiceid.utils.Scores;
@@ -27,14 +29,20 @@ import it.sardegnaricerche.voiceid.utils.Scores;
  * @author Michela Fancello, Mauro Mereu
  *
  */
-public class UBMModel  {
+public class UBMModel  extends File{
 
-	/* (non-Javadoc)
-	 * @see it.sardegnaricerche.voiceid.db.VoiceModel#scoreSample(it.sardegnaricerche.voiceid.db.Sample)
+	/**
+	 * @param pathname
 	 */
-	public Scores scoreSample(Sample sample) {
-		// TODO Auto-generated method stub
-		return null;
+	public UBMModel(String pathname) {
+		super(pathname);
 	}
+
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = -981747090045741679L;
+
+
 
 }

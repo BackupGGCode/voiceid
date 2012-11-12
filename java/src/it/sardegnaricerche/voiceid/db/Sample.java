@@ -29,7 +29,7 @@ import java.io.File;
  */
 public abstract class Sample  {
 	
-	File resource;
+	protected File resource;
 	Features features;
 
 	/**
@@ -37,6 +37,13 @@ public abstract class Sample  {
 	 */
 	private static final long serialVersionUID = -5414487902590405784L;
 
+	/**
+	 * @param resource
+	 */
+	public Sample(File resource) {
+		super();
+		this.resource = resource;
+	}
 	
 
 }

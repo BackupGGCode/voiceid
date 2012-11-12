@@ -49,6 +49,7 @@ def start_subprocess(commandline):
     :param commandline: the command to run in a subprocess"""
     if sys.platform == 'win32':
         commandline = commandline.replace('\\','\\\\')
+    print commandline
     args = shlex.split(commandline)
     proc = subprocess.Popen(args, stdin=CONFIGURATION.output_redirect,
                          stdout=CONFIGURATION.output_redirect,
