@@ -1,6 +1,5 @@
 package it.sardegnaricerche.voiceid.utils;
 
-import it.sardegnaricerche.voiceid.db.Speaker;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -28,7 +27,7 @@ import java.util.Map;
  * 
  */
 
-public class Scores extends HashMap<Speaker, Double>{
+public class Scores extends HashMap<Long, Double>{
 
 //	public static void printMap(Map mp) {
 //	    Iterator it = mp.entrySet().iterator();
@@ -42,11 +41,11 @@ public class Scores extends HashMap<Speaker, Double>{
 
 	private static final long serialVersionUID = 599647055140479507L;
 
-	public Map<Speaker, Double> getBest(Strategy[] strategy){
+	public Map<Long, Double> getBest(Strategy[] strategy){
 		return null;
 	}
 	
-	public Map<Speaker, Double> getBestFive(){
+	public Map<Long, Double> getBestFive(){
 		return null;
 	}
 	

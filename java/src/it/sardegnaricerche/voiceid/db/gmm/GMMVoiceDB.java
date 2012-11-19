@@ -3,11 +3,23 @@
  */
 package it.sardegnaricerche.voiceid.db.gmm;
 
+import fr.lium.spkDiarization.lib.DiarizationException;
+import fr.lium.spkDiarization.lib.MainTools;
+import fr.lium.spkDiarization.libClusteringData.Cluster;
+import fr.lium.spkDiarization.libClusteringData.ClusterSet;
+import fr.lium.spkDiarization.libClusteringData.Segment;
+import fr.lium.spkDiarization.libFeature.FeatureSet;
+import fr.lium.spkDiarization.libModel.GMM;
+import fr.lium.spkDiarization.parameter.Parameter;
+import fr.lium.spkDiarization.programs.MTrainInit;
+import fr.lium.spkDiarization.programs.MTrainMAP;
 import it.sardegnaricerche.voiceid.db.Sample;
 import it.sardegnaricerche.voiceid.db.Speaker;
 import it.sardegnaricerche.voiceid.db.VoiceDB;
 import it.sardegnaricerche.voiceid.db.VoiceModel;
+import it.sardegnaricerche.voiceid.fm.WavSample;
 import it.sardegnaricerche.voiceid.utils.Scores;
+import it.sardegnaricerche.voiceid.utils.Utils;
 import it.sardegnaricerche.voiceid.utils.VLogging;
 
 import java.io.File;
@@ -15,6 +27,8 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.logging.Logger;
+
+import javax.sound.sampled.UnsupportedAudioFileException;
 
 /**
  * VoiceID, Copyright (C) 2011-2013, Sardegna Ricerche. Email:
@@ -77,6 +91,7 @@ public class GMMVoiceDB implements VoiceDB {
 	 */
 	@Override
 	public boolean addModel(Sample sample, Speaker speaker) {
+
 		return false;
 	}
 
@@ -125,4 +140,69 @@ public class GMMVoiceDB implements VoiceDB {
 		return genders;
 	}
 
+	public static void buildModel(WavSample wavSample) throws Exception {
+		String basename = "";
+		try {
+			basename = Utils.getBasename(wavSample.toWav());
+		} catch (IOException e1) {
+			logger.severe(e1.getMessage());
+		}
+
+		String[] args_init = { "--fInputMask=" + basename + ".wav",
+				"--fInputDesc=audio2sphinx,1:3:2:0:0:0,13,1:1:300:4",
+				//"--emInitMethod=copy",  
+				 basename };
+		try {
+			Parameter param = MainTools.getParameters(args_init);
+			// clusters
+			
+			
+			ClusterSet clusters = null;
+			Segment segment = null;
+			clusters = new ClusterSet();
+			Cluster cluster = clusters.createANewCluster("S0");
+			segment = new Segment(param.show, 0, 1, cluster);
+			cluster.addSegment(segment);
+			
+//			ClusterSet clusters = MainTools.readClusterSet(param);
+
+			// Features
+			FeatureSet features = MainTools.readFeatureSet(param, clusters);
+			segment.setLength(features.getNumberOfFeatures());
+			features.setCurrentShow(segment.getShowName());
+			
+			// Compute Model
+			ArrayList<GMM> gmmInitVect = new ArrayList<GMM>(
+					clusters.clusterGetSize());
+
+			MTrainInit.make(features, clusters, gmmInitVect, param);
+
+			String[] args_map = { "--fInputMask=" + basename + ".wav",
+					"--fInputDesc=audio2sphinx,1:3:2:0:0:0,13,1:1:300:4",
+					"--emCtrl=1,5,0.01",
+					"--varCtrl=0.01,10.0",
+					"--tOutputMask=%s.gmm" ,
+					basename };
+			param = MainTools.getParameters(args_map);
+			// Compute Model
+			ArrayList<GMM> gmmVect = new ArrayList<GMM>();
+
+			MTrainMAP.make(features, clusters, gmmInitVect, gmmVect, param);
+
+			MainTools.writeGMMContainer(param, gmmVect);
+		} catch (DiarizationException e) {
+			logger.severe("error \t Exception : " + e.getMessage());
+			throw e;
+		} catch (Exception e) {
+			logger.severe(e.getMessage());
+			throw e;
+		}
+	}
+
+	public static void main(String[] args) throws Exception {
+		
+		WavSample ws = new WavSample(new File(args[0]));
+		buildModel(ws);
+		logger.info("Done");
+	}
 }

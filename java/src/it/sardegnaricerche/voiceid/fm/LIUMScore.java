@@ -147,8 +147,8 @@ public class LIUMScore implements VoiceScorer {
 			// Seg outPut
 			// MainTools.writeClusterSet(param, clusterResult, false);
 		} catch (DiarizationException e) {
-			System.out.println("error \t Exception");
-			System.out.println(e.getMessage());
+//			System.out.println("error \t Exception");
+			logger.severe(e.getMessage());
 		}
 		return null;
 	}
@@ -169,7 +169,7 @@ public class LIUMScore implements VoiceScorer {
 			String name = key.split(":")[1];
 			Double value = Double.parseDouble(c.getInformation(c.getInformation().lastKey())); 
 			logger.info(value+"");
-			result.put(new Speaker(name, name, name, 0), value);
+			result.put( 0l, value);
 		}
 		return result;
 	}
