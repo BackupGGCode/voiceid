@@ -70,15 +70,15 @@ public class Voiceid {
 		this.verifyInputFile();
 	}
 
+	public Voiceid(String dbDir, File inpuFile) throws IOException,
+	ClassNotFoundException {
+		this(new GMMVoiceDB(dbDir), inpuFile,
+				new LIUMStandardDiarizator());
+	}
+	
 	public Voiceid(String dbDir, String inputPath) throws IOException,
 			ClassNotFoundException {
 		this(dbDir, new File(inputPath));
-	}
-
-	public Voiceid(String dbDir, File inpuFile) throws IOException,
-			ClassNotFoundException {
-		this(new GMMVoiceDB(dbDir), inpuFile,
-				new LIUMStandardDiarizator());
 	}
 
 	private void verifyInputFile() throws IOException {

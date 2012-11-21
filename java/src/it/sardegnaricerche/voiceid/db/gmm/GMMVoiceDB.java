@@ -17,6 +17,7 @@ import it.sardegnaricerche.voiceid.db.Sample;
 import it.sardegnaricerche.voiceid.db.Speaker;
 import it.sardegnaricerche.voiceid.db.VoiceDB;
 import it.sardegnaricerche.voiceid.db.VoiceModel;
+import it.sardegnaricerche.voiceid.fm.LIUMScore;
 import it.sardegnaricerche.voiceid.fm.WavSample;
 import it.sardegnaricerche.voiceid.utils.Scores;
 import it.sardegnaricerche.voiceid.utils.Utils;
@@ -58,10 +59,20 @@ public class GMMVoiceDB implements VoiceDB {
 
 	private HashMap<String, ArrayList<GMMFileVoiceModel>> models;
 
+	private static UBMModel ubmmodel = null;
+
 	/**
 	 * @param path
 	 * @throws IOException
 	 */
+	public GMMVoiceDB(String path, UBMModel ubmmodel) throws IOException {
+		this(path);
+		if (GMMVoiceDB.getUbmmodel() == null
+				|| !ubmmodel.equals(GMMVoiceDB.getUbmmodel())) {
+			GMMVoiceDB.setUbmmodel(ubmmodel);
+		}
+	
+	}
 	public GMMVoiceDB(String path) throws IOException {
 		this.path = new java.io.File(path);
 		if (!this.path.exists())
@@ -70,7 +81,6 @@ public class GMMVoiceDB implements VoiceDB {
 			throw new IOException("GMMVoiceDB: " + path + " is not a directory");
 		this.readDb();
 	}
-
 	/*
 	 * (non-Javadoc)
 	 * 
@@ -129,6 +139,23 @@ public class GMMVoiceDB implements VoiceDB {
 		return false;
 	}
 
+	/**
+	 * @return the ubmmodel
+	 */
+	public static UBMModel getUbmmodel() {
+		return ubmmodel;
+	}
+
+	/**
+	 * @param ubmmodel
+	 *            the ubmmodel to set
+	 */
+	public static void setUbmmodel(UBMModel ubmmodel) {
+		GMMVoiceDB.ubmmodel = ubmmodel;
+	}
+	
+	
+	
 	/*
 	 * (non-Javadoc)
 	 * 
@@ -140,43 +167,42 @@ public class GMMVoiceDB implements VoiceDB {
 		return genders;
 	}
 
-	public static void buildModel(WavSample wavSample) throws Exception {
+	public static void buildModel(WavSample wavSample, UBMModel ubmmodel, String name) throws Exception {
 		String basename = "";
 		try {
 			basename = Utils.getBasename(wavSample.toWav());
 		} catch (IOException e1) {
 			logger.severe(e1.getMessage());
 		}
-
 		String[] args_init = { "--fInputMask=" + basename + ".wav",
 				"--fInputDesc=audio2sphinx,1:3:2:0:0:0,13,1:1:300:4",
-				//"--emInitMethod=copy",  
-				 basename };
+				"--emInitMethod=copy",
+				"--tInputMask="+ ubmmodel.getAbsolutePath(),
+				basename };
+		
 		try {
 			Parameter param = MainTools.getParameters(args_init);
 			// clusters
 			
-			
 			ClusterSet clusters = null;
 			Segment segment = null;
 			clusters = new ClusterSet();
-			Cluster cluster = clusters.createANewCluster("S0");
+			Cluster cluster = clusters.createANewCluster(name);
 			segment = new Segment(param.show, 0, 1, cluster);
 			cluster.addSegment(segment);
 			
-//			ClusterSet clusters = MainTools.readClusterSet(param);
-
-			// Features
 			FeatureSet features = MainTools.readFeatureSet(param, clusters);
-			segment.setLength(features.getNumberOfFeatures());
 			features.setCurrentShow(segment.getShowName());
+			segment.setLength(features.getNumberOfFeatures());
+			logger.info(features.getNumberOfFeatures() +" "); 
+			
 			
 			// Compute Model
 			ArrayList<GMM> gmmInitVect = new ArrayList<GMM>(
 					clusters.clusterGetSize());
-
+			logger.info(clusters.clusterGetSize()+" "); 
 			MTrainInit.make(features, clusters, gmmInitVect, param);
-
+			MainTools.writeGMMContainer(param, gmmInitVect);			
 			String[] args_map = { "--fInputMask=" + basename + ".wav",
 					"--fInputDesc=audio2sphinx,1:3:2:0:0:0,13,1:1:300:4",
 					"--emCtrl=1,5,0.01",
@@ -188,8 +214,8 @@ public class GMMVoiceDB implements VoiceDB {
 			ArrayList<GMM> gmmVect = new ArrayList<GMM>();
 
 			MTrainMAP.make(features, clusters, gmmInitVect, gmmVect, param);
-
 			MainTools.writeGMMContainer(param, gmmVect);
+			
 		} catch (DiarizationException e) {
 			logger.severe("error \t Exception : " + e.getMessage());
 			throw e;
@@ -200,9 +226,9 @@ public class GMMVoiceDB implements VoiceDB {
 	}
 
 	public static void main(String[] args) throws Exception {
-		
 		WavSample ws = new WavSample(new File(args[0]));
-		buildModel(ws);
+		UBMModel ubm = new UBMModel(args[1]);
+		buildModel(ws, ubm, "test");
 		logger.info("Done");
 	}
 }

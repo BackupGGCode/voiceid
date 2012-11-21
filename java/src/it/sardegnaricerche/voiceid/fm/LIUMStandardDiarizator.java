@@ -45,12 +45,20 @@ import java.util.logging.Logger;
 public class LIUMStandardDiarizator implements Diarizator {
 	private static Logger logger = VLogging.getDefaultLogger();
 	private Diarization diarization;
+	private float h;
+	private float c;
 
 	/**
 	 * 
 	 */
-	public LIUMStandardDiarizator() {
+	public LIUMStandardDiarizator(float h_clust, float c_clust) {
 		super();
+		this.h = h_clust;
+		this.c = c_clust;
+	}
+
+	public LIUMStandardDiarizator() {
+		this(3, 1.5f);
 	}
 
 	private static VCluster toVCluster(Cluster c) {
@@ -131,28 +139,37 @@ public class LIUMStandardDiarizator implements Diarizator {
 					clusterSet.getFirstCluster().firstSegment()
 							.setLength(nbFeatures);
 				}
-
+				
+				// ** Speech/Music/Silence segmentation
 				ClusterSet clustersSegInit = diarization.sanityCheck(
 						clusterSet, featureSet, parameter);
+				// ** GLR based segmentation, make small segments
 				ClusterSet clustersSeg = diarization.segmentation("GLR",
 						"FULL", clustersSegInit, featureSet, parameter);
+				// ** Linear clustering
 				ClusterSet clustersLClust = diarization.clusteringLinear(
 						parameterDiarization.getThreshold("l"), clustersSeg,
 						featureSet, parameter);
+				// ** Hierarchical clustering
 				ClusterSet clustersHClust = diarization.clustering(
-						parameterDiarization.getThreshold("h"), clustersLClust,
+						this.h, clustersLClust,
 						featureSet, parameter);
+				// ** Viterbi decoding
+				// ** Adjust segment boundaries
 				ClusterSet clustersDClust = diarization.decode(8,
 						parameterDiarization.getThreshold("d"), clustersHClust,
 						featureSet, parameter);
+				// ** segments of more than 20s are split according of silence
+				// present in the pms or using a gmm silence detector
 				ClusterSet clustersSplitClust = diarization.speech("10,10,50",
 						clusterSet, clustersSegInit, clustersDClust,
 						featureSet, parameter);
+				// ** Set gender 
 				ClusterSet clustersGender = diarization.gender(clusterSet,
 						clustersSplitClust, featureSet, parameter);
-
+				// Set bandwith
 				ClusterSet clustersCLR = diarization.speakerClustering(
-						parameterDiarization.getThreshold("c"), "ce",
+						this.c, "ce",
 						clustersSegInit, clustersGender, featureSet, parameter);
 
 				clustersCLR.collapse();
