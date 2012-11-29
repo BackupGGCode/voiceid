@@ -34,11 +34,11 @@ public interface VoiceDB {
 
 	abstract boolean readDb();
 
-	public abstract boolean addModel(Sample sample, Speaker speaker);
+	public abstract boolean addModel(Sample sample, char[] identifier);
 
 	public abstract boolean removeModel();
 
-	public abstract Scores matchVoice(Sample sample, Speaker speaker);
+	public abstract Scores matchVoice(Sample sample, char[] identifier);
 
 	public abstract Scores voiceLookup(Sample sample);
 

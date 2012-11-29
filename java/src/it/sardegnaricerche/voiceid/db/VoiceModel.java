@@ -27,6 +27,5 @@ import it.sardegnaricerche.voiceid.utils.Scores;
  *
  */
 public interface VoiceModel {
-
 	public Scores scoreSample(Sample sample, VoiceScorer voicescorer);
 }

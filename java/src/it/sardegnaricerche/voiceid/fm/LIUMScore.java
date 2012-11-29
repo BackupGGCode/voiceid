@@ -12,7 +12,6 @@ import fr.lium.spkDiarization.libFeature.FeatureSet;
 import fr.lium.spkDiarization.libModel.GMM;
 import fr.lium.spkDiarization.parameter.Parameter;
 import it.sardegnaricerche.voiceid.db.Sample;
-import it.sardegnaricerche.voiceid.db.Speaker;
 import it.sardegnaricerche.voiceid.db.VoiceModel;
 import it.sardegnaricerche.voiceid.db.gmm.GMMFileVoiceModel;
 import it.sardegnaricerche.voiceid.db.gmm.UBMModel;
@@ -23,8 +22,6 @@ import it.sardegnaricerche.voiceid.utils.VLogging;
 
 import java.io.File;
 import java.io.IOException;
-import java.io.OutputStream;
-import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.logging.Logger;
 
@@ -147,7 +144,7 @@ public class LIUMScore implements VoiceScorer {
 			// Seg outPut
 			// MainTools.writeClusterSet(param, clusterResult, false);
 		} catch (DiarizationException e) {
-//			System.out.println("error \t Exception");
+			// System.out.println("error \t Exception");
 			logger.severe(e.getMessage());
 		}
 		return null;
@@ -162,14 +159,15 @@ public class LIUMScore implements VoiceScorer {
 		ArrayList<Cluster> clusters = clusterResult
 				.getClusterVectorRepresentation();
 		Scores result = new Scores();
-		
-		logger.info( clusters.size()+"" );
+
+		logger.info(clusters.size() + "");
 		for (Cluster c : clusters) {
 			String key = c.getInformation().lastKey();
-			String name = key.split(":")[1];
-			Double value = Double.parseDouble(c.getInformation(c.getInformation().lastKey())); 
-			logger.info(value+"");
-			result.put( 0l, value);
+			String identifier = key.split(":")[1];
+			Double value = Double.parseDouble(c.getInformation(c
+					.getInformation().lastKey()));
+			logger.info(value + "");
+			result.put(identifier.toCharArray(), value);
 		}
 		return result;
 	}
@@ -212,20 +210,20 @@ public class LIUMScore implements VoiceScorer {
 	 * @throws Exception
 	 */
 	public static void main(String[] args) throws IOException, Exception {
-		
+
 		logger.info("START");
 		logger.info(args[0]);
 		logger.info(args[1]);
 		logger.info(args[2]);
-		
+
 		LIUMScore mscore = new LIUMScore(new UBMModel(args[0]));
-		
+
 		WavSample wavSample = new WavSample(new File(args[1]));
-		
-		GMMFileVoiceModel model = new GMMFileVoiceModel(args[2]);
-		
+
+		GMMFileVoiceModel model = new GMMFileVoiceModel(args[2],"prova");
+
 		mscore.score(wavSample, model);
-		
+
 		logger.info("FINISH");
 	}
 

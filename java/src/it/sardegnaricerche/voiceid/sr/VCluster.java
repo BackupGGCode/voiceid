@@ -3,7 +3,7 @@
  */
 package it.sardegnaricerche.voiceid.sr;
 
-import it.sardegnaricerche.voiceid.db.Speaker;
+import it.sardegnaricerche.voiceid.speakers.Speaker;
 import it.sardegnaricerche.voiceid.utils.Utils;
 import it.sardegnaricerche.voiceid.utils.VLogging;
 
@@ -11,7 +11,6 @@ import java.io.File;
 import java.io.IOException;
 import java.io.SequenceInputStream;
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.logging.Logger;
 
 import javax.sound.sampled.AudioFileFormat;

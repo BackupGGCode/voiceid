@@ -37,13 +37,14 @@ public class GMMFileVoiceModel extends AbstractFileVoiceModel {
 	private static Logger logger = VLogging.getDefaultLogger();
 	private static final long serialVersionUID = 7297011177725502307L;
 	
+	
 
 	/**
 	 * @param path
 	 * @throws IOException
 	 */
-	public GMMFileVoiceModel(String path) throws IOException {
-		super(path);
+	public GMMFileVoiceModel(String path, String id) throws IOException {
+		super(path, id);
 		if (!this.verifyGMMFormat())
 			throw new IOException(this.getName() + " is not in right format");		
 	}

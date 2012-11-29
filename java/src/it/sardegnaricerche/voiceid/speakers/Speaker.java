@@ -1,7 +1,7 @@
 /**
  * 
  */
-package it.sardegnaricerche.voiceid.db;
+package it.sardegnaricerche.voiceid.speakers;
 
 /**
  * VoiceID, Copyright (C) 2011-2013, Sardegna Ricerche. Email:

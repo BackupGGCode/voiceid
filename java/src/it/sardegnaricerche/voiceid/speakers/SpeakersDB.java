@@ -1,9 +1,7 @@
-package it.sardegnaricerche.voiceid.utils;
-
-
-import java.util.HashMap;
-import java.util.Map;
-
+/**
+ * 
+ */
+package it.sardegnaricerche.voiceid.speakers;
 
 /**
  * VoiceID, Copyright (C) 2011-2013, Sardegna Ricerche.
@@ -24,31 +22,10 @@ import java.util.Map;
  *
  * @author Michela Fancello, Mauro Mereu
  *
- * 
  */
-
-public class Scores extends HashMap<char[], Double>{
-
-//	public static void printMap(Map mp) {
-//	    Iterator it = mp.entrySet().iterator();
-//	    while (it.hasNext()) {
-//	        Map.Entry pairs = (Map.Entry)it.next();
-//	        System.out.println(pairs.getKey() + " = " + pairs.getValue());
-//	        it.remove(); // avoids a ConcurrentModificationException
-//	    }
-//	}
-	
-
-	private static final long serialVersionUID = 599647055140479507L;
-
-	public Map<char[], Double> getBest(Strategy[] strategy){
-		return null;
-	}
-	
-	public Map<char[], Double> getBestFive(){
-		return null;
-	}
-	
-	
-
+public interface SpeakersDB {
+	boolean addSpeaker(Speaker speaker);
+	boolean removeSpeaker(Speaker speaker);
+	boolean removeSpeaker(char[] identifier);
+	boolean getSpeaker(char[] identifier);
 }
