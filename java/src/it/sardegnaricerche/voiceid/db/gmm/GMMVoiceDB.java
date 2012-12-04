@@ -4,14 +4,12 @@
 package it.sardegnaricerche.voiceid.db.gmm;
 
 import fr.lium.spkDiarization.lib.DiarizationException;
-import fr.lium.spkDiarization.lib.IOFile;
 import fr.lium.spkDiarization.lib.MainTools;
 import fr.lium.spkDiarization.libClusteringData.Cluster;
 import fr.lium.spkDiarization.libClusteringData.ClusterSet;
 import fr.lium.spkDiarization.libClusteringData.Segment;
 import fr.lium.spkDiarization.libFeature.FeatureSet;
 import fr.lium.spkDiarization.libModel.GMM;
-import fr.lium.spkDiarization.libModel.ModelIO;
 import fr.lium.spkDiarization.parameter.Parameter;
 import fr.lium.spkDiarization.programs.MTrainInit;
 import fr.lium.spkDiarization.programs.MTrainMAP;
@@ -25,6 +23,9 @@ import it.sardegnaricerche.voiceid.utils.VLogging;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.logging.Logger;
 
@@ -54,7 +55,7 @@ public class GMMVoiceDB implements VoiceDB {
 
 	private File path;
 
-	private HashMap<String, ArrayList<GMMFileVoiceModel>> models;
+	private HashMap<Character, ArrayList<GMMFileVoiceModel>> models;
 
 	private static UBMModel ubmmodel = null;
 
@@ -86,18 +87,45 @@ public class GMMVoiceDB implements VoiceDB {
 	 * @see it.sardegnaricerche.voiceid.db.VoiceDB#readDb()
 	 */
 	public boolean readDb() {
+		models = new HashMap<Character, ArrayList<GMMFileVoiceModel>>();
 		String tmpPath = null;
 		char[] cc = " ".toCharArray();
 		for (char c : this.getGenders()) {
 			cc[0] = c;
-			tmpPath = new File(this.path.getAbsolutePath(), new String(cc))
-					.toString();
+			ArrayList<GMMFileVoiceModel> tmpList = new ArrayList<GMMFileVoiceModel>();
+			File tmpDir = new File(this.path.getAbsolutePath(), new String(cc));
+			for (String f : tmpDir.list()) {
+				GMMFileVoiceModel gmm = null;
+				try {
+					gmm = new GMMFileVoiceModel(new File(tmpDir, f).toString(),
+							"0");
+				} catch (IOException e) {
+					logger.severe(e.getMessage());
+				}
+				tmpList.add(gmm);
+				logger.info("Added " + f + " to gmm DB (" + c + ")");
+			}
+			models.put(c, tmpList);
 			logger.finest("Gender: " + c);
-			logger.info("tmpPath: "+ tmpPath);
+			logger.info("tmpPath: " + tmpPath);
+		}
+		return true; // TODO: keep or leave bool return?
+	}
+
+	public boolean updateDB(){
+		for (char c : this.getGenders()) {
+			logger.info(""+c);
+			ArrayList<GMMFileVoiceModel> tmpList = new ArrayList<GMMFileVoiceModel>(models.get(c));
+			for (GMMFileVoiceModel f : tmpList) {
+				if (!f.exists()){
+					models.get(c).remove(f);
+					return true;
+				}
+			}
 		}
 		return false;
 	}
-
+	
 	/*
 	 * (non-Javadoc)
 	 * 
@@ -107,8 +135,15 @@ public class GMMVoiceDB implements VoiceDB {
 	 */
 	@Override
 	public boolean addModel(Sample sample, char[] identifier) {
-
-		return false;
+		WavSample wavsample = (WavSample) sample;
+		try {
+			buildModel(wavsample, ubmmodel, identifier.toString());
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			logger.severe(e.getMessage());
+		}
+		
+		return true;
 	}
 
 	/*
@@ -120,7 +155,8 @@ public class GMMVoiceDB implements VoiceDB {
 	 */
 	@Override
 	public Scores matchVoice(Sample sample, char[] identifier) {
-		return null;
+		WavSample wavsample = (WavSample) sample;
+		
 	}
 
 	/*
@@ -170,6 +206,23 @@ public class GMMVoiceDB implements VoiceDB {
 		char[] genders = { 'M', 'F', 'U' };
 		return genders;
 	}
+	/*
+	 * (non-Javadoc)
+	 * 
+	 * @see it.sardegnaricerche.voiceid.db.VoiceDB#getGenders()
+	 */
+	public void mergeModels(GMMFileVoiceModel origmodel, ArrayList<GMMFileVoiceModel> list, boolean deleteOnMerge)
+			throws IOException, DiarizationException {
+		
+		for (GMMFileVoiceModel model : list) {
+			origmodel.merge(model);
+			if (deleteOnMerge) {
+				model.delete();
+			}
+		}
+		updateDB();
+		
+	}
 
 	public static void buildModel(WavSample wavSample, UBMModel ubmmodel,
 			String name) throws Exception {
@@ -206,6 +259,7 @@ public class GMMVoiceDB implements VoiceDB {
 			logger.info(clusters.clusterGetSize() + " ");
 			MTrainInit.make(features, clusters, gmmInitVect, param);
 			// MainTools.writeGMMContainer(param, gmmInitVect);
+			
 			String[] args_map = { "--fInputMask=" + basename + ".wav",
 					"--fInputDesc=audio2sphinx,1:3:2:0:0:0,13,1:1:300:4",
 					"--emCtrl=1,5,0.01", "--varCtrl=0.01,10.0",
@@ -226,39 +280,25 @@ public class GMMVoiceDB implements VoiceDB {
 		}
 	}
 
-	static void mergeModels(String[] list, String outputFile)
-			throws IOException, DiarizationException {
-		ArrayList<GMM> gmmList = new ArrayList<GMM>();
-		int j = 0;
-		for (String string : list) {
-			logger.info("read model: " + string);
-			IOFile fi = new IOFile(IOFile.getFilename(string, ""), "rb");
-			fi.open();
-			ArrayList<GMM> tmpGmmList = new ArrayList<GMM>();
-			ModelIO.readerGMMContainer(fi, tmpGmmList);
-			for (GMM gmm : tmpGmmList) {
-				gmmList.add(gmm);
-				logger.info("Model added " + j + " " + gmm.getName());
-				j++;
-			}
-			tmpGmmList.clear();
-			fi.close();
-		}
-		IOFile fo = new IOFile(outputFile, "wb");
-		fo.open();
-		ModelIO.writerGMMContainer(fo, gmmList);
-		fo.close();
-	}
+	
 
 	public static void main(String[] args) throws Exception {
-		GMMVoiceDB db = new GMMVoiceDB("/home/mauro/.voiceid/gmm_db");
-		WavSample ws = new WavSample(new File(args[0]));
-		UBMModel ubm = new UBMModel(args[1]);
-		String out = "test";
-		String bs = Utils.getBasename(ws.toWav());
-		buildModel(ws, ubm, out);
-		String[] s = { bs + ".gmm", bs + ".gmm" };
-		mergeModels(s, bs + ".out.gmm");
+		GMMVoiceDB db = new GMMVoiceDB("/home/michela/Scrivania/provacassano/gmm_db");
+//		WavSample ws = new WavSample(new File(args[0]));
+//		UBMModel ubm = new UBMModel(args[1]);
+//		String out = "test";
+//		String bs = Utils.getBasename(ws.toWav());
+//		buildModel(ws, ubm, out);
+		GMMFileVoiceModel s = new GMMFileVoiceModel(args[0],"1");
+		GMMFileVoiceModel cs = new GMMFileVoiceModel(args[0],"1");
+		ArrayList<GMMFileVoiceModel> totalist = new ArrayList<GMMFileVoiceModel>();
+		totalist.add(s);
+		totalist.add(cs);
+		db.mergeModels(s,totalist,false);
+		s.addGMM(new GMM());
+		db.updateDB();
+		//String[] s = { bs + ".gmm", bs + ".gmm" };
+		//mergeModels(s, bs + ".out.gmm");
 		logger.info("Done");
 	}
 }

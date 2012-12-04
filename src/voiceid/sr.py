@@ -370,6 +370,7 @@ class Cluster(object):
 
         :type dirname: string
         :param dirname: the output dirname"""
+        
         name = self.get_name()
         videocluster = os.path.join(dirname, name)
         try:

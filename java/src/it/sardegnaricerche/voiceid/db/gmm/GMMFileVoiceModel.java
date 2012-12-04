@@ -3,15 +3,19 @@
  */
 package it.sardegnaricerche.voiceid.db.gmm;
 
-import java.io.File;
-import java.io.IOException;
-import java.util.logging.Logger;
-
+import fr.lium.spkDiarization.lib.DiarizationException;
+import fr.lium.spkDiarization.lib.IOFile;
+import fr.lium.spkDiarization.libModel.GMM;
+import fr.lium.spkDiarization.libModel.ModelIO;
 import it.sardegnaricerche.voiceid.db.AbstractFileVoiceModel;
 import it.sardegnaricerche.voiceid.db.Sample;
 import it.sardegnaricerche.voiceid.fm.VoiceScorer;
 import it.sardegnaricerche.voiceid.utils.Scores;
 import it.sardegnaricerche.voiceid.utils.VLogging;
+
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.logging.Logger;
 
 /**
  * VoiceID, Copyright (C) 2011-2013, Sardegna Ricerche. Email:
@@ -36,9 +40,7 @@ public class GMMFileVoiceModel extends AbstractFileVoiceModel {
 
 	private static Logger logger = VLogging.getDefaultLogger();
 	private static final long serialVersionUID = 7297011177725502307L;
-	
-	
-
+	public ArrayList<GMM> gmmlist;
 	/**
 	 * @param path
 	 * @throws IOException
@@ -46,13 +48,114 @@ public class GMMFileVoiceModel extends AbstractFileVoiceModel {
 	public GMMFileVoiceModel(String path, String id) throws IOException {
 		super(path, id);
 		if (!this.verifyGMMFormat())
-			throw new IOException(this.getName() + " is not in right format");		
+			throw new IOException(this.getName() + " is not in right format");
+		try {
+			gmmlist = new ArrayList<GMM>(this.extractGMMList());
+		} catch (DiarizationException e) {
+			// TODO Auto-generated catch block
+			logger.severe(e.getMessage());
+		}
 	}
 
 	private boolean verifyGMMFormat() {
 		return true;
 	}
 
+	public boolean merge(GMMFileVoiceModel other) throws DiarizationException{
+		
+		ArrayList<GMM> vect = new ArrayList<GMM>(other.getGMMList());
+		
+		gmmlist.addAll(vect);
+		IOFile fo = new IOFile(this.getAbsolutePath(), "wb");
+		try {
+			fo.open();
+			ModelIO.writerGMMContainer(fo, gmmlist);
+			fo.close();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			logger.severe(e.getMessage());
+		}
+		
+		return true;
+		
+	}
+	/**
+	 * Replaces the content of this model with the content of the argument, by doing a deep copy (the Gaussians of the original model are copied, not just referenced).
+	 * 
+	 * @param gmm the gmm
+	 * 
+	 * @throws DiarizationException the diarization exception
+	 */
+	
+	void replace(GMMFileVoiceModel other) throws DiarizationException {
+		gmmlist = new ArrayList<GMM>(other.getGMMList());
+		IOFile fo = new IOFile(this.getAbsolutePath(), "wb");
+		try {
+			fo.open();
+			ModelIO.writerGMMContainer(fo, gmmlist);
+			fo.close();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			logger.severe(e.getMessage());
+		}
+	}
+	
+	void replaceGMM(GMM gmm_in, GMM gmm_out) throws IOException{
+		int gmm_in_index = gmmlist.indexOf(gmm_in);
+		gmmlist.set(gmm_in_index, gmm_out);
+		IOFile fo = new IOFile(this.getAbsolutePath(), "wb");
+		try {
+			fo.open();
+			ModelIO.writerGMMContainer(fo, gmmlist);
+			fo.close();
+		} catch (DiarizationException e) {
+			// TODO Auto-generated catch block
+			logger.severe(e.getMessage());
+		}
+	}
+	void addGMM(GMM gmm) throws IOException{
+		gmmlist.add(gmm);
+		IOFile fo = new IOFile(this.getAbsolutePath(), "wb");
+		try {
+			fo.open();
+			ModelIO.writerGMMContainer(fo, gmmlist);
+			fo.close();
+		}catch (DiarizationException e) {
+			// TODO Auto-generated catch block
+			logger.severe(e.getMessage());
+		}
+	}
+	
+	public ArrayList<GMM> extractGMMList() throws DiarizationException{
+		ArrayList<GMM> vect = new ArrayList<GMM>();
+		//File file = new File(voicemodel.getAbsolutePath());
+		if (this.exists() == false) {
+			logger.severe("input model don't exist " + this.getName());
+			return null;
+		}
+		if (this.equals("")) {
+			logger.severe("warring[MainTools] \t input model empty " + this.getName());
+			return null;
+		}
+		IOFile fi = new IOFile(this.getAbsolutePath(), "rb");
+		for (int i = 0; i < vect.size(); i++) {
+			vect.get(i).sortComponents();
+		}
+		try {
+			fi.open();
+			ModelIO.readerGMMContainer(fi, vect);
+			fi.close();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			logger.severe(e.getMessage());
+		}
+		return vect;
+	}
+	
+	public ArrayList<GMM> getGMMList(){
+		return gmmlist;
+	}
+	
 	/*
 	 * (non-Javadoc)
 	 * 

@@ -3,6 +3,7 @@
  */
 package it.sardegnaricerche.voiceid.db;
 
+import it.sardegnaricerche.voiceid.fm.WavSample;
 import it.sardegnaricerche.voiceid.utils.Scores;
 
 import java.util.HashMap;

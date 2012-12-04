@@ -704,7 +704,7 @@ def diarization(filebasename, h_par='3', c_par='1.5'):
            + CONFIGURATION.LIUM_JAR
            + ' fr.lium.spkDiarization.programs.MClust ' + par
            + ' --fInputMask=%s.mfcc --fInputDesc=' + f_desc_clr
-           + ' --sInputMask=%s.g.' + h_par + '.seg   --tInputMask='
+           + ' --sInputMask=%s.g.' + h_par + '.seg   –fInputSpeechThr=0.1 --tInputMask='
            + CONFIGURATION.UBM_PATH + ' --cMethod=ce --cThr=' + c_par
            + ' --emCtrl=1,5,0.01 --sTop=5,'
            + CONFIGURATION.UBM_PATH
