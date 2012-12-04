@@ -2,8 +2,10 @@ package it.sardegnaricerche.voiceid.sr;
 
 import it.sardegnaricerche.voiceid.db.VoiceDB;
 import it.sardegnaricerche.voiceid.db.gmm.GMMVoiceDB;
+import it.sardegnaricerche.voiceid.db.gmm.UBMModel;
 import it.sardegnaricerche.voiceid.fm.Diarizator;
 import it.sardegnaricerche.voiceid.fm.LIUMStandardDiarizator;
+import it.sardegnaricerche.voiceid.utils.Scores;
 import it.sardegnaricerche.voiceid.utils.Utils;
 import it.sardegnaricerche.voiceid.utils.VLogging;
 import it.sardegnaricerche.voiceid.utils.VoiceidException;
@@ -106,13 +108,12 @@ public class Voiceid {
 		this.trimClusters();
 	}
 
-	public boolean matchClusters() {
+	public boolean matchClusters() throws IOException, UnsupportedAudioFileException {
+		Scores s = new Scores();
 		for (VCluster c : this.clusters) {
 			logger.info(c.toString());
-			voicedb.voiceLookup(null);
+			logger.info("Result: "+ voicedb.voiceLookup(c.getSample()).toString() ); 
 		}
-
-		// TODO: compare the clusters with the database
 		return true;
 	}
 
@@ -169,7 +170,8 @@ public class Voiceid {
 		logger.info("First argument: '" + args[0] + "'");
 		long startTime = System.currentTimeMillis();
 		try {
-			Voiceid voiceid = new Voiceid((String) args[0], new File(args[1]));
+			Voiceid voiceid = new Voiceid(new GMMVoiceDB( args[0], new UBMModel("/home/mauro/voiceid-0.1/share/ubm.gmm" +
+					"")), new File(args[1]), new LIUMStandardDiarizator());
 			voiceid.extractClusters();
 			voiceid.matchClusters();
 		} catch (IOException e) {

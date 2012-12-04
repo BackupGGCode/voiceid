@@ -3,6 +3,8 @@
  */
 package it.sardegnaricerche.voiceid.sr;
 
+import it.sardegnaricerche.voiceid.db.Sample;
+import it.sardegnaricerche.voiceid.fm.WavSample;
 import it.sardegnaricerche.voiceid.speakers.Speaker;
 import it.sardegnaricerche.voiceid.utils.Utils;
 import it.sardegnaricerche.voiceid.utils.VLogging;
@@ -17,6 +19,7 @@ import javax.sound.sampled.AudioFileFormat;
 import javax.sound.sampled.AudioFormat;
 import javax.sound.sampled.AudioInputStream;
 import javax.sound.sampled.AudioSystem;
+import javax.sound.sampled.UnsupportedAudioFileException;
 
 /**
  * VoiceID, Copyright (C) 2011-2013, Sardegna Ricerche. Email:
@@ -51,14 +54,17 @@ public class VCluster {
 		this.label = label;
 	}
 
-	private Speaker speaker;
+	private char[] identifier = {'0'}; //FIXME: identifier 0 == unknown? 
 
-	public Speaker getSpeaker() {
-		return speaker;
+	public char[] getIdentifier() {
+		return identifier;
 	}
 
-	public void setSpeaker(Speaker speaker) {
-		this.speaker = speaker;
+	public void setIdentifier(char[] identifier) {
+		this.identifier = identifier;
+	}
+	public Sample getSample() throws IOException, UnsupportedAudioFileException{
+		return new Sample(wavFile);
 	}
 
 	@SuppressWarnings("unchecked")

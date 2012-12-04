@@ -25,6 +25,8 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.logging.Logger;
 
+import javax.sound.sampled.UnsupportedAudioFileException;
+
 /**
  * VoiceID, Copyright (C) 2011-2013, Sardegna Ricerche. Email:
  * labcontdigit@sardegnaricerche.it, michela.fancello@crs4.it,
@@ -64,8 +66,10 @@ public class LIUMScore implements VoiceScorer {
 	 * voiceid.db.Sample, it.sardegnaricerche.voiceid.db.VoiceModel)
 	 */
 	@Override
-	public Scores score(Sample sample, VoiceModel voicemodel) throws Exception {
-		return null;
+	public Scores score(Sample sample, VoiceModel voicemodel) throws IOException, UnsupportedAudioFileException  {
+		// if (voicemodel.getClass().getName().equals("GMMFileVoiceModel"))
+		return score(new WavSample(sample), (GMMFileVoiceModel) voicemodel);
+		// return null;
 	}
 
 	/*
@@ -76,9 +80,8 @@ public class LIUMScore implements VoiceScorer {
 	 * voiceid.db.Sample, it.sardegnaricerche.voiceid.db.VoiceModel)
 	 */
 	public Scores score(WavSample sample, GMMFileVoiceModel voicemodel)
-			throws Exception {
-		// voicemodel.
-
+			 {
+		logger.info("SCORE!");
 		String basename = "";
 
 		File input = sample.toWav();
@@ -86,6 +89,7 @@ public class LIUMScore implements VoiceScorer {
 		try {
 			basename = Utils.getBasename(input);
 		} catch (IOException e1) {
+			logger.severe("No basename for " + input.getAbsolutePath());
 			logger.severe(e1.getMessage());
 		}
 
@@ -103,6 +107,7 @@ public class LIUMScore implements VoiceScorer {
 		 * --sTop=8,/usr/local/share/voiceid/ubm.gmm --sSetLabel=add
 		 * --sByCluster mr_arkadin
 		 */
+		logger.info("ARGS");
 		for (String s : args)
 			logger.info(s);
 
@@ -144,10 +149,14 @@ public class LIUMScore implements VoiceScorer {
 			// Seg outPut
 			// MainTools.writeClusterSet(param, clusterResult, false);
 		} catch (DiarizationException e) {
-			// System.out.println("error \t Exception");
+			logger.severe("DIarization error");
 			logger.severe(e.getMessage());
+			return null;
+		} catch (IOException e) {
+			logger.severe("IOERROR?");
+			logger.severe(e.getMessage());
+			return null;
 		}
-		return null;
 	}
 
 	/**
@@ -172,15 +181,15 @@ public class LIUMScore implements VoiceScorer {
 		return result;
 	}
 
-	@SuppressWarnings("unused")
-	private FeatureSet readFeatures(File inputFile) throws IOException,
-			DiarizationException {
-		Parameter param = null;
-		ClusterSet clusters = null;
-		FeatureSet features = new FeatureSet(clusters,
-				param.parameterInputFeature, param.trace);
-		return features;
-	}
+//	@SuppressWarnings("unused")
+//	private FeatureSet readFeatures(File inputFile) throws IOException,
+//			DiarizationException {
+//		Parameter param = null;
+//		ClusterSet clusters = null;
+//		FeatureSet features = new FeatureSet(clusters,
+//				param.parameterInputFeature, param.trace);
+//		return features;
+//	}
 
 	@SuppressWarnings("unused")
 	private ClusterSet readClusterset(ArrayList<VCluster> arrayList)
@@ -220,7 +229,7 @@ public class LIUMScore implements VoiceScorer {
 
 		WavSample wavSample = new WavSample(new File(args[1]));
 
-		GMMFileVoiceModel model = new GMMFileVoiceModel(args[2],"prova");
+		GMMFileVoiceModel model = new GMMFileVoiceModel(args[2], "prova");
 
 		mscore.score(wavSample, model);
 

@@ -4,6 +4,8 @@ package it.sardegnaricerche.voiceid.utils;
 import java.util.HashMap;
 import java.util.Map;
 
+import com.sun.xml.internal.bind.v2.runtime.RuntimeUtil.ToStringAdapter;
+
 
 /**
  * VoiceID, Copyright (C) 2011-2013, Sardegna Ricerche.
@@ -42,13 +44,48 @@ public class Scores extends HashMap<char[], Double>{
 	private static final long serialVersionUID = 599647055140479507L;
 
 	public Map<char[], Double> getBest(Strategy[] strategy){
-		return null;
+		char[] best = null;
+		double bestScore = -100.0;
+		for (char[] c: this.keySet()){
+			Double value = this.get(c); 
+			if (value.compareTo(bestScore) > 0)
+				bestScore = value.doubleValue();
+				best = c.clone();
+		}
+		HashMap<char[], Double> results = new HashMap<char[], Double>();
+		results.put(best, bestScore);
+		return results;
+	}
+	
+	public Map<char[], Double> getBest(){
+		char[] best = null;
+		double bestScore = -100.0;
+		for (char[] c: this.keySet()){
+			Double value = this.get(c); 
+			if (value.compareTo(bestScore) > 0)
+				bestScore = value.doubleValue();
+				best = c.clone();
+		}
+		HashMap<char[], Double> results = new HashMap<char[], Double>();
+		results.put(best, bestScore);
+		return results;
 	}
 	
 	public Map<char[], Double> getBestFive(){
 		return null;
 	}
 	
+	public String toString(){
+		String str = "{";
+		String k = null;
+		for (char[] key :this.keySet()){
+			k = new String(key);
+			if (k.equals("lenght"))
+				continue;
+			str += " "+k+": "+this.get(key).toString() +",";
+		}
+		return str+ "}";
+	}
 	
 
 }

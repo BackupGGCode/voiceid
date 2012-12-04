@@ -15,6 +15,8 @@ import fr.lium.spkDiarization.programs.MTrainInit;
 import fr.lium.spkDiarization.programs.MTrainMAP;
 import it.sardegnaricerche.voiceid.db.Sample;
 import it.sardegnaricerche.voiceid.db.VoiceDB;
+import it.sardegnaricerche.voiceid.fm.LIUMScore;
+import it.sardegnaricerche.voiceid.fm.VoiceScorer;
 import it.sardegnaricerche.voiceid.fm.WavSample;
 import it.sardegnaricerche.voiceid.utils.Scores;
 import it.sardegnaricerche.voiceid.utils.Utils;
@@ -71,7 +73,7 @@ public class GMMVoiceDB implements VoiceDB {
 		}
 
 	}
-
+	
 	public GMMVoiceDB(String path) throws IOException {
 		this.path = new java.io.File(path);
 		if (!this.path.exists())
@@ -125,7 +127,15 @@ public class GMMVoiceDB implements VoiceDB {
 		}
 		return false;
 	}
-	
+	private GMMFileVoiceModel getModelById(char[] identifier){
+		for (char c: this.getGenders())
+			for (GMMFileVoiceModel gmm: this.models.get(c))
+				if (gmm.getIdentifier().equals(identifier)){
+					return gmm;
+				}
+		return null;
+	}
+
 	/*
 	 * (non-Javadoc)
 	 * 
@@ -155,8 +165,20 @@ public class GMMVoiceDB implements VoiceDB {
 	 */
 	@Override
 	public Scores matchVoice(Sample sample, char[] identifier) {
-		WavSample wavsample = (WavSample) sample;
-		
+		try {
+			return matchVoice(sample, identifier, new LIUMScore(this.ubmmodel));
+		} catch (Exception e) {
+			logger.severe(e.getMessage());
+		}
+		return null;
+	}
+	
+	public Scores matchVoice(Sample sample, char[] identifier, VoiceScorer scorer) throws Exception {
+		GMMFileVoiceModel voicemodel = this.getModelById(identifier);
+		return scorer.score(sample, voicemodel);
+	}
+	private ArrayList<GMMFileVoiceModel> getByGender(char c){
+		return models.get(c);
 	}
 
 	/*
@@ -168,7 +190,31 @@ public class GMMVoiceDB implements VoiceDB {
 	 */
 	@Override
 	public Scores voiceLookup(Sample sample) {
+		try {
+			return voiceLookup(sample, new LIUMScore(ubmmodel));
+		} catch (Exception e) {
+			logger.severe("voiceLookup: error");
+			logger.severe(e.getMessage());
+		}
 		return null;
+	}
+	
+	public Scores voiceLookup(Sample sample, VoiceScorer scorer)  {
+		Scores score = new Scores();
+		for (char gender: this.models.keySet()){
+			for (GMMFileVoiceModel gmm: getByGender(gender)){
+				try {
+					logger.info(gmm.toString());
+					Scores currentScore = scorer.score( new WavSample(sample), gmm);
+					score.putAll( currentScore);
+				} catch (Exception e) {
+					logger.severe("ERROR?");
+					for (StackTraceElement ex :e.getStackTrace())
+						logger.severe(ex.toString());
+				}
+			}
+		}
+		return score;
 	}
 
 	/*
@@ -283,14 +329,14 @@ public class GMMVoiceDB implements VoiceDB {
 	
 
 	public static void main(String[] args) throws Exception {
-		GMMVoiceDB db = new GMMVoiceDB("/home/michela/Scrivania/provacassano/gmm_db");
-//		WavSample ws = new WavSample(new File(args[0]));
-//		UBMModel ubm = new UBMModel(args[1]);
+		GMMVoiceDB db = new GMMVoiceDB(args[0]);
+//		WavSample ws = new WavSample(new File(args[1]));
+//		UBMModel ubm = new UBMModel(args[2]);
 //		String out = "test";
 //		String bs = Utils.getBasename(ws.toWav());
 //		buildModel(ws, ubm, out);
-		GMMFileVoiceModel s = new GMMFileVoiceModel(args[0],"1");
-		GMMFileVoiceModel cs = new GMMFileVoiceModel(args[0],"1");
+		GMMFileVoiceModel s = new GMMFileVoiceModel(args[1],"1");
+		GMMFileVoiceModel cs = new GMMFileVoiceModel(args[1],"1");
 		ArrayList<GMMFileVoiceModel> totalist = new ArrayList<GMMFileVoiceModel>();
 		totalist.add(s);
 		totalist.add(cs);

@@ -52,12 +52,25 @@ public class GMMFileVoiceModel extends AbstractFileVoiceModel {
 		try {
 			gmmlist = new ArrayList<GMM>(this.extractGMMList());
 		} catch (DiarizationException e) {
-			// TODO Auto-generated catch block
 			logger.severe(e.getMessage());
 		}
 	}
 
 	private boolean verifyGMMFormat() {
+		try {
+			ArrayList<GMM> vect = new ArrayList<GMM>();
+			IOFile fi = new IOFile(this.getAbsolutePath(), "rb");
+			fi.open();
+			ModelIO.readerGMMContainer(fi, vect);
+			fi.close();
+			this.identifier = vect.get(0).getName().toCharArray();
+		} catch (DiarizationException e) {
+			logger.severe(e.getMessage());
+			return false;
+		} catch (IOException e) {
+			logger.severe(e.getMessage());
+			return false;
+		}
 		return true;
 	}
 

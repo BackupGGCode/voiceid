@@ -3,9 +3,11 @@
  */
 package it.sardegnaricerche.voiceid.tests;
 
-import it.sardegnaricerche.voiceid.sr.Voiceid;
 import it.sardegnaricerche.voiceid.utils.VLogging;
 
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.util.logging.Logger;
 
@@ -38,13 +40,33 @@ public class MainTest {
 	 * @throws IOException 
 	 */
 	public static void main(String[] args) throws ClassNotFoundException, IOException {
-		logger.info("Starting test");
-		try {
-			Voiceid v = new Voiceid(args[0], args[1]);
-		} catch (IOException e) {
-			throw e;
-		}
-		logger.info("End test");
+//		logger.info("Starting test");
+//		try {
+//			Voiceid v = new Voiceid(args[0], args[1]);
+//		} catch (IOException e) {
+//			throw e;
+//		}
+//		logger.info("End test");
+		
+		File f1 = new File("/tmp/ciccio");
+		f1.createNewFile();
+		File f2 = new File("/tmp/ciccio");
+		
+		logger.info("Last modified :"+f1.lastModified());
+		logger.info("Last modified :"+f2.lastModified());
+		
+		BufferedWriter out = new BufferedWriter(new FileWriter(f1));
+		
+		out.write("cicciociccio");
+		out.close();
+		
+		logger.info("Last modified :"+f1.lastModified());
+		logger.info("Last modified :"+f2.lastModified());
+		f1.delete();
+		
+		logger.info("Last modified :"+f1.lastModified());
+		logger.info("Last modified :"+f2.lastModified());
+		
 	}
 
 }

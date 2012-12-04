@@ -27,10 +27,10 @@ import java.io.File;
  * @author Michela Fancello, Mauro Mereu
  *
  */
-public abstract class Sample  {
+public class Sample  {
 	
 	protected File resource;
-	Features features;
+//	Features features;
 
 	/**
 	 * 
@@ -43,6 +43,10 @@ public abstract class Sample  {
 	public Sample(File resource) {
 		super();
 		this.resource = resource;
+	}
+
+	public File getResource() {
+		return resource;
 	}
 	
 

@@ -44,6 +44,15 @@ public class WavSample extends Sample {
 	}
 
 	/**
+	 * @param sample
+	 * @throws UnsupportedAudioFileException 
+	 * @throws IOException 
+	 */
+	public WavSample(Sample sample) throws IOException, UnsupportedAudioFileException {
+		this(sample.getResource());
+	}
+
+	/**
 	 * @return
 	 */
 	public File toWav() {
