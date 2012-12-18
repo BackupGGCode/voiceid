@@ -3,6 +3,7 @@
  */
 package it.sardegnaricerche.voiceid.sr;
 
+import it.sardegnaricerche.voiceid.db.Identifier;
 import it.sardegnaricerche.voiceid.db.Sample;
 import it.sardegnaricerche.voiceid.fm.WavSample;
 import it.sardegnaricerche.voiceid.speakers.Speaker;
@@ -45,7 +46,10 @@ public class VCluster {
 	private ArrayList<VSegment> vseg;
 	private String label;
 	private File wavFile;
-
+	private char gender;
+	
+	
+	
 	public String getLabel() {
 		return label;
 	}
@@ -54,13 +58,13 @@ public class VCluster {
 		this.label = label;
 	}
 
-	private char[] identifier = {'0'}; //FIXME: identifier 0 == unknown? 
+	private Identifier identifier = null; //FIXME: identifier 0 == unknown? 
 
-	public char[] getIdentifier() {
+	public Identifier getIdentifier() {
 		return identifier;
 	}
 
-	public void setIdentifier(char[] identifier) {
+	public void setIdentifier(Identifier identifier) {
 		this.identifier = identifier;
 	}
 	public Sample getSample() throws IOException, UnsupportedAudioFileException{
@@ -179,6 +183,14 @@ public class VCluster {
 	 */
 	public void setDir(File dir) {
 		this.wavFile = dir;
+	}
+
+	public char getGender() {
+		return gender;
+	}
+
+	public void setGender(char gender) {
+		this.gender = gender;
 	}
 
 }

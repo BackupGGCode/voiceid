@@ -1,10 +1,10 @@
 package it.sardegnaricerche.voiceid.utils;
 
 
+import it.sardegnaricerche.voiceid.db.Identifier;
+
 import java.util.HashMap;
 import java.util.Map;
-
-import com.sun.xml.internal.bind.v2.runtime.RuntimeUtil.ToStringAdapter;
 
 
 /**
@@ -29,7 +29,7 @@ import com.sun.xml.internal.bind.v2.runtime.RuntimeUtil.ToStringAdapter;
  * 
  */
 
-public class Scores extends HashMap<char[], Double>{
+public class Scores extends HashMap<Identifier, Double>{
 
 //	public static void printMap(Map mp) {
 //	    Iterator it = mp.entrySet().iterator();
@@ -43,30 +43,30 @@ public class Scores extends HashMap<char[], Double>{
 
 	private static final long serialVersionUID = 599647055140479507L;
 
-	public Map<char[], Double> getBest(Strategy[] strategy){
-		char[] best = null;
+	public HashMap<Identifier, Double> getBest(Strategy[] strategy) throws Exception{
+		Identifier best = null;
 		double bestScore = -100.0;
-		for (char[] c: this.keySet()){
+		for (Identifier c: this.keySet()){
 			Double value = this.get(c); 
 			if (value.compareTo(bestScore) > 0)
 				bestScore = value.doubleValue();
 				best = c.clone();
 		}
-		HashMap<char[], Double> results = new HashMap<char[], Double>();
+		HashMap<Identifier, Double> results = new HashMap<Identifier, Double>();
 		results.put(best, bestScore);
 		return results;
 	}
 	
-	public Map<char[], Double> getBest(){
-		char[] best = null;
+	public HashMap<Identifier, Double> getBest() throws Exception{
+		Identifier best = null;
 		double bestScore = -100.0;
-		for (char[] c: this.keySet()){
+		for (Identifier c: this.keySet()){
 			Double value = this.get(c); 
 			if (value.compareTo(bestScore) > 0)
 				bestScore = value.doubleValue();
 				best = c.clone();
 		}
-		HashMap<char[], Double> results = new HashMap<char[], Double>();
+		HashMap<Identifier, Double> results = new HashMap<Identifier, Double>();
 		results.put(best, bestScore);
 		return results;
 	}
@@ -78,8 +78,8 @@ public class Scores extends HashMap<char[], Double>{
 	public String toString(){
 		String str = "{";
 		String k = null;
-		for (char[] key :this.keySet()){
-			k = new String(key);
+		for (Identifier key :this.keySet()){
+			k = key.toString();
 			if (k.equals("lenght"))
 				continue;
 			str += " "+k+": "+this.get(key).toString() +",";

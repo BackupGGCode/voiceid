@@ -63,6 +63,7 @@ public class LIUMStandardDiarizator implements Diarizator {
 
 	private static VCluster toVCluster(Cluster c) {
 		VCluster vCluster = new VCluster(c.getName());
+		vCluster.setGender(c.getGender().charAt(0));
 		Iterator<Segment> iterator = c.iterator();
 		while (iterator.hasNext())
 			vCluster.add(toVSegment(iterator.next()));
@@ -179,9 +180,9 @@ public class LIUMStandardDiarizator implements Diarizator {
 
 				for (Cluster c : cvect) {
 //					logger.info(c.getName() + " "
-//							+ c.firstSegment().getLengthInSecond() + " ");
+//							+ c.firstSegment().getLengthInSecond() + " " +c.getGender());
 //					logger.info(toVCluster(c).toString());
-					logger.info(c.getInformations());
+//					logger.info(c.getInformations());
 					outputList.add(toVCluster(c));
 				}
 				// for (clustersCLR.getFirstCluster())

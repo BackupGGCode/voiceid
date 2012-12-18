@@ -33,15 +33,17 @@ public interface VoiceDB {
 
 	public char[] getGenders() ;
 
-	abstract boolean readDb();
+	abstract boolean readDb() throws Exception;
 
-	public abstract boolean addModel(Sample sample, char[] identifier);
+	public abstract boolean addModel(Sample sample, Identifier identifier);
 
 	public abstract boolean removeModel();
 
-	public abstract Scores matchVoice(Sample sample, char[] identifier);
+	public abstract Scores matchVoice(Sample sample, Identifier identifier);
 
 	public abstract Scores voiceLookup(Sample sample);
+
+	public abstract Scores voiceLookup(Sample sample, char c);
 
 	// public abstract HashMap<VoiceModel,Scores> voicesLookup(AudioSample[]
 	// audioSample);

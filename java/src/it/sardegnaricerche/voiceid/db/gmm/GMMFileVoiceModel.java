@@ -8,6 +8,7 @@ import fr.lium.spkDiarization.lib.IOFile;
 import fr.lium.spkDiarization.libModel.GMM;
 import fr.lium.spkDiarization.libModel.ModelIO;
 import it.sardegnaricerche.voiceid.db.AbstractFileVoiceModel;
+import it.sardegnaricerche.voiceid.db.Identifier;
 import it.sardegnaricerche.voiceid.db.Sample;
 import it.sardegnaricerche.voiceid.fm.VoiceScorer;
 import it.sardegnaricerche.voiceid.utils.Scores;
@@ -43,9 +44,9 @@ public class GMMFileVoiceModel extends AbstractFileVoiceModel {
 	public ArrayList<GMM> gmmlist;
 	/**
 	 * @param path
-	 * @throws IOException
+	 * @throws Exception 
 	 */
-	public GMMFileVoiceModel(String path, String id) throws IOException {
+	public GMMFileVoiceModel(String path, Identifier id) throws Exception {
 		super(path, id);
 		if (!this.verifyGMMFormat())
 			throw new IOException(this.getName() + " is not in right format");
@@ -56,14 +57,14 @@ public class GMMFileVoiceModel extends AbstractFileVoiceModel {
 		}
 	}
 
-	private boolean verifyGMMFormat() {
+	private boolean verifyGMMFormat() throws Exception {
 		try {
 			ArrayList<GMM> vect = new ArrayList<GMM>();
 			IOFile fi = new IOFile(this.getAbsolutePath(), "rb");
 			fi.open();
 			ModelIO.readerGMMContainer(fi, vect);
 			fi.close();
-			this.identifier = vect.get(0).getName().toCharArray();
+			this.identifier = new Identifier(vect.get(0).getName());
 		} catch (DiarizationException e) {
 			logger.severe(e.getMessage());
 			return false;

@@ -11,6 +11,7 @@ import fr.lium.spkDiarization.libClusteringData.Segment;
 import fr.lium.spkDiarization.libFeature.FeatureSet;
 import fr.lium.spkDiarization.libModel.GMM;
 import fr.lium.spkDiarization.parameter.Parameter;
+import it.sardegnaricerche.voiceid.db.Identifier;
 import it.sardegnaricerche.voiceid.db.Sample;
 import it.sardegnaricerche.voiceid.db.VoiceModel;
 import it.sardegnaricerche.voiceid.db.gmm.GMMFileVoiceModel;
@@ -171,12 +172,15 @@ public class LIUMScore implements VoiceScorer {
 
 		logger.info(clusters.size() + "");
 		for (Cluster c : clusters) {
-			String key = c.getInformation().lastKey();
+			logger.info(c.getInformations());
+			String key = c.getInformation().higherKey(c.getInformation().firstKey());
 			String identifier = key.split(":")[1];
-			Double value = Double.parseDouble(c.getInformation(c
-					.getInformation().lastKey()));
-			logger.info(value + "");
-			result.put(identifier.toCharArray(), value);
+			Double value = Double.parseDouble(c.getInformation().get(key).toString());
+			try {
+				result.put(new Identifier(identifier), value);
+			} catch (Exception e) {
+				logger.severe(e.getMessage());
+			}
 		}
 		return result;
 	}
@@ -229,7 +233,7 @@ public class LIUMScore implements VoiceScorer {
 
 		WavSample wavSample = new WavSample(new File(args[1]));
 
-		GMMFileVoiceModel model = new GMMFileVoiceModel(args[2], "prova");
+		GMMFileVoiceModel model = new GMMFileVoiceModel(args[2], new Identifier("prova"));
 
 		mscore.score(wavSample, model);
 

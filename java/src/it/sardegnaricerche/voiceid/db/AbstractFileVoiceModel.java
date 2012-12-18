@@ -28,27 +28,26 @@ import java.io.IOException;
 public abstract class AbstractFileVoiceModel extends File implements VoiceModel {
 
 	private static final long serialVersionUID = -1025215276685470064L;
-	protected char[] identifier;
+	protected Identifier identifier;
 	private File model;
 
 	/**
 	 * Create an abstract voice model, based on files.
-	 * 
-	 * @throws IOException
+	 * @throws Exception 
 	 * 
 	 */
 
-	public AbstractFileVoiceModel(String path, String id) throws IOException {
+	public AbstractFileVoiceModel(String path, Identifier id) throws Exception {
 		super(path);
 		if (!this.exists())
 			throw new IOException("No such file " + path);
 		if (!this.isFile())
 			throw new IOException(path + " is not a regular file");
 		model = new File(path);
-		identifier = id.toCharArray();
+		identifier = id;
 	}
 
-	public char[] getIdentifier() {
+	public Identifier getIdentifier() {
 		return identifier;
 	}
 

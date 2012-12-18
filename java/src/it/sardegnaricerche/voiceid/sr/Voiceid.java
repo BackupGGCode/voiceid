@@ -72,14 +72,12 @@ public class Voiceid {
 		this.verifyInputFile();
 	}
 
-	public Voiceid(String dbDir, File inpuFile) throws IOException,
-	ClassNotFoundException {
+	public Voiceid(String dbDir, File inpuFile) throws Exception {
 		this(new GMMVoiceDB(dbDir), inpuFile,
 				new LIUMStandardDiarizator());
 	}
 	
-	public Voiceid(String dbDir, String inputPath) throws IOException,
-			ClassNotFoundException {
+	public Voiceid(String dbDir, String inputPath) throws Exception {
 		this(dbDir, new File(inputPath));
 	}
 
@@ -108,11 +106,16 @@ public class Voiceid {
 		this.trimClusters();
 	}
 
-	public boolean matchClusters() throws IOException, UnsupportedAudioFileException {
-		Scores s = new Scores();
+	public boolean matchClusters() throws Exception {
+		//Scores s = new Scores();
 		for (VCluster c : this.clusters) {
-			logger.info(c.toString());
-			logger.info("Result: "+ voicedb.voiceLookup(c.getSample()).toString() ); 
+			//logger.info(c.toString());
+			//logger.info("Result: "+ voicedb.voiceLookup(c.getSample(),c.getGender())); 
+			Scores tmp = voicedb.voiceLookup(c.getSample(),c.getGender());
+			//s.putAll(tmp);
+			System.out.println("tmp "+tmp);
+			if(tmp != null)
+			logger.info("For cluster "+c.getLabel()+" best speaker is "+tmp.getBest().keySet());
 		}
 		return true;
 	}
@@ -170,8 +173,9 @@ public class Voiceid {
 		logger.info("First argument: '" + args[0] + "'");
 		long startTime = System.currentTimeMillis();
 		try {
-			Voiceid voiceid = new Voiceid(new GMMVoiceDB( args[0], new UBMModel("/home/mauro/voiceid-0.1/share/ubm.gmm" +
-					"")), new File(args[1]), new LIUMStandardDiarizator());
+			GMMVoiceDB db = new GMMVoiceDB( args[0], new UBMModel("/home/michela/SpeakerRecognition/voiceid/share/ubm.gmm" +
+					""));
+			Voiceid voiceid = new Voiceid(db, new File(args[1]), new LIUMStandardDiarizator());
 			voiceid.extractClusters();
 			voiceid.matchClusters();
 		} catch (IOException e) {
@@ -182,5 +186,6 @@ public class Voiceid {
 		long endTime = System.currentTimeMillis();
 		long duration = endTime - startTime;
 		logger.info("Exit (" + ((float) duration / 1000) + " s)");
+		
 	}
 }
