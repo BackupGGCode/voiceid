@@ -32,17 +32,15 @@ import it.sardegnaricerche.voiceid.utils.Scores;
 public class UBMModel  extends File{
 
 	/**
+	 * 
+	 */
+	private static final long serialVersionUID = -981747090045741679L;
+	
+	/**
 	 * @param pathname
 	 */
 	public UBMModel(String pathname) {
 		super(pathname);
 	}
-
-	/**
-	 * 
-	 */
-	private static final long serialVersionUID = -981747090045741679L;
-
-
 
 }

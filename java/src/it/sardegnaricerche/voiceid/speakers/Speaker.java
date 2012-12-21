@@ -3,6 +3,8 @@
  */
 package it.sardegnaricerche.voiceid.speakers;
 
+import it.sardegnaricerche.voiceid.db.Identifier;
+
 /**
  * VoiceID, Copyright (C) 2011-2013, Sardegna Ricerche. Email:
  * labcontdigit@sardegnaricerche.it, michela.fancello@crs4.it,
@@ -25,7 +27,7 @@ package it.sardegnaricerche.voiceid.speakers;
 public class Speaker {
 
 	private String firstName, secondName, lastName;
-	private long id;
+	private Identifier id;
 
 	/**
 	 * @param firstName
@@ -34,7 +36,7 @@ public class Speaker {
 	 * @param id
 	 */
 	public Speaker(String firstName, String secondName, String lastName,
-			long id) {
+			Identifier id) {
 		super();
 		this.firstName = firstName;
 		this.secondName = secondName;

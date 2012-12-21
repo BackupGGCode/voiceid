@@ -116,8 +116,8 @@ public class Utils {
 			return false;
 		}
 		AudioFormat af = a.getFormat();
-		logger.info("Frame size = "+af.getFrameSize());
-		logger.info("Frame rate = "+af.getFrameRate());
+		logger.fine("Frame size = "+af.getFrameSize());
+		logger.fine("Frame rate = "+af.getFrameRate());
 		logger.fine(af.toString());
 		if (af.getChannels() != 1)
 			return false;

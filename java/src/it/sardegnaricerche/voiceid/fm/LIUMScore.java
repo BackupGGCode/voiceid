@@ -24,6 +24,7 @@ import it.sardegnaricerche.voiceid.utils.VLogging;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Set;
 import java.util.logging.Logger;
 
 import javax.sound.sampled.UnsupportedAudioFileException;
@@ -82,7 +83,7 @@ public class LIUMScore implements VoiceScorer {
 	 */
 	public Scores score(WavSample sample, GMMFileVoiceModel voicemodel)
 			 {
-		logger.info("SCORE!");
+		logger.fine("SCORE!");
 		String basename = "";
 
 		File input = sample.toWav();
@@ -108,15 +109,15 @@ public class LIUMScore implements VoiceScorer {
 		 * --sTop=8,/usr/local/share/voiceid/ubm.gmm --sSetLabel=add
 		 * --sByCluster mr_arkadin
 		 */
-		logger.info("ARGS");
+		logger.fine("ARGS");
 		for (String s : args)
-			logger.info(s);
+			logger.fine(s);
 
 		try {
 			Parameter param = MainTools.getParameters(args);
 			// clusters
 			// ClusterSet clusters = readClusterset(new ArrayList<VCluster>());
-
+			logger.fine("BEFORE CLUSTER");
 			ClusterSet clusterSet = null;
 			Segment segment = null;
 			clusterSet = new ClusterSet();
@@ -125,11 +126,11 @@ public class LIUMScore implements VoiceScorer {
 			cluster.addSegment(segment);
 
 			// Features
-			logger.finer("BEFORE FEATURES");
+			logger.fine("BEFORE FEATURES");
 			FeatureSet featureSet = MainTools.readFeatureSet(param, clusterSet);
 			featureSet.setCurrentShow(segment.getShowName());
 			segment.setLength(featureSet.getNumberOfFeatures());
-			logger.finer("AFTER FEATURES");
+			logger.fine("AFTER FEATURES");
 
 			// Features TODO
 			// FeatureSet features = readFeatures(new File(""));
@@ -170,11 +171,18 @@ public class LIUMScore implements VoiceScorer {
 				.getClusterVectorRepresentation();
 		Scores result = new Scores();
 
-		logger.info(clusters.size() + "");
+		logger.fine(clusters.size() + "");
 		for (Cluster c : clusters) {
-			logger.info(c.getInformations());
-			String key = c.getInformation().higherKey(c.getInformation().firstKey());
+			Set<String> set =  c.getInformation().keySet();
+			set.remove("score:UBM");
+			set.remove("score:lenght");
+			String key = set.iterator().next();
+				
 			String identifier = key.split(":")[1];
+			if (identifier.equals("length")){
+				String s = identifier;
+				logger.severe(identifier + " " + key);
+			}
 			Double value = Double.parseDouble(c.getInformation().get(key).toString());
 			try {
 				result.put(new Identifier(identifier), value);

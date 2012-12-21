@@ -44,16 +44,9 @@ public class Scores extends HashMap<Identifier, Double>{
 	private static final long serialVersionUID = 599647055140479507L;
 
 	public HashMap<Identifier, Double> getBest(Strategy[] strategy) throws Exception{
-		Identifier best = null;
-		double bestScore = -100.0;
-		for (Identifier c: this.keySet()){
-			Double value = this.get(c); 
-			if (value.compareTo(bestScore) > 0)
-				bestScore = value.doubleValue();
-				best = c.clone();
-		}
-		HashMap<Identifier, Double> results = new HashMap<Identifier, Double>();
-		results.put(best, bestScore);
+		Scores results = (Scores) this.clone();
+		for (Strategy strat: strategy)
+			results = strat.filter(results);
 		return results;
 	}
 	

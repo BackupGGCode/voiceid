@@ -3,6 +3,8 @@
  */
 package it.sardegnaricerche.voiceid.utils;
 
+import it.sardegnaricerche.voiceid.db.Identifier;
+
 /**
  * VoiceID, Copyright (C) 2011-2013, Sardegna Ricerche.
  * Email: labcontdigit@sardegnaricerche.it, michela.fancello@crs4.it, 
@@ -23,6 +25,32 @@ package it.sardegnaricerche.voiceid.utils;
  * @author Michela Fancello, Mauro Mereu
  *
  */
-public class HiStrategy implements Strategy {
+public class ThresholdStrategy implements Strategy {
+	private double threshold;
+
+	/**
+	 * @param threshold
+	 */
+	public ThresholdStrategy(double threshold) {
+		super();
+		this.threshold = threshold;
+	}
+
+	/* (non-Javadoc)
+	 * @see it.sardegnaricerche.voiceid.utils.Strategy#filter(it.sardegnaricerche.voiceid.utils.Scores)
+	 */
+	@Override
+	public Scores filter(Scores score) {
+		Scores filteredScore = new Scores();
+		double val;
+		for (Identifier id : score.keySet()){
+			val = score.get(id);
+			if (val > threshold)
+				filteredScore.put(id, val);
+		}
+		
+		return filteredScore;
+		
+	}
 
 }

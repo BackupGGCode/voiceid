@@ -106,18 +106,18 @@ public class GMMVoiceDB implements VoiceDB {
 					logger.severe(e.getMessage());
 				}
 				tmpList.add(gmm);
-				logger.info("Added " + f + " to gmm DB (" + c + ")");
+				logger.fine("Added " + f + " to gmm DB (" + c + ")");
 			}
 			models.put(c, tmpList);
 			logger.finest("Gender: " + c);
-			logger.info("tmpPath: " + tmpPath);
+			logger.fine("tmpPath: " + tmpPath);
 		}
 		return true; // TODO: keep or leave bool return?
 	}
 
 	public boolean updateDB(){
 		for (char c : this.getGenders()) {
-			logger.info(""+c);
+			logger.fine(""+c);
 			ArrayList<GMMFileVoiceModel> tmpList = new ArrayList<GMMFileVoiceModel>(models.get(c));
 			for (GMMFileVoiceModel f : tmpList) {
 				if (!f.exists()){
@@ -222,7 +222,7 @@ public class GMMVoiceDB implements VoiceDB {
 		Scores score = new Scores();
 		for (GMMFileVoiceModel gmm: getByGender(gender)){
 			try {
-				logger.info(gmm.toString());
+				logger.fine(gmm.toString());
 				Scores currentScore = scorer.score( new WavSample(sample), gmm);
 				score.putAll( currentScore);
 			} catch (Exception e) {
@@ -313,12 +313,12 @@ public class GMMVoiceDB implements VoiceDB {
 			FeatureSet features = MainTools.readFeatureSet(param, clusters);
 			features.setCurrentShow(segment.getShowName());
 			segment.setLength(features.getNumberOfFeatures());
-			logger.info(features.getNumberOfFeatures() + " ");
+			logger.fine(features.getNumberOfFeatures() + " ");
 
 			// Compute Model
 			ArrayList<GMM> gmmInitVect = new ArrayList<GMM>(
 					clusters.clusterGetSize());
-			logger.info(clusters.clusterGetSize() + " ");
+			logger.fine(clusters.clusterGetSize() + " ");
 			MTrainInit.make(features, clusters, gmmInitVect, param);
 			// MainTools.writeGMMContainer(param, gmmInitVect);
 			

@@ -1,11 +1,15 @@
 package it.sardegnaricerche.voiceid.sr;
 
+import it.sardegnaricerche.voiceid.db.Identifier;
 import it.sardegnaricerche.voiceid.db.VoiceDB;
 import it.sardegnaricerche.voiceid.db.gmm.GMMVoiceDB;
 import it.sardegnaricerche.voiceid.db.gmm.UBMModel;
 import it.sardegnaricerche.voiceid.fm.Diarizator;
 import it.sardegnaricerche.voiceid.fm.LIUMStandardDiarizator;
+import it.sardegnaricerche.voiceid.utils.DistanceStrategy;
 import it.sardegnaricerche.voiceid.utils.Scores;
+import it.sardegnaricerche.voiceid.utils.Strategy;
+import it.sardegnaricerche.voiceid.utils.ThresholdStrategy;
 import it.sardegnaricerche.voiceid.utils.Utils;
 import it.sardegnaricerche.voiceid.utils.VLogging;
 import it.sardegnaricerche.voiceid.utils.VoiceidException;
@@ -16,6 +20,8 @@ import java.util.ArrayList;
 import java.util.logging.Logger;
 
 import javax.sound.sampled.UnsupportedAudioFileException;
+
+import sun.security.util.DisabledAlgorithmConstraints;
 
 /**
  * VoiceID, Copyright (C) 2011-2013, Sardegna Ricerche. Email:
@@ -73,10 +79,9 @@ public class Voiceid {
 	}
 
 	public Voiceid(String dbDir, File inpuFile) throws Exception {
-		this(new GMMVoiceDB(dbDir), inpuFile,
-				new LIUMStandardDiarizator());
+		this(new GMMVoiceDB(dbDir), inpuFile, new LIUMStandardDiarizator());
 	}
-	
+
 	public Voiceid(String dbDir, String inputPath) throws Exception {
 		this(dbDir, new File(inputPath));
 	}
@@ -107,15 +112,20 @@ public class Voiceid {
 	}
 
 	public boolean matchClusters() throws Exception {
-		//Scores s = new Scores();
+		Strategy[] stratArr = { new ThresholdStrategy(-33.0),
+				new DistanceStrategy(0.01) };
 		for (VCluster c : this.clusters) {
-			//logger.info(c.toString());
-			//logger.info("Result: "+ voicedb.voiceLookup(c.getSample(),c.getGender())); 
-			Scores tmp = voicedb.voiceLookup(c.getSample(),c.getGender());
-			//s.putAll(tmp);
-			System.out.println("tmp "+tmp);
-			if(tmp != null)
-			logger.info("For cluster "+c.getLabel()+" best speaker is "+tmp.getBest().keySet());
+			Scores tmp = voicedb.voiceLookup(c.getSample(), c.getGender());
+			if (tmp != null) {
+				logger.info("For cluster " + c.getLabel() + " best speaker is "
+						+ tmp.getBest(stratArr).keySet());
+				try {
+					c.setIdentifier((Identifier) tmp.getBest(stratArr).keySet()
+							.toArray()[0]);
+				} catch (Exception ex) {
+					c.setIdentifier(new Identifier("unknown") );
+				}
+			}
 		}
 		return true;
 	}
@@ -123,20 +133,12 @@ public class Voiceid {
 	private void trimClusters() throws IOException {
 		for (VCluster c : this.clusters) {
 			c.trimSegments(this.wavPath);
-			// String base = "";
-			// base = Utils.getBasename(this.wavPath);
-			// logger.fine(base);
-			// File mydir = new File(base + "/" + c.getLabel());
-			// mydir.mkdirs();
-			// c.setDir(mydir);
-			// logger.fine(mydir.getAbsolutePath());
-			// for (VSegment s : c.getSegments()) {
-			// String mywav = mydir.getAbsolutePath() + "/" + c.getLabel()
-			// + "_s" + s.getStart() + "_d" + s.getDuration() + ".wav";
-			// Utils.copyAudio(this.wavPath, mywav, s.getStart(),
-			// s.getDuration());
-			// logger.fine("filename: " + mywav);
-			// }
+		}
+	}
+
+	private void printClusters() throws IOException {
+		for (VCluster c : this.clusters) {
+			logger.info(c.getLabel() + ":" + c.getIdentifier());
 		}
 	}
 
@@ -173,11 +175,14 @@ public class Voiceid {
 		logger.info("First argument: '" + args[0] + "'");
 		long startTime = System.currentTimeMillis();
 		try {
-			GMMVoiceDB db = new GMMVoiceDB( args[0], new UBMModel("/home/michela/SpeakerRecognition/voiceid/share/ubm.gmm" +
-					""));
-			Voiceid voiceid = new Voiceid(db, new File(args[1]), new LIUMStandardDiarizator());
+			GMMVoiceDB db = new GMMVoiceDB(args[0], new UBMModel(
+					"/usr/local/share/voiceid/ubm.gmm" + ""));
+			Voiceid voiceid = new Voiceid(db, new File(args[1]),
+					new LIUMStandardDiarizator());
+			// voiceid.toWav();
 			voiceid.extractClusters();
 			voiceid.matchClusters();
+			voiceid.printClusters();
 		} catch (IOException e) {
 			logger.severe(e.getMessage());
 		} catch (Exception ex) {
@@ -186,6 +191,5 @@ public class Voiceid {
 		long endTime = System.currentTimeMillis();
 		long duration = endTime - startTime;
 		logger.info("Exit (" + ((float) duration / 1000) + " s)");
-		
 	}
 }

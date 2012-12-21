@@ -4,8 +4,10 @@ import it.sardegnaricerche.voiceid.utils.VLogging;
 import java.util.logging.Logger;
 
 public class Identifier {
+	
 	private String id = null;
 	private static Logger logger = VLogging.getDefaultLogger();
+	
 	public Identifier(String id) throws Exception {
 		this.id = id;
 		if (!this.isAlphaNumeric())
@@ -26,7 +28,6 @@ public class Identifier {
 		try {
 			return new Identifier(this.id);
 		} catch (Exception e) {
-			// TODO Auto-generated catch block
 			logger.severe(e.getMessage());
 		}
 		return null;
