@@ -5,8 +5,6 @@ package it.sardegnaricerche.voiceid.sr;
 
 import it.sardegnaricerche.voiceid.db.Identifier;
 import it.sardegnaricerche.voiceid.db.Sample;
-import it.sardegnaricerche.voiceid.fm.WavSample;
-import it.sardegnaricerche.voiceid.speakers.Speaker;
 import it.sardegnaricerche.voiceid.utils.Utils;
 import it.sardegnaricerche.voiceid.utils.VLogging;
 
@@ -40,6 +38,9 @@ import javax.sound.sampled.UnsupportedAudioFileException;
  * 
  * @author Michela Fancello, Mauro Mereu
  * 
+ *         A VCluster is the representation of a set of slices of time where
+ *         speaks only one voice,
+ * 
  */
 public class VCluster {
 	private static Logger logger = VLogging.getDefaultLogger();
@@ -47,9 +48,9 @@ public class VCluster {
 	private String label;
 	private File wavFile;
 	private char gender;
-	
-	
-	
+
+	private Identifier identifier = null; // FIXME: identifier 0 == unknown?
+
 	public String getLabel() {
 		return label;
 	}
@@ -58,8 +59,6 @@ public class VCluster {
 		this.label = label;
 	}
 
-	private Identifier identifier = null; //FIXME: identifier 0 == unknown? 
-
 	public Identifier getIdentifier() {
 		return identifier;
 	}
@@ -67,7 +66,8 @@ public class VCluster {
 	public void setIdentifier(Identifier identifier) {
 		this.identifier = identifier;
 	}
-	public Sample getSample() throws IOException, UnsupportedAudioFileException{
+
+	public Sample getSample() throws IOException, UnsupportedAudioFileException {
 		return new Sample(wavFile);
 	}
 

@@ -5,10 +5,6 @@ package it.sardegnaricerche.voiceid.db.gmm;
 
 import java.io.File;
 
-import it.sardegnaricerche.voiceid.db.Sample;
-import it.sardegnaricerche.voiceid.db.VoiceModel;
-import it.sardegnaricerche.voiceid.utils.Scores;
-
 /**
  * VoiceID, Copyright (C) 2011-2013, Sardegna Ricerche.
  * Email: labcontdigit@sardegnaricerche.it, michela.fancello@crs4.it, 
@@ -31,9 +27,6 @@ import it.sardegnaricerche.voiceid.utils.Scores;
  */
 public class UBMModel  extends File{
 
-	/**
-	 * 
-	 */
 	private static final long serialVersionUID = -981747090045741679L;
 	
 	/**

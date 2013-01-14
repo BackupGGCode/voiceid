@@ -3,7 +3,6 @@
  */
 package it.sardegnaricerche.voiceid.utils;
 
-
 /**
  * VoiceID, Copyright (C) 2011-2013, Sardegna Ricerche. Email:
  * labcontdigit@sardegnaricerche.it, michela.fancello@crs4.it,
@@ -27,6 +26,12 @@ package it.sardegnaricerche.voiceid.utils;
  *         voice models.
  */
 public interface Strategy {
+
+	/**
+	 * @param score
+	 *            the input {@link Scores} object to filter
+	 * @return the filtered {@link Scores} object
+	 */
 	public Scores filter(Scores score);
 
 }

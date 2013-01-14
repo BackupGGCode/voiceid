@@ -3,10 +3,7 @@
  */
 package it.sardegnaricerche.voiceid.db;
 
-import it.sardegnaricerche.voiceid.fm.WavSample;
 import it.sardegnaricerche.voiceid.utils.Scores;
-
-import java.util.HashMap;
 
 /**
  * VoiceID, Copyright (C) 2011-2013, Sardegna Ricerche. Email:
@@ -26,26 +23,69 @@ import java.util.HashMap;
  * 
  * @author Michela Fancello, Mauro Mereu
  * 
- * 
+ *         A voice models database.
  */
 
 public interface VoiceDB {
 
-	public char[] getGenders() ;
+	/**
+	 * The gender categories in db
+	 * 
+	 * @return
+	 */
+	public char[] getGenders();
 
+	/**
+	 * The initializer of the db
+	 * 
+	 * @return true if everithing is ok
+	 * @throws Exception
+	 */
 	abstract boolean readDb() throws Exception;
 
+	/**
+	 * Take a sample and make a model for the db, with a given identifier.
+	 * 
+	 * @param sample
+	 * @param identifier
+	 * @return
+	 */
 	public abstract boolean addModel(Sample sample, Identifier identifier);
 
+	/**
+	 * TODO: find out how to remove in a good way a model
+	 * 
+	 * @return
+	 */
 	public abstract boolean removeModel();
 
+	/**
+	 * Get a score for a sample and a given model (by identifier).
+	 * 
+	 * @param sample
+	 * @param identifier
+	 * @return
+	 */
 	public abstract Scores matchVoice(Sample sample, Identifier identifier);
 
+	/**
+	 * Match the sample with all the models in the database and return a score
+	 * for each of them against the sample.
+	 * 
+	 * @param sample
+	 * @return
+	 */
 	public abstract Scores voiceLookup(Sample sample);
 
-	public abstract Scores voiceLookup(Sample sample, char c);
-
-	// public abstract HashMap<VoiceModel,Scores> voicesLookup(AudioSample[]
-	// audioSample);
+	/**
+	 * Match the sample with all the models of a gender in the database and
+	 * return a score for each of them against the sample.
+	 * 
+	 * @param sample
+	 * @param gen
+	 *            the gender of the sample
+	 * @return
+	 */
+	public abstract Scores voiceLookup(Sample sample, char gen);
 
 }

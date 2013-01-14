@@ -3,8 +3,6 @@
  */
 package it.sardegnaricerche.voiceid.db;
 
-import it.sardegnaricerche.voiceid.utils.Features;
-
 import java.io.File;
 
 /**
@@ -30,12 +28,6 @@ import java.io.File;
 public class Sample  {
 	
 	protected File resource;
-//	Features features;
-
-	/**
-	 * 
-	 */
-	private static final long serialVersionUID = -5414487902590405784L;
 
 	/**
 	 * @param resource
@@ -49,5 +41,4 @@ public class Sample  {
 		return resource;
 	}
 	
-
 }

@@ -26,9 +26,6 @@ import it.sardegnaricerche.voiceid.utils.VLogging;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.logging.Logger;
 
@@ -167,7 +164,7 @@ public class GMMVoiceDB implements VoiceDB {
 	@Override
 	public Scores matchVoice(Sample sample, Identifier identifier) {
 		try {
-			return matchVoice(sample, identifier, new LIUMScore(this.ubmmodel));
+			return matchVoice(sample, identifier, new LIUMScore(GMMVoiceDB.ubmmodel));
 		} catch (Exception e) {
 			logger.severe(e.getMessage());
 		}

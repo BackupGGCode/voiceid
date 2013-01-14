@@ -43,12 +43,26 @@ public abstract class AbstractFileVoiceModel extends File implements VoiceModel 
 			throw new IOException("No such file " + path);
 		if (!this.isFile())
 			throw new IOException(path + " is not a regular file");
-		model = new File(path);
+		setModel(new File(path));
 		identifier = id;
 	}
 
 	public Identifier getIdentifier() {
 		return identifier;
+	}
+
+	/**
+	 * @return the model
+	 */
+	public File getModel() {
+		return model;
+	}
+
+	/**
+	 * @param model the model to set
+	 */
+	private void setModel(File model) {
+		this.model = model;
 	}
 
 }

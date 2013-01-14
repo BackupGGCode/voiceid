@@ -23,6 +23,8 @@ import java.io.File;
  * 
  * @author Michela Fancello, Mauro Mereu
  * 
+ *         A VSegment is the representation of a slice of time where speaks only
+ *         one voice.
  */
 public class VSegment {
 
@@ -30,6 +32,10 @@ public class VSegment {
 	private float duration;
 	private File audio;
 
+	/**
+	 * The start time in the original audio track.
+	 * @return
+	 */
 	public float getStart() {
 		return start;
 	}
@@ -38,6 +44,10 @@ public class VSegment {
 		this.start = start;
 	}
 
+	/**
+	 * The duration of the time slice.
+	 * @return
+	 */
 	public float getDuration() {
 		return duration;
 	}
@@ -51,7 +61,8 @@ public class VSegment {
 	}
 
 	/**
-	 * @param start
+	 * The constructor of a VSegment.
+	 * @param start 
 	 * @param duration
 	 */
 	public VSegment(float start, float duration) {
@@ -61,6 +72,7 @@ public class VSegment {
 	}
 
 	/**
+	 * The audio (wave) of the slice.
 	 * @return the audio
 	 */
 	public File getAudio() {
@@ -68,7 +80,8 @@ public class VSegment {
 	}
 
 	/**
-	 * @param audio the audio to set
+	 * @param audio
+	 *            the audio to set
 	 */
 	public void setAudio(File audio) {
 		this.audio = audio;

@@ -26,10 +26,12 @@ import java.util.ArrayList;
  * 
  * @author Michela Fancello, Mauro Mereu
  * 
+ * An interface to umplement by each class able to do a Speaker Diarization process.
  */
 public interface Diarizator {
 
 	/**
+	 * Take a input file and do audio diarization.
 	 * @return
 	 */
 	public ArrayList<VCluster> extractClusters(File input);

@@ -21,7 +21,6 @@ import java.util.logging.Logger;
 
 import javax.sound.sampled.UnsupportedAudioFileException;
 
-import sun.security.util.DisabledAlgorithmConstraints;
 
 /**
  * VoiceID, Copyright (C) 2011-2013, Sardegna Ricerche. Email:
@@ -64,10 +63,18 @@ public class Voiceid {
 	private Diarizator diarizationManager;
 
 	/**
+	 * The main {@link Voiceid} constructor, where you can specify which kind of
+	 * {@link VoiceDB} and {@link Diarizator} to use.
 	 * 
+	 * 
+	 * @param voicedb
+	 *            a valid VoiceDB instance
+	 * @param inputFile
+	 *            the input file containing an audio track
+	 * @param manager
+	 *            a valid Diarizator
 	 * @throws IOException
 	 * @throws ClassNotFoundException
-	 * 
 	 */
 	public Voiceid(VoiceDB voicedb, File inputFile, Diarizator manager)
 			throws IOException, ClassNotFoundException {
@@ -78,19 +85,52 @@ public class Voiceid {
 		this.verifyInputFile();
 	}
 
+	/**
+	 * A custom constructor for {@link Voiceid} that has a {@link GMMVoiceDB}
+	 * instantiated with dbDir, and the {@link LIUMStandardDiarizator}.
+	 * 
+	 * @param dbDir
+	 *            the path where is your {@link VoiceDB}
+	 * @param inpuFile
+	 *            a {@link File} instance representing the input file
+	 * @throws Exception
+	 */
 	public Voiceid(String dbDir, File inpuFile) throws Exception {
 		this(new GMMVoiceDB(dbDir), inpuFile, new LIUMStandardDiarizator());
 	}
 
+	/**
+	 * A custom constructor for {@link Voiceid} that has a {@link GMMVoiceDB}
+	 * instantiated with dbDir, and the {@link LIUMStandardDiarizator}.
+	 * 
+	 * @param dbDir
+	 *            the path where is your {@link VoiceDB}.
+	 * @param inputPath
+	 *            the input file path
+	 * @throws Exception
+	 */
 	public Voiceid(String dbDir, String inputPath) throws Exception {
 		this(dbDir, new File(inputPath));
 	}
 
+	/**
+	 * An utility to check if the file in input is a regular file.
+	 * 
+	 * @throws IOException
+	 */
 	private void verifyInputFile() throws IOException {
 		if (!this.inputfile.isFile())
 			throw new IOException(this.inputfile + " not a regular file");
 	}
 
+	/**
+	 * Run the diarization process and generate the clusters (speakers)
+	 * representations. Split the original audio file according to the
+	 * identified clusters.
+	 * 
+	 * @throws VoiceidException
+	 * @throws IOException
+	 */
 	public void extractClusters() throws VoiceidException, IOException {
 		try {
 			if (!Utils.isGoodWave(this.inputfile)) {
@@ -111,6 +151,13 @@ public class Voiceid {
 		this.trimClusters();
 	}
 
+	/**
+	 * Serch the {@link VoiceDB} to assign a known voice to the identified
+	 * clusters.
+	 * 
+	 * @return
+	 * @throws Exception
+	 */
 	public boolean matchClusters() throws Exception {
 		Strategy[] stratArr = { new ThresholdStrategy(-33.0),
 				new DistanceStrategy(0.01) };
@@ -123,25 +170,40 @@ public class Voiceid {
 					c.setIdentifier((Identifier) tmp.getBest(stratArr).keySet()
 							.toArray()[0]);
 				} catch (Exception ex) {
-					c.setIdentifier(new Identifier("unknown") );
+					c.setIdentifier(new Identifier("unknown"));
 				}
 			}
 		}
 		return true;
 	}
 
+	/**
+	 * Split the original audio file according to the identified clusters.
+	 * 
+	 * @throws IOException
+	 */
 	private void trimClusters() throws IOException {
 		for (VCluster c : this.clusters) {
 			c.trimSegments(this.wavPath);
 		}
 	}
 
+	/**
+	 * Print a string representation of the clusters identified.
+	 * 
+	 * @throws IOException
+	 */
 	private void printClusters() throws IOException {
 		for (VCluster c : this.clusters) {
 			logger.info(c.getLabel() + ":" + c.getIdentifier());
 		}
 	}
 
+	/**
+	 * Convert to wav the inputFile to be processed by diarizator.
+	 * 
+	 * @throws IOException
+	 */
 	private void toWav() throws IOException {
 		logger.fine("Gstreamer initialized");
 		String filename = inputfile.getAbsolutePath();

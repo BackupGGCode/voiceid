@@ -11,6 +11,7 @@ import fr.lium.spkDiarization.libClusteringData.Segment;
 import fr.lium.spkDiarization.libFeature.FeatureSet;
 import fr.lium.spkDiarization.libModel.GMM;
 import fr.lium.spkDiarization.parameter.Parameter;
+import fr.lium.spkDiarization.programs.MScore;
 import it.sardegnaricerche.voiceid.db.Identifier;
 import it.sardegnaricerche.voiceid.db.Sample;
 import it.sardegnaricerche.voiceid.db.VoiceModel;
@@ -47,12 +48,23 @@ import javax.sound.sampled.UnsupportedAudioFileException;
  * 
  * @author Michela Fancello, Mauro Mereu
  * 
+ *         The {@link VoiceScorer} derived from the {@link MScore} of Lium
+ *         spkrdiarization framework.
+ * 
  */
+
 public class LIUMScore implements VoiceScorer {
 
 	private static Logger logger = VLogging.getDefaultLogger();
 	private static UBMModel ubmmodel = null;
 
+	/**
+	 * The {@link VoiceScorer} derived from the {@link MScore} of Lium
+	 * spkrdiarization framework.
+	 * 
+	 * @param ubmmodel
+	 *            an istance of {@link UBMModel}, universal background model
+	 */
 	public LIUMScore(UBMModel ubmmodel) {
 		if (LIUMScore.getUbmmodel() == null
 				|| !ubmmodel.equals(LIUMScore.getUbmmodel())) {
@@ -61,28 +73,30 @@ public class LIUMScore implements VoiceScorer {
 	}
 
 	/*
-	 * (non-Javadoc)
+	 * The score method takes a {@link Sample} and {@link VoiceModel} and return
+	 * a {@link Scores} object.
 	 * 
 	 * @see
 	 * it.sardegnaricerche.voiceid.fm.VoiceScorer#score(it.sardegnaricerche.
 	 * voiceid.db.Sample, it.sardegnaricerche.voiceid.db.VoiceModel)
 	 */
 	@Override
-	public Scores score(Sample sample, VoiceModel voicemodel) throws IOException, UnsupportedAudioFileException  {
+	public Scores score(Sample sample, VoiceModel voicemodel)
+			throws IOException, UnsupportedAudioFileException {
 		// if (voicemodel.getClass().getName().equals("GMMFileVoiceModel"))
 		return score(new WavSample(sample), (GMMFileVoiceModel) voicemodel);
 		// return null;
 	}
 
 	/*
-	 * (non-Javadoc)
+	 * The score method takes a {@link WavSample} and {@link GMMFileVoiceModel}
+	 * and return a {@link Scores} object. 
 	 * 
 	 * @see
 	 * it.sardegnaricerche.voiceid.fm.VoiceScorer#score(it.sardegnaricerche.
 	 * voiceid.db.Sample, it.sardegnaricerche.voiceid.db.VoiceModel)
 	 */
-	public Scores score(WavSample sample, GMMFileVoiceModel voicemodel)
-			 {
+	public Scores score(WavSample sample, GMMFileVoiceModel voicemodel) {
 		logger.fine("SCORE!");
 		String basename = "";
 
@@ -173,17 +187,18 @@ public class LIUMScore implements VoiceScorer {
 
 		logger.fine(clusters.size() + "");
 		for (Cluster c : clusters) {
-			Set<String> set =  c.getInformation().keySet();
+			Set<String> set = c.getInformation().keySet();
 			set.remove("score:UBM");
 			set.remove("score:lenght");
 			String key = set.iterator().next();
-				
+
 			String identifier = key.split(":")[1];
-			if (identifier.equals("length")){
-				String s = identifier;
+			if (identifier.equals("length")) {
+//				String s = identifier;
 				logger.severe(identifier + " " + key);
 			}
-			Double value = Double.parseDouble(c.getInformation().get(key).toString());
+			Double value = Double.parseDouble(c.getInformation().get(key)
+					.toString());
 			try {
 				result.put(new Identifier(identifier), value);
 			} catch (Exception e) {
@@ -193,15 +208,15 @@ public class LIUMScore implements VoiceScorer {
 		return result;
 	}
 
-//	@SuppressWarnings("unused")
-//	private FeatureSet readFeatures(File inputFile) throws IOException,
-//			DiarizationException {
-//		Parameter param = null;
-//		ClusterSet clusters = null;
-//		FeatureSet features = new FeatureSet(clusters,
-//				param.parameterInputFeature, param.trace);
-//		return features;
-//	}
+	// @SuppressWarnings("unused")
+	// private FeatureSet readFeatures(File inputFile) throws IOException,
+	// DiarizationException {
+	// Parameter param = null;
+	// ClusterSet clusters = null;
+	// FeatureSet features = new FeatureSet(clusters,
+	// param.parameterInputFeature, param.trace);
+	// return features;
+	// }
 
 	@SuppressWarnings("unused")
 	private ClusterSet readClusterset(ArrayList<VCluster> arrayList)
@@ -241,7 +256,8 @@ public class LIUMScore implements VoiceScorer {
 
 		WavSample wavSample = new WavSample(new File(args[1]));
 
-		GMMFileVoiceModel model = new GMMFileVoiceModel(args[2], new Identifier("prova"));
+		GMMFileVoiceModel model = new GMMFileVoiceModel(args[2],
+				new Identifier("prova"));
 
 		mscore.score(wavSample, model);
 
