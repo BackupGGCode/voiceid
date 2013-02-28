@@ -3,13 +3,20 @@
  */
 package it.sardegnaricerche.voiceid.fm;
 
+import it.sardegnaricerche.voiceid.db.Sample;
+import it.sardegnaricerche.voiceid.utils.Utils;
+
 import java.io.File;
 import java.io.IOException;
 
+import javax.sound.sampled.AudioFileFormat;
+import javax.sound.sampled.AudioFormat;
+import javax.sound.sampled.AudioInputStream;
+import javax.sound.sampled.AudioSystem;
+import javax.sound.sampled.Clip;
+import javax.sound.sampled.DataLine;
+import javax.sound.sampled.LineUnavailableException;
 import javax.sound.sampled.UnsupportedAudioFileException;
-
-import it.sardegnaricerche.voiceid.db.Sample;
-import it.sardegnaricerche.voiceid.utils.Utils;
 
 /**
  * VoiceID, Copyright (C) 2011-2013, Sardegna Ricerche. Email:
@@ -45,10 +52,11 @@ public class WavSample extends Sample {
 
 	/**
 	 * @param sample
-	 * @throws UnsupportedAudioFileException 
-	 * @throws IOException 
+	 * @throws UnsupportedAudioFileException
+	 * @throws IOException
 	 */
-	public WavSample(Sample sample) throws IOException, UnsupportedAudioFileException {
+	public WavSample(Sample sample) throws IOException,
+			UnsupportedAudioFileException {
 		this(sample.getResource());
 	}
 
@@ -57,6 +65,22 @@ public class WavSample extends Sample {
 	 */
 	public File toWav() {
 		return this.resource;
+	}
+
+	public double getDuration() throws UnsupportedAudioFileException,
+			IOException, LineUnavailableException {
+		AudioInputStream stream;
+		stream = AudioSystem.getAudioInputStream(this.resource);
+		AudioFileFormat fileFormat = AudioSystem
+				.getAudioFileFormat(this.resource);
+		AudioFormat format = fileFormat.getFormat();
+		DataLine.Info info = new DataLine.Info(Clip.class, stream.getFormat(),
+				((int) stream.getFrameLength() * format.getFrameSize()));
+		Clip clip = (Clip) AudioSystem.getLine(info);
+		clip.close();
+		return clip.getBufferSize()
+				/ (clip.getFormat().getFrameSize() * clip.getFormat()
+						.getFrameRate());
 	}
 
 }

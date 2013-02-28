@@ -57,7 +57,7 @@ public class DistanceStrategy implements Strategy {
 		int size = v.size();
 		if (size <= 1)
 			return score;
-		Collections.sort(v);
+		Collections.sort(v, Collections.reverseOrder());
 		double best = v.get(0);
 		double second = v.get(1);
 		if (Math.abs(best - second) >= this.distance) {

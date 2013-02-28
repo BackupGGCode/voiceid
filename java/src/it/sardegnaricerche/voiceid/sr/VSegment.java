@@ -5,6 +5,9 @@ package it.sardegnaricerche.voiceid.sr;
 
 import java.io.File;
 
+import org.json.JSONException;
+import org.json.JSONObject;
+
 /**
  * VoiceID, Copyright (C) 2011-2013, Sardegna Ricerche. Email:
  * labcontdigit@sardegnaricerche.it, michela.fancello@crs4.it,
@@ -34,6 +37,7 @@ public class VSegment {
 
 	/**
 	 * The start time in the original audio track.
+	 * 
 	 * @return
 	 */
 	public float getStart() {
@@ -46,6 +50,7 @@ public class VSegment {
 
 	/**
 	 * The duration of the time slice.
+	 * 
 	 * @return
 	 */
 	public float getDuration() {
@@ -56,13 +61,31 @@ public class VSegment {
 		this.duration = duration;
 	}
 
+	public float getEnd() {
+		return this.start + this.duration;
+	}
+
 	public String toString() {
 		return "start: " + start + " duration: " + duration;
+	}
+	
+	/**
+	 * The Segment in json format.
+	 * 
+	 * @return
+	 */
+	public JSONObject toJson() throws JSONException {
+		JSONObject obj_tmp = new JSONObject();
+		obj_tmp.put("startTime", this.getStart());
+		obj_tmp.put("duration", this.getDuration());
+		obj_tmp.put("endTime", this.getEnd());
+		return obj_tmp;
 	}
 
 	/**
 	 * The constructor of a VSegment.
-	 * @param start 
+	 * 
+	 * @param start
 	 * @param duration
 	 */
 	public VSegment(float start, float duration) {
@@ -73,6 +96,7 @@ public class VSegment {
 
 	/**
 	 * The audio (wave) of the slice.
+	 * 
 	 * @return the audio
 	 */
 	public File getAudio() {

@@ -29,6 +29,21 @@ import it.sardegnaricerche.voiceid.db.Identifier;
  */
 public class ThresholdStrategy implements Strategy {
 	final private double threshold;
+	final private double tolerance;
+
+	/**
+	 * Constructor for the {@link ThresholdStrategy}.
+	 * 
+	 * @param threshold
+	 *            the minimal threshold to reach to not be dropped.
+	 * @param tolerance
+	 *            the accepted tolerance
+	 */
+	public ThresholdStrategy(double threshold, double tolerance) {
+		super();
+		this.threshold = threshold;
+		this.tolerance = tolerance;
+	}
 
 	/**
 	 * Constructor for the {@link ThresholdStrategy}.
@@ -37,8 +52,7 @@ public class ThresholdStrategy implements Strategy {
 	 *            the minimal threshold to reach to not be dropped.
 	 */
 	public ThresholdStrategy(double threshold) {
-		super();
-		this.threshold = threshold;
+		this(threshold, 0.0);
 	}
 
 	/*
@@ -55,7 +69,7 @@ public class ThresholdStrategy implements Strategy {
 		double val;
 		for (Identifier id : score.keySet()) {
 			val = score.get(id);
-			if (val > threshold)
+			if (val > threshold - tolerance)
 				filteredScore.put(id, val);
 		}
 		return filteredScore;

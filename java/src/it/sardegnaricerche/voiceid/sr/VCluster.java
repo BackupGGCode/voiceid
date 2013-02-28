@@ -20,6 +20,10 @@ import javax.sound.sampled.AudioInputStream;
 import javax.sound.sampled.AudioSystem;
 import javax.sound.sampled.UnsupportedAudioFileException;
 
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
+
 /**
  * VoiceID, Copyright (C) 2011-2013, Sardegna Ricerche. Email:
  * labcontdigit@sardegnaricerche.it, michela.fancello@crs4.it,
@@ -170,6 +174,27 @@ public class VCluster {
 		return vseg.add(vsegment);
 	}
 
+	
+	/**
+	 * The Cluster in json format.
+	 * 
+	 * @return
+	 */
+	public JSONArray toJson() throws JSONException {
+		JSONArray obj = new JSONArray();
+		for (VSegment seg: this.getSegments()) {
+			JSONObject obj_tmp = new JSONObject();
+			obj_tmp.put("gender", this.getGender() +"");
+			obj_tmp.put("speaker", this.getIdentifier());
+			obj_tmp.put("speakerLabel", this.getLabel());
+			obj_tmp.put("startTime",seg.getStart());
+			obj_tmp.put("endTime", seg.getEnd());
+			obj.put(obj_tmp);
+		}
+		
+		return obj;
+	}
+	
 	/**
 	 * @return the dir
 	 */

@@ -6,6 +6,7 @@ import it.sardegnaricerche.voiceid.db.gmm.GMMVoiceDB;
 import it.sardegnaricerche.voiceid.db.gmm.UBMModel;
 import it.sardegnaricerche.voiceid.fm.Diarizator;
 import it.sardegnaricerche.voiceid.fm.LIUMStandardDiarizator;
+import it.sardegnaricerche.voiceid.fm.WavSample;
 import it.sardegnaricerche.voiceid.utils.DistanceStrategy;
 import it.sardegnaricerche.voiceid.utils.Scores;
 import it.sardegnaricerche.voiceid.utils.Strategy;
@@ -13,14 +14,19 @@ import it.sardegnaricerche.voiceid.utils.ThresholdStrategy;
 import it.sardegnaricerche.voiceid.utils.Utils;
 import it.sardegnaricerche.voiceid.utils.VLogging;
 import it.sardegnaricerche.voiceid.utils.VoiceidException;
+import java.io.FileWriter;
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
 
+import java.io.BufferedWriter;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.logging.Logger;
 
+import javax.sound.sampled.LineUnavailableException;
 import javax.sound.sampled.UnsupportedAudioFileException;
-
 
 /**
  * VoiceID, Copyright (C) 2011-2013, Sardegna Ricerche. Email:
@@ -159,10 +165,11 @@ public class Voiceid {
 	 * @throws Exception
 	 */
 	public boolean matchClusters() throws Exception {
-		Strategy[] stratArr = { new ThresholdStrategy(-33.0),
-				new DistanceStrategy(0.01) };
+		Strategy[] stratArr = { new ThresholdStrategy(-33.0, 0.07),
+				new DistanceStrategy(0.07) };
 		for (VCluster c : this.clusters) {
 			Scores tmp = voicedb.voiceLookup(c.getSample(), c.getGender());
+			System.out.println(tmp.toString());
 			if (tmp != null) {
 				logger.info("For cluster " + c.getLabel() + " best speaker is "
 						+ tmp.getBest(stratArr).keySet());
@@ -232,6 +239,31 @@ public class Voiceid {
 		this.wavPath = new File(name + ".wav");
 	}
 
+	public JSONObject toJson() throws JSONException, UnsupportedAudioFileException,
+			IOException, LineUnavailableException {
+		JSONObject obj = new JSONObject();
+		JSONArray arr_tmp = new JSONArray();
+		obj.put("duration", new WavSample(this.wavPath).getDuration());
+		obj.put("url", this.inputfile.getAbsolutePath());
+
+		for (VCluster c : this.clusters)
+			for (int i = 0; i < c.toJson().length(); i++) {
+				arr_tmp.put(c.toJson().get(i));
+			}
+		obj.put("selections", arr_tmp);
+		return obj;
+		
+
+	}
+
+	public void makeAllModels() throws Exception {
+		for (VCluster c : this.clusters) {
+//			if (c.getIdentifier().equals("unknown"))
+//				continue;
+			this.voicedb.addModel(c.getSample(), new Identifier(c.getLabel()));
+		}
+	}
+
 	public static void main(String[] args) {
 		logger.info("Voiceid main method");
 		logger.info("First argument: '" + args[0] + "'");
@@ -239,12 +271,23 @@ public class Voiceid {
 		try {
 			GMMVoiceDB db = new GMMVoiceDB(args[0], new UBMModel(
 					"/usr/local/share/voiceid/ubm.gmm" + ""));
-			Voiceid voiceid = new Voiceid(db, new File(args[1]),
+			File f = new File(args[1]);
+			Voiceid voiceid = new Voiceid(db, f,
 					new LIUMStandardDiarizator());
 			// voiceid.toWav();
 			voiceid.extractClusters();
 			voiceid.matchClusters();
 			voiceid.printClusters();
+			JSONObject obj = voiceid.toJson();
+			//FileWriter fstream = new FileWriter(f.getAbsolutePath().replaceFirst("[.][^.]+$", "") + ".json");
+			FileWriter fstream = new FileWriter(Utils.getBasename(f) + ".json");
+			BufferedWriter out = new BufferedWriter(fstream);
+			out.write(obj.toString());
+			//Close the output stream
+			out.close();
+			//System.out.println("JSON :" + obj.toString());
+			
+			voiceid.makeAllModels();
 		} catch (IOException e) {
 			logger.severe(e.getMessage());
 		} catch (Exception ex) {
@@ -253,5 +296,7 @@ public class Voiceid {
 		long endTime = System.currentTimeMillis();
 		long duration = endTime - startTime;
 		logger.info("Exit (" + ((float) duration / 1000) + " s)");
+		
+		
 	}
 }
