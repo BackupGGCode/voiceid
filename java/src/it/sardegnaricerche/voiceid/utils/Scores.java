@@ -66,6 +66,13 @@ public class Scores extends HashMap<Identifier, Double> {
 		}
 		return str + "}";
 	}
+	
+	public void putAllSync(Map<? extends Identifier, ? extends Double> m){
+		synchronized (this) {
+//			System.out.println("AAAAAAAAAAAAAAAAA     "+m.toString());
+			super.putAll(m);
+		}
+	}
 
 }
 

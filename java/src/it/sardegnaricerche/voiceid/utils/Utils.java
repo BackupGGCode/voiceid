@@ -79,6 +79,11 @@ public class Utils {
 		return s.substring(0, s.length() - ext.length() - 1);
 	}
 
+	/**
+	 * Check if the given file is a regular Wav PCM file.
+	 * @param file
+	 * @return
+	 */
 	public static boolean isWave(File file) {
 		AudioFileFormat a = null;
 		try {
@@ -99,6 +104,12 @@ public class Utils {
 		return false;
 	}
 
+	/**
+	 * @param file
+	 * @return
+	 * @throws IOException
+	 * @throws UnsupportedAudioFileException
+	 */
 	public static boolean isGoodWave(File file) throws IOException,
 			UnsupportedAudioFileException {
 		AudioFileFormat a = null;
@@ -130,6 +141,12 @@ public class Utils {
 		return true;
 	}
 
+	/**
+	 * @param sourceFileName
+	 * @param destinationFileName
+	 * @param startSecond
+	 * @param secondsToCopy
+	 */
 	public static void copyAudio(String sourceFileName,
 			String destinationFileName, int startSecond, int secondsToCopy) {
 		AudioInputStream inputStream = null;
@@ -167,6 +184,12 @@ public class Utils {
 		}
 	}
 	
+	/**
+	 * @param sourceFile
+	 * @param destinationFileName
+	 * @param startSecond
+	 * @param secondsToCopy
+	 */
 	public static void copyAudio(File sourceFile,
 			String destinationFileName, float startSecond, float secondsToCopy) {
 		AudioInputStream inputStream = null;

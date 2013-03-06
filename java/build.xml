@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<project name="voiceid" default="jar" basedir=".">
+
+        <property name="out.dir" value="lib"/>
+        <property name="jar.filename" value="voiceid-0.1.jar"/>
+        <property name="build.dir" value="build"/>
+
+        <target name="jar">
+                <jar jarfile="${out.dir}/${jar.filename}">
+                        <fileset dir="${build.dir}"/>
+                </jar>
+        </target>
+
+</project>

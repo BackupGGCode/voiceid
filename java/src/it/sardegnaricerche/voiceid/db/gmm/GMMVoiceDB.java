@@ -62,6 +62,8 @@ public class GMMVoiceDB implements VoiceDB {
 	private HashMap<Character, ArrayList<GMMFileVoiceModel>> models;
 
 	private static UBMModel ubmmodel = null;
+	private ArrayList<Thread> threads;
+	public float maxThreads = Runtime.getRuntime().availableProcessors() * 2f ;
 
 	/**
 	 * @param path
@@ -208,6 +210,7 @@ public class GMMVoiceDB implements VoiceDB {
 		} catch (Exception e) {
 			logger.severe("voiceLookup: error");
 			logger.severe(e.getMessage());
+			e.printStackTrace();
 		}
 		return null;
 	}
@@ -218,11 +221,18 @@ public class GMMVoiceDB implements VoiceDB {
 		} catch (Exception e) {
 			logger.severe("voiceLookup: error");
 			logger.severe(e.getMessage());
+			e.printStackTrace();
+
 		}
 		return null;
 	}
 
-	public Scores voiceLookup(Sample sample, VoiceScorer scorer) {
+	public Scores voiceLookup(Sample sample, VoiceScorer scorer)
+			throws InterruptedException {
+
+		if (maxThreads > 1)
+			return parallelVoiceLookup(sample, scorer, getGenders());
+
 		Scores score = new Scores();
 
 		for (char gender : this.models.keySet()) {
@@ -231,7 +241,14 @@ public class GMMVoiceDB implements VoiceDB {
 		return score;
 	}
 
-	public Scores voiceLookup(Sample sample, VoiceScorer scorer, char gender) {
+	public Scores voiceLookup(Sample sample, VoiceScorer scorer, char gender)
+			throws InterruptedException {
+
+		if (maxThreads > 1) {
+			char[] g = { gender };
+			return parallelVoiceLookup(sample, scorer, g);
+		}
+
 		Scores score = new Scores();
 		for (GMMFileVoiceModel gmm : getByGender(gender)) {
 			try {
@@ -242,9 +259,101 @@ public class GMMVoiceDB implements VoiceDB {
 				logger.severe("ERROR?");
 				for (StackTraceElement ex : e.getStackTrace())
 					logger.severe(ex.toString());
+				e.printStackTrace();
 			}
 		}
 		return score;
+	}
+
+	private int runningThreads() {
+		int count = 0;
+		for (Thread t : threads)
+			if (t.isAlive())
+				count++;
+
+		return count;
+	}
+
+	public Scores parallelVoiceLookup(Sample sample, VoiceScorer scorer,
+			char[] genders) throws InterruptedException {
+		Scores score = new Scores();
+		threads = new ArrayList<Thread>();
+
+		for (char gender : genders) {
+			for (GMMFileVoiceModel gmm : getByGender(gender)) {
+				try {
+					Thread thread = new Thread(new LookupThread(scorer,
+							new WavSample(sample), gmm, score));
+					threads.add(thread);
+				} catch (Exception e) {
+					logger.severe("ERROR?");
+					for (StackTraceElement ex : e.getStackTrace())
+						logger.severe(ex.toString());
+				}
+			}
+		}
+
+		for (Thread t : threads)
+			if (runningThreads() < maxThreads)
+				t.start();
+			else {
+				while (runningThreads() >= maxThreads)
+					Thread.sleep(500);
+				t.start();
+			}
+
+		for (Thread t : threads)
+			try {
+				t.join();
+			} catch (Exception e) {
+//				logger.severe("ERROR?");
+//				for (StackTraceElement ex : e.getStackTrace())
+//					logger.severe(ex.toString());
+			}
+
+		return score;
+	}
+
+	private class LookupThread implements Runnable {
+
+		private VoiceScorer scorer;
+		private WavSample sample;
+		private GMMFileVoiceModel gmm;
+		private Scores globalScore;
+
+		/**
+		 * @param scorer
+		 * @param sample
+		 * @param gmm
+		 */
+		public LookupThread(VoiceScorer scorer, WavSample sample,
+				GMMFileVoiceModel gmm, Scores globalScore) {
+			super();
+			this.scorer = scorer;
+			this.sample = sample;
+			this.gmm = gmm;
+			this.globalScore = globalScore;
+		}
+
+		/*
+		 * (non-Javadoc)
+		 * 
+		 * @see java.lang.Runnable#run()
+		 */
+		@Override
+		public void run() {
+			Scores currentScore = null;
+			try {
+				currentScore = scorer.score(sample, gmm);
+			} catch (Exception e) {
+				logger.severe(e.getMessage());
+				e.printStackTrace();
+			}
+			
+			this.globalScore.putAllSync(currentScore);
+
+		}
+
 	}
 
 	/*

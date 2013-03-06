@@ -8,6 +8,7 @@ import it.sardegnaricerche.voiceid.utils.Utils;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.URL;
 
 import javax.sound.sampled.AudioFileFormat;
 import javax.sound.sampled.AudioFormat;
@@ -67,6 +68,12 @@ public class WavSample extends Sample {
 		return this.resource;
 	}
 
+	/**
+	 * @return The duration in seconds of the WavSample.
+	 * @throws UnsupportedAudioFileException
+	 * @throws IOException
+	 * @throws LineUnavailableException
+	 */
 	public double getDuration() throws UnsupportedAudioFileException,
 			IOException, LineUnavailableException {
 		AudioInputStream stream;

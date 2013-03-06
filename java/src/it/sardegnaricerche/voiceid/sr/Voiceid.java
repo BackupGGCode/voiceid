@@ -239,11 +239,23 @@ public class Voiceid {
 		this.wavPath = new File(name + ".wav");
 	}
 
-	public JSONObject toJson() throws JSONException, UnsupportedAudioFileException,
-			IOException, LineUnavailableException {
+	public JSONObject toJson() throws JSONException,
+			UnsupportedAudioFileException, IOException,
+			LineUnavailableException {
 		JSONObject obj = new JSONObject();
 		JSONArray arr_tmp = new JSONArray();
-		obj.put("duration", new WavSample(this.wavPath).getDuration());
+		try {
+			obj.put("duration", new WavSample(this.wavPath).getDuration());
+		} catch (Exception e) {
+			double best = 0.0;
+			for (VCluster c : this.clusters)
+				for (VSegment s: c.getSegments()){
+					double curr = s.getEnd();
+					if (curr > best)
+						best = curr;
+				}			
+			obj.put("duration", best);
+		}
 		obj.put("url", this.inputfile.getAbsolutePath());
 
 		for (VCluster c : this.clusters)
@@ -252,14 +264,13 @@ public class Voiceid {
 			}
 		obj.put("selections", arr_tmp);
 		return obj;
-		
 
 	}
 
 	public void makeAllModels() throws Exception {
 		for (VCluster c : this.clusters) {
-//			if (c.getIdentifier().equals("unknown"))
-//				continue;
+			// if (c.getIdentifier().equals("unknown"))
+			// continue;
 			this.voicedb.addModel(c.getSample(), new Identifier(c.getLabel()));
 		}
 	}
@@ -268,35 +279,40 @@ public class Voiceid {
 		logger.info("Voiceid main method");
 		logger.info("First argument: '" + args[0] + "'");
 		long startTime = System.currentTimeMillis();
+		Voiceid voiceid = null;
+		GMMVoiceDB db = null;
 		try {
-			GMMVoiceDB db = new GMMVoiceDB(args[0], new UBMModel(
+			db = new GMMVoiceDB(args[0], new UBMModel(
 					"/usr/local/share/voiceid/ubm.gmm" + ""));
-			File f = new File(args[1]);
-			Voiceid voiceid = new Voiceid(db, f,
+			voiceid = new Voiceid(db, new File(args[1]),
 					new LIUMStandardDiarizator());
 			// voiceid.toWav();
 			voiceid.extractClusters();
 			voiceid.matchClusters();
-			voiceid.printClusters();
+			// voiceid.printClusters();
+			File f = new File(args[1]);
 			JSONObject obj = voiceid.toJson();
-			//FileWriter fstream = new FileWriter(f.getAbsolutePath().replaceFirst("[.][^.]+$", "") + ".json");
-			FileWriter fstream = new FileWriter(Utils.getBasename(f) + ".json");
+			// FileWriter fstream = new
+			// FileWriter(f.getAbsolutePath().replaceFirst("[.][^.]+$", "") +
+			// ".json");
+			String filename = Utils.getBasename(f) + ".json";
+			// logger.info(filename);
+			FileWriter fstream = new FileWriter(filename);
 			BufferedWriter out = new BufferedWriter(fstream);
 			out.write(obj.toString());
-			//Close the output stream
+			// Close the output stream
 			out.close();
-			//System.out.println("JSON :" + obj.toString());
-			
+			// logger.info("JSON :" + obj.toString());
+
 			voiceid.makeAllModels();
 		} catch (IOException e) {
-			logger.severe(e.getMessage());
+			// logger.severe(e.getMessage());
 		} catch (Exception ex) {
-			logger.severe(ex.getMessage());
+			// logger.severe(ex.getMessage());
 		}
 		long endTime = System.currentTimeMillis();
 		long duration = endTime - startTime;
 		logger.info("Exit (" + ((float) duration / 1000) + " s)");
-		
-		
+		logger.info("Max Threads: " + (int) db.maxThreads);
 	}
 }
