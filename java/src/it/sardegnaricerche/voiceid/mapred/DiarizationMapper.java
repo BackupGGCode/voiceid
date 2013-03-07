@@ -1,5 +1,6 @@
 package it.sardegnaricerche.voiceid.mapred;
 
+import it.sardegnaricerche.voiceid.sr.VCluster;
 import it.sardegnaricerche.voiceid.sr.Voiceid;
 import it.sardegnaricerche.voiceid.utils.Utils;
 
@@ -7,7 +8,10 @@ import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.logging.Logger;
+
+import javax.sound.sampled.UnsupportedAudioFileException;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
@@ -23,6 +27,7 @@ import org.json.JSONObject;
 		public static Logger l = Logger.getLogger("TaskMapper");
 		
 		 public void map(LongWritable key, Text value, Context context) throws IOException, InterruptedException {
+			 	ArrayList<VCluster> list_clusters = new ArrayList<VCluster>();
 				try {
 					l.info("value: "+value);
 					Configuration conf = new Configuration();
@@ -33,7 +38,6 @@ import org.json.JSONObject;
 					
 					Voiceid v = new Voiceid("/home/hduser/.voiceid/gmm_db/", value.toString());
 					v.extractClusters();
-					v.matchClusters();
 					
 					File f = new File(value.toString());
 					JSONObject obj = v.toJson();
@@ -43,12 +47,19 @@ import org.json.JSONObject;
 					out.write(obj.toString());
 					//Close the output stream
 					out.close();
-
+					list_clusters = v.getClusters();
 					
 				} catch (Exception e) {
 					throw new IOException(e);
 				}
-                context.write(new Text(key.toString()), new Text(value));
+				for (VCluster c : list_clusters){
+					try {
+						context.write(new Text(""), new Text(c.getSample().getResource().getAbsolutePath()));
+					} catch (UnsupportedAudioFileException e) {
+						// TODO Auto-generated catch block
+						l.severe(e.getMessage());
+					}
+				}
 	        }
 
 //		public void map(Text key, Text value, Context context)

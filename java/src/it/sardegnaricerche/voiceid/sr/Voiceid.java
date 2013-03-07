@@ -200,12 +200,20 @@ public class Voiceid {
 	 * 
 	 * @throws IOException
 	 */
-	private void printClusters() throws IOException {
+	public void printClusters() throws IOException {
 		for (VCluster c : this.clusters) {
 			logger.info(c.getLabel() + ":" + c.getIdentifier());
 		}
 	}
-
+	/**
+	 * Return all clusters.
+	 * 
+	 * @return clusters
+	 */
+	public ArrayList<VCluster> getClusters(){
+		return clusters;
+	}
+	
 	/**
 	 * Convert to wav the inputFile to be processed by diarizator.
 	 * 
@@ -292,6 +300,11 @@ public class Voiceid {
 			// voiceid.printClusters();
 			File f = new File(args[1]);
 			JSONObject obj = voiceid.toJson();
+			
+			for (VCluster c : voiceid.getClusters()){
+				logger.info(""+c.getSample().getResource().getAbsolutePath());
+			}
+			
 			// FileWriter fstream = new
 			// FileWriter(f.getAbsolutePath().replaceFirst("[.][^.]+$", "") +
 			// ".json");
