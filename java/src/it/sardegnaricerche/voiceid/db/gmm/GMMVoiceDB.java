@@ -63,28 +63,30 @@ public class GMMVoiceDB implements VoiceDB {
 
 	private static UBMModel ubmmodel = null;
 	private ArrayList<Thread> threads;
-	public float maxThreads = Runtime.getRuntime().availableProcessors() * 2f ;
+	public float maxThreads = 1; // Runtime.getRuntime().availableProcessors() *
+									// 2f ;
 
 	/**
 	 * @param path
 	 * @throws Exception
 	 */
 	public GMMVoiceDB(String path, UBMModel ubmmodel) throws Exception {
-		this(path);
 		if (GMMVoiceDB.getUbmmodel() == null
 				|| !ubmmodel.equals(GMMVoiceDB.getUbmmodel())) {
 			GMMVoiceDB.setUbmmodel(ubmmodel);
 		}
-
-	}
-
-	public GMMVoiceDB(String path) throws Exception {
 		this.path = new java.io.File(path);
 		if (!this.path.exists())
 			throw new IOException("GMMVoiceDB: No such file " + path);
 		if (!this.path.isDirectory())
 			throw new IOException("GMMVoiceDB: " + path + " is not a directory");
 		this.readDb();
+
+
+	}
+
+	public GMMVoiceDB(String path) throws Exception {
+		this(path, new UBMModel("/usr/local/share/voiceid/ubm.gmm"));
 	}
 
 	/*
@@ -306,9 +308,9 @@ public class GMMVoiceDB implements VoiceDB {
 			try {
 				t.join();
 			} catch (Exception e) {
-//				logger.severe("ERROR?");
-//				for (StackTraceElement ex : e.getStackTrace())
-//					logger.severe(ex.toString());
+				// logger.severe("ERROR?");
+				// for (StackTraceElement ex : e.getStackTrace())
+				// logger.severe(ex.toString());
 			}
 
 		return score;
@@ -349,7 +351,7 @@ public class GMMVoiceDB implements VoiceDB {
 				logger.severe(e.getMessage());
 				e.printStackTrace();
 			}
-			
+
 			this.globalScore.putAllSync(currentScore);
 
 		}
