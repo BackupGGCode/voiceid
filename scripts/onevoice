@@ -58,7 +58,12 @@ examples:
     parser.add_option("-i", "--test-mode-incremental",  dest="test_mode_incremental", type="int", action="store", help="start test mode incremental waves")
     parser.add_option("-t", "--partial-time",  dest="partial_time", type="int", action="store", help="partial time")
     (options, args) = parser.parse_args()
-
+    quiet_mode = None
+    partial_seconds = None
+    test_mode_i_sec = None
+    test_mode_f_sec = None
+    train_mode_sec = None
+    
     if options.train_mode:
         train_mode_sec = options.train_mode
     if options.test_mode_fixed:

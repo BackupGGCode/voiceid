@@ -30,17 +30,20 @@
 # You can also build yourself the speaker models and put those in the db
 # using the scripts to create the gmm files.
 
+from threading import Thread
 from voiceid import *
+from voiceid.db import GMMVoiceDB
+from voiceid.sr import Voiceid
+from wx.lib.intctrl import IntCtrl
+from wx.lib.pubsub import Publisher
 import MplayerCtrl as mpc
 import os
-import time
-import wx
-import shutil
-import wx.lib.buttons as buttons
 import pyaudio
+import shutil
+import time
 import wave
-from wx.lib.pubsub import Publisher
-from wx.lib.intctrl import IntCtrl
+import wx
+import wx.lib.buttons as buttons
 
 #-------------------------------------
 # initializations and global variables
@@ -208,8 +211,8 @@ class Controller:
                     i+=1
                     if self.config_check == 1:
                         name = r[0]
-                        if r[1] < THRESHOLD:
-                            name = "Unknown"
+#                        if r[1] < THRESHOLD:
+#                            name = "Unknown"
                     wx.CallAfter(Publisher().sendMessage, "update_speakers_list", str(i)+" "+name+" score: "+str(r[1])) 
      
     

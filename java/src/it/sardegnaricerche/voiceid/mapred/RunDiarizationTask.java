@@ -36,7 +36,7 @@ public class RunDiarizationTask {
 		}
 		Job job = new Job(conf, "runtask");
 		job.setJarByClass(RunDiarizationTask.class);
-		job.setMapperClass(DiarizationMapper.class);
+		//job.setMapperClass(DiarizationMapper.class);
 //		job.setCombinerClass(IntSumReducer.class);
 //		job.setReducerClass(IntSumReducer.class);
 		job.setOutputKeyClass(Text.class);
