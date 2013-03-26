@@ -470,15 +470,15 @@ public class GMMVoiceDB implements VoiceDB {
 	}
 
 	public static void main(String[] args) throws Exception {
-		GMMVoiceDB db = new GMMVoiceDB(args[0]);
+		GMMVoiceDB db = new GMMVoiceDB(args[0],new UBMModel(args[1]));
 		// WavSample ws = new WavSample(new File(args[1]));
 		// UBMModel ubm = new UBMModel(args[2]);
 		// String out = "test";
 		// String bs = Utils.getBasename(ws.toWav());
 		// buildModel(ws, ubm, out);
-		GMMFileVoiceModel s = new GMMFileVoiceModel(args[1],
+		GMMFileVoiceModel s = new GMMFileVoiceModel(args[2],
 				new Identifier("1"));
-		GMMFileVoiceModel cs = new GMMFileVoiceModel(args[1], new Identifier(
+		GMMFileVoiceModel cs = new GMMFileVoiceModel(args[2], new Identifier(
 				"1"));
 		ArrayList<GMMFileVoiceModel> totalist = new ArrayList<GMMFileVoiceModel>();
 		totalist.add(s);

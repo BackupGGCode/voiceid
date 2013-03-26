@@ -206,15 +206,16 @@ public class Voiceid {
 			logger.info(c.getLabel() + ":" + c.getIdentifier());
 		}
 	}
+
 	/**
 	 * Return all clusters.
 	 * 
 	 * @return clusters
 	 */
-	public ArrayList<VCluster> getClusters(){
+	public ArrayList<VCluster> getClusters() {
 		return clusters;
 	}
-	
+
 	/**
 	 * Convert to wav the inputFile to be processed by diarizator.
 	 * 
@@ -258,11 +259,11 @@ public class Voiceid {
 		} catch (Exception e) {
 			double best = 0.0;
 			for (VCluster c : this.clusters)
-				for (VSegment s: c.getSegments()){
+				for (VSegment s : c.getSegments()) {
 					double curr = s.getEnd();
 					if (curr > best)
 						best = curr;
-				}			
+				}
 			obj.put("duration", best);
 		}
 		obj.put("url", this.inputfile.getAbsolutePath());
@@ -293,20 +294,22 @@ public class Voiceid {
 		Voiceid voiceid = null;
 		GMMVoiceDB db = null;
 		try {
-			db = new GMMVoiceDB(args[0], new UBMModel(
-					"/usr/local/share/voiceid/ubm.gmm" + ""));
-			voiceid = new Voiceid(db, new File(args[1]),
-					new LIUMStandardDiarizator());
-			// voiceid.toWav();
+			db = new GMMVoiceDB(args[1], new UBMModel(args[0]));
+			File f = new File(args[2]);
+			voiceid = new Voiceid(db, f, new LIUMStandardDiarizator());
 			voiceid.extractClusters();
 			voiceid.matchClusters();
+			// voiceid.toWav();
 			// voiceid.printClusters();
-			File f = new File(args[1]);
 			JSONObject obj = voiceid.toJson();
-			
-			for (VCluster c : voiceid.getClusters()){
-				logger.info(""+c.getSample().getResource().getAbsolutePath());
+
+			for (VCluster c : voiceid.getClusters()) {
+				logger.info("" + c.getSample().getResource().getAbsolutePath());
 			}
+
+			// FileWriter fstream = new
+			// FileWriter(f.getAbsolutePath().replaceFirst("[.][^.]+$", "") +
+			// ".json");
 			String filename = Utils.getBasename(f) + ".json";
 			FileWriter fstream = new FileWriter(filename);
 			BufferedWriter out = new BufferedWriter(fstream);
@@ -314,15 +317,15 @@ public class Voiceid {
 			// Close the output stream
 			out.close();
 
-			voiceid.makeAllModels();
+			// voiceid.makeAllModels();
 		} catch (IOException e) {
-			// logger.severe(e.getMessage());
+			logger.severe(e.getMessage());
 		} catch (Exception ex) {
-			// logger.severe(ex.getMessage());
+			logger.severe(ex.getMessage());
 		}
 		long endTime = System.currentTimeMillis();
 		long duration = endTime - startTime;
 		logger.info("Exit (" + ((float) duration / 1000) + " s)");
-		logger.info("Max Threads: " + (int) db.maxThreads);
+		// logger.info("Max Threads: " + (int) db.maxThreads);
 	}
 }

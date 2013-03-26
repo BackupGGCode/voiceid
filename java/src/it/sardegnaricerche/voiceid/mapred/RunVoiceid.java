@@ -3,6 +3,8 @@ package it.sardegnaricerche.voiceid.mapred;
 import it.sardegnaricerche.voiceid.db.Identifier;
 import it.sardegnaricerche.voiceid.db.Sample;
 import it.sardegnaricerche.voiceid.db.gmm.GMMVoiceDB;
+import it.sardegnaricerche.voiceid.db.gmm.UBMModel;
+import it.sardegnaricerche.voiceid.fm.LIUMStandardDiarizator;
 import it.sardegnaricerche.voiceid.sr.VCluster;
 import it.sardegnaricerche.voiceid.sr.Voiceid;
 import it.sardegnaricerche.voiceid.utils.DistanceStrategy;
@@ -59,6 +61,7 @@ import org.json.JSONObject;
 public class RunVoiceid extends Configured implements Tool {
 
 	public final static Logger l = Logger.getLogger("TaskMapper");
+	public static String userHome = System.getProperty("user.home");
 
 	public static class DiarizationMap extends MapReduceBase implements
 			Mapper<LongWritable, Text, Text, Text> {
@@ -72,12 +75,16 @@ public class RunVoiceid extends Configured implements Tool {
 				l.info("value: " + value);
 				Configuration conf = new Configuration();
 				FileSystem fs = FileSystem.get(conf);
-				Path inFile = new Path("/home/hduser/output");
-				if (!fs.exists(inFile))
-					l.info(inFile + " exist");
+//				Path inFile = new Path(userHome
+//						+ "/output");
+//				if (!fs.exists(inFile))
+//					l.info(inFile + " exist");
 
-				Voiceid v = new Voiceid("/home/hduser/.voiceid/gmm_db/",
-						value.toString());
+				Voiceid v = new Voiceid(new GMMVoiceDB(userHome
+						+ "/.voiceid/gmm_db/", new UBMModel(userHome
+						+ "/.voiceid/ubm.gmm")), new File(value.toString()),
+						new LIUMStandardDiarizator());
+
 				v.extractClusters();
 
 				File f = new File(value.toString());
@@ -98,7 +105,6 @@ public class RunVoiceid extends Configured implements Tool {
 					context.collect(new Text(""), new Text(c.getSample()
 							.getResource().getAbsolutePath()));
 				} catch (UnsupportedAudioFileException e) {
-					// TODO Auto-generated catch block
 					l.severe(e.getMessage());
 				}
 			}
@@ -111,6 +117,7 @@ public class RunVoiceid extends Configured implements Tool {
 			Mapper<LongWritable, Text, Text, Text> {
 
 		public static Logger l = Logger.getLogger("MatchingMapper");
+		public static String userHome = System.getProperty("user.home");
 
 		private static Strategy[] stratArr = {
 				new ThresholdStrategy(-33.0, 0.07), new DistanceStrategy(0.07) };
@@ -125,8 +132,9 @@ public class RunVoiceid extends Configured implements Tool {
 			File f = new File(value.toString().trim());
 			try {
 				l.info("value: " + value);
-				GMMVoiceDB gmmdb = new GMMVoiceDB(
-						"/home/hduser/.voiceid/gmm_db/");
+				GMMVoiceDB gmmdb = new GMMVoiceDB(userHome
+						+ "/.voiceid/gmm_db/", new UBMModel(userHome
+						+ "/.voiceid/ubm.gmm"));
 
 				s = gmmdb.voiceLookup(new Sample(f));
 
@@ -174,10 +182,9 @@ public class RunVoiceid extends Configured implements Tool {
 				jsonObject = new JSONObject(f);
 				selections = (JSONArray) jsonObject.get("selections");
 			} catch (JSONException e1) {
-				// TODO Auto-generated catch block
 				l.severe(e1.getMessage());
 			}
-			
+
 			while (values.hasNext()) {
 				String[] cluster_speaker = values.next().toString().split(":");
 				String cluster = cluster_speaker[0];
@@ -185,19 +192,18 @@ public class RunVoiceid extends Configured implements Tool {
 				try {
 					for (int i = 0; i < selections.length(); i++) {
 						JSONObject obj = selections.getJSONObject(i);
-						if(obj.get("speakerLabel").equals(cluster)){
-							//JSONObject obj_tmp = new JSONObject();
+						if (obj.get("speakerLabel").equals(cluster)) {
+							// JSONObject obj_tmp = new JSONObject();
 							obj.put("speaker", speaker);
 							selections.remove(i);
 							selections.put(obj);
-						}
-						else{
+						} else {
 							obj.put("speaker", "unknown");
 							selections.remove(i);
 							selections.put(obj);
 						}
 					}
-					
+
 				} catch (JSONException e) {
 				}
 			}
@@ -282,7 +288,6 @@ public class RunVoiceid extends Configured implements Tool {
 	 * @throws Exception
 	 */
 	public static void main(String[] args) throws Exception {
-		// TODO Auto-generated method stub
 
 		int res = ToolRunner.run(new Configuration(), new RunVoiceid(), args);
 		System.exit(res);
