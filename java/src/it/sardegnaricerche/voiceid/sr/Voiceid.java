@@ -14,19 +14,20 @@ import it.sardegnaricerche.voiceid.utils.ThresholdStrategy;
 import it.sardegnaricerche.voiceid.utils.Utils;
 import it.sardegnaricerche.voiceid.utils.VLogging;
 import it.sardegnaricerche.voiceid.utils.VoiceidException;
-import java.io.FileWriter;
-import org.json.JSONArray;
-import org.json.JSONException;
-import org.json.JSONObject;
 
 import java.io.BufferedWriter;
 import java.io.File;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.logging.Logger;
 
 import javax.sound.sampled.LineUnavailableException;
 import javax.sound.sampled.UnsupportedAudioFileException;
+
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
 
 /**
  * VoiceID, Copyright (C) 2011-2013, Sardegna Ricerche. Email:
@@ -266,10 +267,12 @@ public class Voiceid {
 		}
 		obj.put("url", this.inputfile.getAbsolutePath());
 
-		for (VCluster c : this.clusters)
-			for (int i = 0; i < c.toJson().length(); i++) {
-				arr_tmp.put(c.toJson().get(i));
+		for (VCluster c : this.clusters){
+			JSONArray jsa = c.toJson();
+			for (int i = 0; i < jsa.length(); i++) {
+				arr_tmp.put(jsa.get(i));
 			}
+		}
 		obj.put("selections", arr_tmp);
 		return obj;
 
@@ -304,18 +307,12 @@ public class Voiceid {
 			for (VCluster c : voiceid.getClusters()){
 				logger.info(""+c.getSample().getResource().getAbsolutePath());
 			}
-			
-			// FileWriter fstream = new
-			// FileWriter(f.getAbsolutePath().replaceFirst("[.][^.]+$", "") +
-			// ".json");
 			String filename = Utils.getBasename(f) + ".json";
-			// logger.info(filename);
 			FileWriter fstream = new FileWriter(filename);
 			BufferedWriter out = new BufferedWriter(fstream);
 			out.write(obj.toString());
 			// Close the output stream
 			out.close();
-			// logger.info("JSON :" + obj.toString());
 
 			voiceid.makeAllModels();
 		} catch (IOException e) {
