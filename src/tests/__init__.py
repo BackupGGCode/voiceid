@@ -23,9 +23,7 @@ BASE_DIR = os.path.dirname(__file__)
 TEST_DIR = os.path.join(BASE_DIR, 'data')
 TEMP_DIR = os.path.join(BASE_DIR, 'tmp')
 TEST_WAV = os.path.join(TEMP_DIR, 'mr_arkadin.wav')
-TEST_MFCC = os.path.join(TEMP_DIR, 'mr_arkadin_test.mfcc')
-TEST_MFCC_B = os.path.splitext(TEST_MFCC)[0]
-TEST_MFCC_ID_SEG = os.path.join(TEMP_DIR,
+TEST_WAV_ID_SEG = os.path.join(TEMP_DIR,
                     'mr_arkadin_test.ident.M.mrarkadin.gmm_test.seg')
 TWO_SPKRS_WAV = os.path.join(TEMP_DIR, 'twospeakers.wav')
 TWO_SPKRS_SEG = os.path.join(TEMP_DIR, 'twospeakers_test.seg')

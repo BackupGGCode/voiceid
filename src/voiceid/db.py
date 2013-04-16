@@ -74,12 +74,12 @@ class VoiceDB(object):
         :param gender: the gender of the speaker in the model"""
         raise NotImplementedError()
 
-    def remove_model(self, mfcc_file, identifier, score, gender):
+    def remove_model(self, wave_file, identifier, score, gender):
         """Remove a speaker model from the database according to the score it
         gets by matching vs the given feature file
 
-        :type mfcc_file: string
-        :param mfcc_file: the feature(mfcc) file extracted from the wave
+        :type wave_file: string
+        :param wave_file: the wave file
 
         :type identifier: string
         :param identifier: the name or label of the speaker
@@ -91,11 +91,11 @@ class VoiceDB(object):
         :param gender: the speaker gender"""
         raise NotImplementedError()
 
-    def match_voice(self, mfcc_file, identifier, gender):
+    def match_voice(self, wave_file, identifier, gender):
         """Match the given feature file vs the specified speaker model.
 
-        :type mfcc_file: string
-        :param mfcc_file: the feature(mfcc) file extracted from the wave
+        :type wave_file: string
+        :param wave_file: the wave file
 
         :type identifier: string
         :param identifier: the name or label of the speaker
@@ -104,23 +104,23 @@ class VoiceDB(object):
         :param gender: the speaker gender"""
         raise NotImplementedError()
 
-    def voice_lookup(self, mfcc_file, gender):
+    def voice_lookup(self, wave_file, gender):
         """Look for the best matching speaker in the db for the given
         features file.
 
-        :type mfcc_file: string
-        :param mfcc_file: the feature(mfcc) file extracted from the wave
+        :type wave_file: string
+        :param wave_file: the wave file
 
         :type gender: char F, M or U
         :param gender: the speaker gender"""
         raise NotImplementedError()
 
-    def voices_lookup(self, mfcc_dictionary):
+    def voices_lookup(self, wave_dictionary):
         """Look for the best matching speaker in the db for the given features
         files in the dictionary.
 
-        :type mfcc_dictionary: dictionary
-        :param mfcc_dictionary: a dict where the keys are the feature(mfcc)
+        :type wave_dictionary: dictionary
+        :param wave_dictionary: a dict where the keys are the wave
                 file extracted from the wave, and the values are the relative
                 gender (char F, M or U).
 
@@ -173,8 +173,8 @@ class GMMVoiceDB(VoiceDB):
         :type gender: char F, M or U
         :param gender: the gender of the speaker (optional)"""
 
-        fm.extract_mfcc(basefilename)
-        utils.ensure_file_exists(basefilename + ".mfcc")
+        #fm.extract_mfcc(basefilename)
+        #utils.ensure_file_exists(basefilename + ".mfcc")
         fm.build_gmm(basefilename, identifier)
 #        try:
 #            _silence_segmentation(basefilename)
@@ -222,11 +222,11 @@ class GMMVoiceDB(VoiceDB):
                 return True
         return False
 
-    def remove_model(self, mfcc_file, identifier, score, gender):
+    def remove_model(self, wave_file, identifier, score, gender):
         """Remove a voice model from the db.
 
-        :type mfcc_file: string
-        :param mfcc_file: the mfcc file name and path
+        :type wave_file: string
+        :param wave_file: the wave file name and path
 
         :type identifier: string
         :param identifier: the speaker in the wave
@@ -245,10 +245,10 @@ class GMMVoiceDB(VoiceDB):
             fm.split_gmm(os.path.join(folder_db_dir, identifier + ".gmm"),
                       folder_tmp)
             listgmms = os.listdir(folder_tmp)
-            filebasename = os.path.splitext(mfcc_file)[0]
+            filebasename = os.path.splitext(wave_file)[0]
             if len(listgmms) != 1:
                 for gmm in listgmms:
-                    fm.mfcc_vs_gmm(filebasename,
+                    fm.wav_vs_gmm(filebasename,
                                 os.path.join(identifier + "_tmp_gmms", gmm),
                                 gender)
                     segfile = open("%s.ident.%s.%s.seg" %
@@ -268,12 +268,12 @@ class GMMVoiceDB(VoiceDB):
             shutil.rmtree(folder_tmp)
             self._read_db()
 
-    def match_voice(self, mfcc_file, identifier, gender):
-        """Match the voice (mfcc file) versus the gmm model of
+    def match_voice(self, wave_file, identifier, gender):
+        """Match the voice (wave file) versus the gmm model of
         'identifier' in db.
 
-        :type mfcc_file: string
-        :param mfcc_file: the feature(mfcc) file extracted from the wave
+        :type wave_file: string
+        :param wave_file: wave file extracted from the wave
 
         :type identifier: string
         :param identifier: the speaker in the wave
@@ -281,12 +281,12 @@ class GMMVoiceDB(VoiceDB):
         :type gender: char F, M or U
         :param gender: the gender of the speaker (optional)"""
 
-        mfcc_basename = os.path.splitext(mfcc_file)[0]
+        wave_basename = os.path.splitext(wave_file)[0]
 
-        fm.mfcc_vs_gmm(mfcc_basename, identifier + '.gmm',
+        fm.wav_vs_gmm(wave_basename, identifier + '.gmm',
                      gender, self.get_path())
         cls = {}
-        sr.manage_ident(mfcc_basename,
+        sr.manage_ident(wave_basename,
                       gender + '.' + identifier + '.gmm', cls)
         spkrs = {}
         for clust in cls:
@@ -302,12 +302,12 @@ class GMMVoiceDB(VoiceDB):
                          for m in self._speakermodels[gen]]
         return result
 
-    def voice_lookup(self, mfcc_file, gender):
+    def voice_lookup(self, wave_file, gender):
         """Look for the best matching speaker in the db for the given
         features file.
 
-        :type mfcc_file: string
-        :param mfcc_file: the feature(mfcc) file extracted from the wave
+        :type wave_file: string
+        :param wave_file: the wave file
 
         :type gender: char F, M or U
         :param gender: the speaker gender
@@ -319,30 +319,30 @@ class GMMVoiceDB(VoiceDB):
         res = {}
         out = {}
 
-        def _match_voice(self, mfcc_file, speaker, gender):
+        def _match_voice(self, wave_file, speaker, gender):
             """Internal routine to run in a Thread"""
-            out[speaker + mfcc_file + gender] = self.match_voice(mfcc_file,
+            out[speaker + wave_file + gender] = self.match_voice(wave_file,
                                                                  speaker,
                                                                  gender)
 
         keys = []
 
         for spk in speakers:
-            out[spk + mfcc_file + gender] = None
+            out[spk + wave_file + gender] = None
             if  utils.alive_threads(self.__threads) < self.__maxthreads:
-                keys.append(spk + mfcc_file + gender)
-                self.__threads[spk + mfcc_file + gender] = threading.Thread(
+                keys.append(spk + wave_file + gender)
+                self.__threads[spk + wave_file + gender] = threading.Thread(
                                             target=_match_voice,
-                                            args=(self, mfcc_file, spk, gender))
-                self.__threads[spk + mfcc_file + gender].start()
+                                            args=(self, wave_file, spk, gender))
+                self.__threads[spk + wave_file + gender].start()
             else:
                 while utils.alive_threads(self.__threads) >= self.__maxthreads:
                     time.sleep(1)
-                keys.append(spk + mfcc_file + gender)
-                self.__threads[spk + mfcc_file + gender] = threading.Thread(
+                keys.append(spk + wave_file + gender)
+                self.__threads[spk + wave_file + gender] = threading.Thread(
                                       target=_match_voice,
-                                      args=(self, mfcc_file, spk, gender))
-                self.__threads[spk + mfcc_file + gender].start()
+                                      args=(self, wave_file, spk, gender))
+                self.__threads[spk + wave_file + gender].start()
 
         for thr in keys:
             if self.__threads[thr].is_alive():
@@ -351,13 +351,12 @@ class GMMVoiceDB(VoiceDB):
 
         return res
 
-    def voices_lookup(self, mfcc_dictionary):
+    def voices_lookup(self, wave_dictionary):
         """Look for the best matching speaker in the db for the given features
          files in the dictionary.
 
-        :type mfcc_dictionary: dictionary
-        :param mfcc_dictionary: a dict where the keys are the feature(mfcc)
-               file extracted from the wave, and the values are the relative
+        :type wave_dictionary: dictionary
+        :param wave_dictionary: a dict where the keys are the wave, and the values are the relative
                gender (char F, M or U).
 
         :rtype: dictionary
@@ -368,28 +367,26 @@ class GMMVoiceDB(VoiceDB):
         res = {}
         keys = []
 
-        def __match_voice(self, mfcc_file, speaker, gender):
+        def __match_voice(self, wave_file, speaker, gender):
             """Internal routine to run in a Thread"""
-#print "started thread "+speaker+mfcc_file+gender #+" in out["+mfcc_file+"]"
             try:
-                speakerkey = mfcc_file + '***' + speaker + gender
-                out[speakerkey] = self.match_voice(mfcc_file, speaker, gender)
+                speakerkey = wave_file + '***' + speaker + gender
+                out[speakerkey] = self.match_voice(wave_file, speaker, gender)
             except (OSError, IOError):
                 exit(-1)
 
-        for mfcc_file in mfcc_dictionary:
-            gender = mfcc_dictionary[mfcc_file]
+        for wave_file in wave_dictionary:
+            gender = wave_dictionary[wave_file]
             speakers = self.get_speakers()[gender]
-            #out[mfcc_file] = {}
             from voiceid.utils import alive_threads as alive
             for spk in speakers:
-                speakerkey = mfcc_file + '***' + spk + gender
+                speakerkey = wave_file + '***' + spk + gender
                 out[speakerkey] = None
                 if  alive(self.__threads) < self.__maxthreads:
                     keys.append(speakerkey)
                     self.__threads[speakerkey] = threading.Thread(
                                           target=__match_voice,
-                                          args=(self, mfcc_file, spk, gender))
+                                          args=(self, wave_file, spk, gender))
                     self.__threads[speakerkey].start()
                 else:
                     while alive(self.__threads) >= self.__maxthreads:
@@ -397,18 +394,18 @@ class GMMVoiceDB(VoiceDB):
                     keys.append(speakerkey)
                     self.__threads[speakerkey] = threading.Thread(
                                           target=__match_voice,
-                                          args=(self, mfcc_file, spk, gender))
+                                          args=(self, wave_file, spk, gender))
                     self.__threads[speakerkey].start()
         for thr in keys:
             if self.__threads[thr].is_alive():
                 self.__threads[thr].join()
         for thr in out:
             arr = out[thr]
-            mfcc_key = thr.split('***')[0]
-            if not mfcc_key in res: # "old" res.has_key(mfcc_key)
-                res[mfcc_key] = {}
+            wave_key = thr.split('***')[0]
+            if not wave_key in res: # "old" res.has_key(mfcc_key)
+                res[wave_key] = {}
             try:
-                res[mfcc_key].update(arr)
+                res[wave_key].update(arr)
             except (NameError, KeyError, AttributeError, TypeError):
                 print "missing out[" + thr + "]"
         return res

@@ -41,12 +41,6 @@ except:
     exit(0)
     
 try:
-    sphinx = my_check_output(which + ' sphinx_fe')
-except:
-    print "ERROR: CMU-sphinx not installed"
-    exit(0)
-    
-try:
     sphinx = my_check_output(which + ' gst-launch')
 except:
     print "ERROR: GStreamer not installed"

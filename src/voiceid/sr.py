@@ -155,7 +155,6 @@ class Cluster(object):
         self.speakers = {}
         self.up_to_date = True
         self.wave = dirname + '.wav'
-        self.mfcc = dirname + '.mfcc'
         self.dirname = dirname
         self.value = None
 
@@ -358,10 +357,6 @@ class Cluster(object):
         if sys.platform == 'win32':
             self.wave = dirname + '/' + name + ".wav"
         fm.merge_waves(listw, self.wave)
-        try:
-            utils.ensure_file_exists(file_basename + '.mfcc')
-        except IOError:
-            fm.extract_mfcc(file_basename)
 
     def has_generated_waves(self, dirname):
         """Check if the wave files generated for the cluster are still
@@ -485,10 +480,9 @@ class Voiceid(object):
         approach) only in case you have just a single speaker in the file"""
         self.status_map = {0: 'file_loaded', 1: 'file_converted',
                            2: 'diarization_done', 3: 'trim_done',
-                           4: 'mfcc extracted', 5: 'speakers matched'}
+                           4: 'speakers matched'}
         self.working_map = {0: 'converting_file', 1: 'diarization',
-                            2: 'trimming', 3: 'mfcc extraction',
-                            4: 'voice matching', 5: 'extraction finished'}
+                            2: 'trimming', 3: 'voice matching', 4: 'extraction finished'}
         self._clusters = {}
         self._ext = ''
         self._time = 0
@@ -514,8 +508,7 @@ class Voiceid(object):
             1:'file_converted',
             2:'diarization_done',
             3:'trim_done',
-            4:'mfcc extracted',
-            5:'speakers matched'"""
+            4:'speakers matched'"""
         return self._status
 
     def get_working_status(self):
@@ -524,9 +517,8 @@ class Voiceid(object):
             0:'converting_file',
             1:'diarization',
             2:'trimming',
-            3:'mfcc extraction',
-            4:'voice matching',
-            5:'extraction finished'"""
+            3:'voice matching',
+            4:'extraction finished'"""
         #TODO: fix some issue on restarting and so on about current status
         return self.working_map[self.get_status()]
 
@@ -562,7 +554,6 @@ class Voiceid(object):
 #                        '_').replace(' ',
 #                        '_').replace('(', '_').replace(')', '_')
         new_file = ''
-        print filename
         pathsep = os.path.sep 
         if sys.platform == 'win32':
             pathsep = '/'
@@ -662,7 +653,6 @@ class Voiceid(object):
         detection."""
         self._status = 1
         if self._single:
-            self._to_mfcc()
             try:
                 os.mkdir(self.get_file_basename())
             except OSError, err:
@@ -716,24 +706,18 @@ class Voiceid(object):
                 newfile.write(' '.join(line[:-1]) + ' S0\n')
             f_seg.close()
             newfile.close()
-            shutil.copy(self.get_file_basename() + '.mfcc',
-                        os.path.join(self.get_file_basename(), 'S0' + '.mfcc'))
+            shutil.copy(self.get_file_basename() + '.wav',
+                        os.path.join(self.get_file_basename(), 'S0' + '.wav'))
             shutil.move(segname + '.tmp', segname)
             shutil.copy(self.get_file_basename() + '.seg',
                         os.path.join(self.get_file_basename(), 'S0' + '.seg'))
             utils.ensure_file_exists(segname)
         else:
-            self._to_mfcc()
 #            print str(self._diar_conf[0])
 #            print str(self._diar_conf[1])
             fm.diarization(self._basename, str(self._diar_conf[0]),
                             str(self._diar_conf[1]))
         self._status = 2
-
-    def _to_mfcc(self):
-        """Extract the mfcc of the wave input file. Needs the wave file so a
-        prerequisite is _to_wav()."""
-        fm.extract_mfcc(self._basename)
 
     def _to_trim(self):
         """Trim the wave input file according to the segmentation in the seg
@@ -753,17 +737,17 @@ class Voiceid(object):
             self[cluster].merge_waves(basename)
             self[cluster].generate_seg_file(os.path.join(basename,
                                                          cluster + ".seg"))
-        mfcc_files = {}
+        wav_files = {}
         for cluster in self._clusters:
-            filebasename = os.path.join(basename, cluster) + '.mfcc'
-            mfcc_files[ filebasename ] = self[cluster].gender
-        result = self.get_db().voices_lookup(mfcc_files)
+            filebasename = os.path.join(basename, cluster) + '.wav'
+            wav_files[ filebasename ] = self[cluster].gender
+        result = self.get_db().voices_lookup(wav_files)
 
-        def mfcc_to_cluster(mfcc):
-            return mfcc.split(os.path.sep)[-1].split(".")[0]
+        def wav_to_cluster(wav):
+            return wav.split(os.path.sep)[-1].split(".")[0]
 
         for spk in result:
-            cluster = mfcc_to_cluster(spk)
+            cluster = wav_to_cluster(spk)
             for r in result[spk]:
                 self[cluster].add_speaker(r, result[spk][r])
         if not quiet:
@@ -950,7 +934,6 @@ class Voiceid(object):
         self._status = 3
         if not quiet:
             print self.get_working_status()
-        self._status = 4
         # search for every identified cluster if there is 
         # a relative model voice in the db
         self._cluster_matching(diarization_time, interactive, quiet, thrd_n,
@@ -959,17 +942,16 @@ class Voiceid(object):
     def _cluster_matching(self, diarization_time=None, interactive=False,
                           quiet=False, thrd_n=1, start_t=0):
         """Match for voices in the db"""
-        self._status = 4
         basename = self.get_file_basename()
         self._extract_clusters()
         self._match_clusters(interactive, quiet)
 #        if not interactive:
 #            #merging
 #            self.automerge_clusters()
+        self._status = 4
         sec = fm.wave_duration(basename + '.wav')
         total_time = time.time() - start_t
         self._set_time(total_time)
-        self._status = 5
         if not quiet:
             print self.get_working_status()
         if interactive:
@@ -1016,9 +998,9 @@ class Voiceid(object):
                                                                                                                                                   tot_voices
                                                                                                                                                 )
 
-    def _match_voice_wrapper(self, cluster, mfcc_name, db_entry, gender):
+    def _match_voice_wrapper(self, cluster, wav_name, db_entry, gender):
         """A wrapper to match the voices each in a different Thread."""
-        results = self.get_db().match_voice(mfcc_name, db_entry, gender)
+        results = self.get_db().match_voice(wav_name, db_entry, gender)
         for res in results:
             self[cluster].add_speaker(res, results[res])
 
@@ -1064,21 +1046,20 @@ class Voiceid(object):
 #            new_speaker = self[cluster].get_speaker()
             self.get_db().add_model(wave_b, new_speaker,
                                     self[cluster].gender)
-            self._match_voice_wrapper(cluster, wave_b + '.mfcc', new_speaker,
+            self._match_voice_wrapper(cluster, wave_b + '.wav', new_speaker,
                                       self[cluster].gender)
             b_s = self[cluster].get_best_speaker()
 #            print 'b_s = %s   new_speaker = %s ' % ( b_s, new_speaker )
             if b_s != new_speaker :
 #                print "removing model for speaker %s" % (old_speaker)
-                mfcc_name = os.path.join(wave_dir, cluster) + '.mfcc'
-                self.get_db().remove_model(mfcc_name, old_speaker,
+                wav_name = os.path.join(wave_dir, cluster) + '.wav'
+                self.get_db().remove_model(wav_name, old_speaker,
                                            self[cluster].value,
                                            self[cluster].gender)
                 self[cluster].set_speaker(new_speaker)
             if not CONFIGURATION.KEEP_INTERMEDIATE_FILES:
                 try:
                     os.remove("%s.seg" % wave_b)
-                    os.remove("%s.mfcc" % wave_b)
 #                    os.remove("%s.ident.seg" % wave_b )
                     os.remove("%s.init.gmm" % wave_b)
                     os.remove("%s.wav" % wave_b)
@@ -1266,7 +1247,7 @@ class Voiceid(object):
             file_xmp.close()
 
 def manage_ident(filebasename, gmm, clusters):
-    """Take all the files created by the call of mfcc_vs_gmm() on the whole
+    """Take all the files created by the call of wav_vs_gmm() on the whole
     speakers db and put all the results in a bidimensional dictionary."""
     seg_f = open("%s.ident.%s.seg" % (filebasename, gmm), "r")
     for line in seg_f:

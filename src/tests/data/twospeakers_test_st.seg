@@ -1,30 +1,30 @@
-;; cluster:S0 [ score:FS = -33.44582407082429 ] [ score:FT = -34.1211505139159 ] [ score:MS = -33.296930452338295 ] [ score:MT = -33.995748700335476 ]
-src/voiceid/tests/tmp/twospeakers 1 0 944 M S U S0
-src/voiceid/tests/tmp/twospeakers 1 944 1148 M S U S0
-src/voiceid/tests/tmp/twospeakers 1 2092 534 M S U S0
-src/voiceid/tests/tmp/twospeakers 1 2626 411 M S U S0
-src/voiceid/tests/tmp/twospeakers 1 3037 1297 M S U S0
-src/voiceid/tests/tmp/twospeakers 1 4334 1242 M S U S0
-src/voiceid/tests/tmp/twospeakers 1 5576 742 M S U S0
-src/voiceid/tests/tmp/twospeakers 1 6318 487 M S U S0
-src/voiceid/tests/tmp/twospeakers 1 6805 1852 M S U S0
-src/voiceid/tests/tmp/twospeakers 1 8657 409 M S U S0
-src/voiceid/tests/tmp/twospeakers 1 9071 854 M S U S0
-src/voiceid/tests/tmp/twospeakers 1 9925 1586 M S U S0
-;; cluster:S21 [ score:FS = -32.86910935465336 ] [ score:FT = -33.27234740400037 ] [ score:MS = -32.45771946522351 ] [ score:MT = -33.117366930527396 ]
-src/voiceid/tests/tmp/twospeakers 1 11511 740 M S U S21
-src/voiceid/tests/tmp/twospeakers 1 14668 1531 M S U S21
-src/voiceid/tests/tmp/twospeakers 1 16199 730 M S U S21
-;; cluster:S22 [ score:FS = -33.08142062520129 ] [ score:FT = -33.49557926375385 ] [ score:MS = -32.9137251329909 ] [ score:MT = -33.429902431535055 ]
-src/voiceid/tests/tmp/twospeakers 1 12251 1182 M S U S22
-;; cluster:S24 [ score:FS = -32.68601667870278 ] [ score:FT = -33.13941300281706 ] [ score:MS = -32.57738778632125 ] [ score:MT = -33.027872622782986 ]
-src/voiceid/tests/tmp/twospeakers 1 13433 1235 M S U S24
-src/voiceid/tests/tmp/twospeakers 1 23277 1041 M S U S24
-;; cluster:S27 [ score:FS = -32.41202999319405 ] [ score:FT = -32.526184346877805 ] [ score:MS = -32.08560584307722 ] [ score:MT = -32.420294180428115 ]
-src/voiceid/tests/tmp/twospeakers 1 16929 1394 M S U S27
-;; cluster:S29 [ score:FS = -32.84101847290361 ] [ score:FT = -33.35167477851878 ] [ score:MS = -32.3630397532633 ] [ score:MT = -33.05993446723181 ]
-src/voiceid/tests/tmp/twospeakers 1 18323 1744 M S U S29
-;; cluster:S32 [ score:FS = -32.620441928062895 ] [ score:FT = -33.1248030454022 ] [ score:MS = -32.314852449357204 ] [ score:MT = -32.78917106376955 ]
-src/voiceid/tests/tmp/twospeakers 1 20067 1433 M S U S32
-;; cluster:S33 [ score:FS = -33.002745906442556 ] [ score:FT = -33.12566257801354 ] [ score:MS = -32.97398020335412 ] [ score:MT = -33.437956033174494 ]
-src/voiceid/tests/tmp/twospeakers 1 21500 1777 M S U S33
+;; cluster:S0 [ score:FS = -33.87410423026799 ] [ score:FT = -34.4166051782193 ] [ score:MS = -33.76958163633703 ] [ score:MT = -34.34891185440618 ]
+/home/michela/SpeakerRecognition/voiceid/src/tests/data/twospeakers 1 0 944 M S U S0
+/home/michela/SpeakerRecognition/voiceid/src/tests/data/twospeakers 1 944 1148 M S U S0
+/home/michela/SpeakerRecognition/voiceid/src/tests/data/twospeakers 1 2092 534 M S U S0
+/home/michela/SpeakerRecognition/voiceid/src/tests/data/twospeakers 1 2626 411 M S U S0
+/home/michela/SpeakerRecognition/voiceid/src/tests/data/twospeakers 1 3037 1297 M S U S0
+/home/michela/SpeakerRecognition/voiceid/src/tests/data/twospeakers 1 4334 1242 M S U S0
+/home/michela/SpeakerRecognition/voiceid/src/tests/data/twospeakers 1 5576 742 M S U S0
+/home/michela/SpeakerRecognition/voiceid/src/tests/data/twospeakers 1 6318 487 M S U S0
+/home/michela/SpeakerRecognition/voiceid/src/tests/data/twospeakers 1 6805 1852 M S U S0
+/home/michela/SpeakerRecognition/voiceid/src/tests/data/twospeakers 1 8657 409 M S U S0
+/home/michela/SpeakerRecognition/voiceid/src/tests/data/twospeakers 1 9071 854 M S U S0
+/home/michela/SpeakerRecognition/voiceid/src/tests/data/twospeakers 1 9925 1586 M S U S0
+;; cluster:S21 [ score:FS = -33.39118500024374 ] [ score:FT = -33.660176932227536 ] [ score:MS = -33.024117096979815 ] [ score:MT = -33.4849354131197 ]
+/home/michela/SpeakerRecognition/voiceid/src/tests/data/twospeakers 1 11511 740 M S U S21
+/home/michela/SpeakerRecognition/voiceid/src/tests/data/twospeakers 1 14668 1531 M S U S21
+/home/michela/SpeakerRecognition/voiceid/src/tests/data/twospeakers 1 16199 730 M S U S21
+;; cluster:S22 [ score:FS = -33.56061853753392 ] [ score:FT = -33.84767761684733 ] [ score:MS = -33.41191982089066 ] [ score:MT = -33.77801400403776 ]
+/home/michela/SpeakerRecognition/voiceid/src/tests/data/twospeakers 1 12251 1182 M S U S22
+;; cluster:S24 [ score:FS = -33.05389258748387 ] [ score:FT = -33.42902739030486 ] [ score:MS = -33.04022244544598 ] [ score:MT = -33.364509972023214 ]
+/home/michela/SpeakerRecognition/voiceid/src/tests/data/twospeakers 1 13433 1235 M S U S24
+/home/michela/SpeakerRecognition/voiceid/src/tests/data/twospeakers 1 23277 1041 M S U S24
+;; cluster:S27 [ score:FS = -33.14537040018476 ] [ score:FT = -33.196819731905336 ] [ score:MS = -32.91871477201876 ] [ score:MT = -33.18552102849713 ]
+/home/michela/SpeakerRecognition/voiceid/src/tests/data/twospeakers 1 16929 1394 M S U S27
+;; cluster:S29 [ score:FS = -33.29490670534104 ] [ score:FT = -33.5668149757365 ] [ score:MS = -32.96969256812754 ] [ score:MT = -33.37910641534455 ]
+/home/michela/SpeakerRecognition/voiceid/src/tests/data/twospeakers 1 18323 1744 M S U S29
+;; cluster:S32 [ score:FS = -33.25030894378468 ] [ score:FT = -33.56041345645696 ] [ score:MS = -33.0263641877854 ] [ score:MT = -33.35921375806041 ]
+/home/michela/SpeakerRecognition/voiceid/src/tests/data/twospeakers 1 20067 1433 M S U S32
+;; cluster:S33 [ score:FS = -33.49881863671658 ] [ score:FT = -33.5049401778464 ] [ score:MS = -33.494131283678655 ] [ score:MT = -33.79199475204035 ]
+/home/michela/SpeakerRecognition/voiceid/src/tests/data/twospeakers 1 21500 1777 M S U S33

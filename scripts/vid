@@ -135,7 +135,7 @@ examples:
         cmanager.write_output(configuration.OUTPUT_FORMAT)
         if not configuration.KEEP_INTERMEDIATE_FILES:
             os.remove(cmanager.get_file_basename() + '.seg')
-            os.remove(cmanager.get_file_basename() + '.mfcc')
+            #os.remove(cmanager.get_file_basename() + '.mfcc')
             w = cmanager.get_file_basename() + '.wav'
             if cmanager.get_filename() != w:
                 os.remove(w)
@@ -162,7 +162,7 @@ examples:
         if not configuration.KEEP_INTERMEDIATE_FILES:
             try:
                 os.remove("%s.seg" % file_basename)
-                os.remove("%s.mfcc" % file_basename)
+                #os.remove("%s.mfcc" % file_basename)
                 os.remove("%s.init.gmm" % file_basename)
                 os.remove("%s.ident.seg" % file_basename)
                 if sys.platform == 'win32':

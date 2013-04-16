@@ -1,2 +1,4 @@
-;; cluster:1_mrarkadin [ score:UBM = -33.20515553550455 ] [ score:lenght = 4305 ] [ score:mrarkadin = -31.89986722904539 ]
-/home/mauro/dev/voiceid/src/tests/tmp/mr_arkadin_test 1 0 4305 U U U 1_mrarkadin
+;; cluster:S0_mrarkadin [ score:UBM = -33.204760985766164 ] [ score:lenght = 4304 ] [ score:mrarkadin = -31.898132736370677 ]
+/home/michela/SpeakerRecognition/voiceid/src/tests/data/mr_arkadin 1 0 1139 M S U S0_mrarkadin
+/home/michela/SpeakerRecognition/voiceid/src/tests/data/mr_arkadin 1 1139 1498 M S U S0_mrarkadin
+/home/michela/SpeakerRecognition/voiceid/src/tests/data/mr_arkadin 1 2637 1667 M S U S0_mrarkadin
