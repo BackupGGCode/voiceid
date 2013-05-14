@@ -72,7 +72,7 @@ public class RunVoiceid extends Configured implements Tool {
 			// TODO Auto-generated method stub
 			ArrayList<VCluster> list_clusters = new ArrayList<VCluster>();
 			try {
-				l.info("value: " + value);
+				l.info("DiarizationMap value: " + value);
 				Configuration conf = new Configuration();
 				FileSystem fs = FileSystem.get(conf);
 //				Path inFile = new Path(userHome
@@ -131,7 +131,7 @@ public class RunVoiceid extends Configured implements Tool {
 			String id;
 			File f = new File(value.toString().trim());
 			try {
-				l.info("value: " + value);
+				l.info("MatchingMap value: " + value);
 				GMMVoiceDB gmmdb = new GMMVoiceDB(userHome
 						+ "/.voiceid/gmm_db/", new UBMModel(userHome
 						+ "/.voiceid/ubm.gmm"));
@@ -158,7 +158,6 @@ public class RunVoiceid extends Configured implements Tool {
 			int last = value.toString().lastIndexOf(".");
 			String cluster = value.toString().substring(index + 1, last);
 			context.collect(json_path, new Text(cluster + ":" + id));
-
 		}
 
 	}
@@ -177,7 +176,7 @@ public class RunVoiceid extends Configured implements Tool {
 
 			JSONObject jsonObject = null;
 			JSONArray selections = null;
-
+			JSONArray selections_tmp = new JSONArray();
 			try {
 				jsonObject = new JSONObject(f);
 				selections = (JSONArray) jsonObject.get("selections");
@@ -195,29 +194,26 @@ public class RunVoiceid extends Configured implements Tool {
 						if (obj.get("speakerLabel").equals(cluster)) {
 							// JSONObject obj_tmp = new JSONObject();
 							obj.put("speaker", speaker);
-							selections.remove(i);
-							selections.put(obj);
-						} else {
-							obj.put("speaker", "unknown");
-							selections.remove(i);
-							selections.put(obj);
-						}
+							//selections.remove(i);
+							selections_tmp.put(obj);
+						} 
 					}
 
 				} catch (JSONException e) {
+					l.severe(e.getMessage());
 				}
 			}
 			FileWriter fstream = new FileWriter(key.toString());
 			BufferedWriter out = new BufferedWriter(fstream);
 			jsonObject.remove("selections");
 			try {
-				jsonObject.put("selections", selections);
+				jsonObject.put("selections", selections_tmp);
 			} catch (JSONException e) {
 				// TODO Auto-generated catch block
 				l.severe(e.getMessage());
 			}
 			out.write(jsonObject.toString());
-
+			out.close();
 		}
 
 		public static String readFileAsString(String filePath)
