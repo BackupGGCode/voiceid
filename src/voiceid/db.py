@@ -246,6 +246,7 @@ class GMMVoiceDB(VoiceDB):
                       folder_tmp)
             listgmms = os.listdir(folder_tmp)
             filebasename = os.path.splitext(wave_file)[0]
+            
             if len(listgmms) != 1:
                 for gmm in listgmms:
                     fm.wav_vs_gmm(filebasename,
@@ -253,6 +254,7 @@ class GMMVoiceDB(VoiceDB):
                                 gender)
                     segfile = open("%s.ident.%s.%s.seg" %
                              (filebasename, gender, gmm), "r")
+                    
                     for line in segfile:
                         if line.startswith(";;"):
                             snm = line.split()[1].split(':')[1].split('_')
@@ -261,10 +263,28 @@ class GMMVoiceDB(VoiceDB):
                             iidx = line.index(']', idx) - 1
                             if float(line[idx:iidx]) == score:
                                 os.remove(os.path.join(folder_tmp, gmm))
-                fm.merge_gmms(listgmms,
+                listgmms_path = []
+                listgmms = os.listdir(folder_tmp)
+                for gmm in listgmms:
+                    listgmms_path.append(os.path.join(folder_tmp, gmm))
+                fm.merge_gmms(listgmms_path,
                            os.path.join(folder_db_dir, identifier + ".gmm"))
             else:
-                os.remove(os.path.join(folder_db_dir, identifier + ".gmm"))
+                for g in listgmms: gmm = g
+                fm.wav_vs_gmm(filebasename,
+                                os.path.join(identifier + "_tmp_gmms", gmm),
+                                gender)
+                segfile = open("%s.ident.%s.%s.seg" %
+                         (filebasename, gender, gmm), "r")
+                for line in segfile:
+                    if line.startswith(";;"):
+                        snm = line.split()[1].split(':')[1].split('_')
+                        idx = line.index('score:' + snm[1])
+                        idx = idx + len('score:' + snm[1] + " = ")
+                        iidx = line.index(']', idx) - 1
+                        if float(line[idx:iidx]) == score:
+                            os.remove(os.path.join(folder_db_dir, identifier + ".gmm"))
+                
             shutil.rmtree(folder_tmp)
             self._read_db()
 
@@ -285,6 +305,7 @@ class GMMVoiceDB(VoiceDB):
 
         fm.wav_vs_gmm(wave_basename, identifier + '.gmm',
                      gender, self.get_path())
+        
         cls = {}
         sr.manage_ident(wave_basename,
                       gender + '.' + identifier + '.gmm', cls)

@@ -171,7 +171,6 @@ public class RunVoiceid extends Configured implements Tool {
 		public void reduce(Text key, Iterator<Text> values,
 				OutputCollector<Text, Text> context, Reporter arg3)
 				throws IOException {
-
 			String f = readFileAsString(key.toString());
 
 			JSONObject jsonObject = null;

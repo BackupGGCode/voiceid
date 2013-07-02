@@ -99,9 +99,7 @@ def merge_gmms(input_files, output_file):
     for ifile in input_files:
         try:
             current_f = open(ifile, 'rb')
-            
         except (IOError, OSError):
-            print "error in open file merge gmms"
             continue
         kind = current_f.read(8)
         if kind != 'GMMVECT_':
@@ -256,10 +254,10 @@ def split_gmm(input_file, output_dir=None):
         basedir = output_dir
         for g_file in files:
             newname = os.path.join(basedir, "%s%04d.gmm" % (filename, index))
-        gmm_f = open(newname, 'w')
-        gmm_f.write(main_header + g_file['header'] + g_file['content'])
-        gmm_f.close()
-        index += 1
+            gmm_f = open(newname, 'w')
+            gmm_f.write(main_header + g_file['header'] + g_file['content'])
+            gmm_f.close()
+            index += 1
 
 
 def rename_gmm(input_file, identifier):
@@ -315,6 +313,8 @@ def build_gmm(filebasename, identifier):
                 line = line.replace("\\\\","/")
     else:
         diarization_standard(filebasename)
+        
+                         
     ident_seg(filebasename, identifier)
     _train_init(filebasename)
     _train_map(filebasename)

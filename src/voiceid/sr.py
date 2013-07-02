@@ -59,7 +59,7 @@ class Segment(object):
 
     def __cmp__(self, other):
         if self._start < other.get_start():
-            return -1
+            return - 1
         if self._start > other.get_start():
             return 1
         return 0
@@ -239,13 +239,27 @@ class Cluster(object):
             self.value = -100
         self._speaker = 'unknown'
         distance = self.get_distance()
-        if self.value > max_val - distance:
+        
+        if len(self.speakers.values()) >1:
+            mean_distance = self.get_m_distance()
+        else:
+            mean_distance = .5
+            
+        thres = 0
+        
+        if distance > -1:
+            thres = max_val - distance
+        else: thres = max_val
+        
+        if self.value >= thres and mean_distance > .49:
             for spk in self.speakers:
                 if self.speakers[spk] == self.value:
                     self._speaker = spk
                     break
-        if distance < .07:
+       
+        if distance > -1 and distance < .07:
             self._speaker = 'unknown'
+            
         return self._speaker
 
     def get_best_five(self):
@@ -286,7 +300,7 @@ class Cluster(object):
         try:
             return abs(values[1]) - abs(values[0])
         except (IndexError, ValueError):
-            return 1000.0
+            return -1
 
     def get_m_distance(self):
         """Get the distance between the best speaker score and the mean of
@@ -346,12 +360,12 @@ class Cluster(object):
         name = self.get_name()
         videocluster = os.path.join(dirname, name)
         if sys.platform == 'win32':
-            videocluster = dirname+ '/' + name
+            videocluster = dirname + '/' + name
         listwaves = os.listdir(videocluster)
         listw = [os.path.join(videocluster, fil) for fil in listwaves]
         file_basename = os.path.join(dirname, name)
         if sys.platform == 'win32':
-            listw = [videocluster+'/'+ fil for fil in listwaves] 
+            listw = [videocluster + '/' + fil for fil in listwaves] 
             file_basename = dirname + '/' + name
         self.wave = os.path.join(dirname, name + ".wav")
         if sys.platform == 'win32':
@@ -1006,10 +1020,10 @@ class Voiceid(object):
 
     def set_noise_mode(self, mode):
         """Set a diarization configuration for noisy videos """
-        if mode==0:
-            self._diar_conf=(3,1.5)
+        if mode == 0:
+            self._diar_conf = (3, 1.5)
         else:
-            self._diar_conf=(7,1.4)
+            self._diar_conf = (7, 1.4)
 
     def update_db(self, t_num=4, automerge=False):
         """Update voice db after some changes, for example after a train
@@ -1028,10 +1042,12 @@ class Voiceid(object):
             wav_name = label + ".wav"
             if os.path.exists(wav_name):
                 while True:  # search an inexistent name for new gmm
-                    cont = cont + 1
                     wav_name = label + "" + str(cont) + ".wav"
                     if not os.path.exists(wav_name):
                         break
+                    cont = cont + 1
+            else:
+                return label
             return label + str(cont)
             #end _get_available_wav_basename
 
@@ -1043,20 +1059,26 @@ class Voiceid(object):
             except IOError:
                 self[cluster]._generate_a_seg_file(wave_b + '.seg', wave_b)
             utils.ensure_file_exists(wave_b + '.wav')
-#            new_speaker = self[cluster].get_speaker()
+
             self.get_db().add_model(wave_b, new_speaker,
                                     self[cluster].gender)
+
+            self[cluster]._generate_a_seg_file(wave_b + '.seg', wave_b)
+            
             self._match_voice_wrapper(cluster, wave_b + '.wav', new_speaker,
                                       self[cluster].gender)
+            self._match_voice_wrapper(cluster, wave_b + '.wav', old_speaker,
+                                      self[cluster].gender)
+
+
             b_s = self[cluster].get_best_speaker()
-#            print 'b_s = %s   new_speaker = %s ' % ( b_s, new_speaker )
+
             if b_s != new_speaker :
-#                print "removing model for speaker %s" % (old_speaker)
-                wav_name = os.path.join(wave_dir, cluster) + '.wav'
-                self.get_db().remove_model(wav_name, old_speaker,
+                self.get_db().remove_model(wave_b +'.wav', old_speaker,
                                            self[cluster].value,
-                                           self[cluster].gender)
+                                       self[cluster].gender)
                 self[cluster].set_speaker(new_speaker)
+            
             if not CONFIGURATION.KEEP_INTERMEDIATE_FILES:
                 try:
                     os.remove("%s.seg" % wave_b)
@@ -1065,6 +1087,7 @@ class Voiceid(object):
                     os.remove("%s.wav" % wave_b)
                 except OSError:
                     print 'WARNING: error deleting some intermediate files'
+            
             #end _build_model_wrapper
 
         thrds = {}
@@ -1073,16 +1096,17 @@ class Voiceid(object):
                 current_speaker = clu.get_speaker()
                 old_s = clu.get_best_speaker()
                 if current_speaker != 'unknown' and current_speaker != old_s:
-                    b_file = _get_available_wav_basename(current_speaker,
-                                                         os.getcwd())
-                    wav_name = b_file + '.wav'
                     basename = self.get_file_basename()
+                    b_file = _get_available_wav_basename(current_speaker,
+                                                         basename)
+                    wav_name = b_file + '.wav'
                     if not clu.has_generated_waves(basename):
                         self._to_wav()
                         self._to_trim()
                     clu.merge_waves(basename)
                     try:
                         shutil.move(clu.wave, wav_name)
+                        utils.ensure_file_exists(wav_name)
                     except OSError:
                         print 'WARNING: error renaming some wave files'
                     cluster_label = clu.get_name()
@@ -1316,7 +1340,7 @@ def _interactive_training(filebasename, cluster, identifier):
     print info
     while True:
         try:
-            char = raw_input("\n 1) Listen\n 2) Set " +
+            char = raw_input("\n 1) Listen\n 2) Set " + 
             " name\n Press enter to skip\n> ")
         except EOFError:
             print ''
@@ -1332,7 +1356,7 @@ def _interactive_training(filebasename, cluster, identifier):
             commandline = "play " + str(wrd)
             if sys.platform == 'win32':
                 commandline = "vlc " + str(wrd)
-                commandline = commandline.replace('\\','\\\\')
+                commandline = commandline.replace('\\', '\\\\')
             print "  Listening %s..." % cluster
             args = shlex.split(commandline)
             prc = subprocess.Popen(args, stdin=CONFIGURATION.output_redirect,
