@@ -739,6 +739,8 @@ def wav_vs_gmm(filebasename, gmm_file, gender, custom_db_dir=None):
     utils.ensure_file_exists(filebasename + '.ident.'
                              + gender + '.' + gmm_name + '.seg')
 
+
+
 #def threshold_tuning():
 #    """ Get a score to tune up the 
 #    threshold to define when a speaker is unknown"""

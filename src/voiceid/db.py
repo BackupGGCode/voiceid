@@ -175,6 +175,8 @@ class GMMVoiceDB(VoiceDB):
 
         #fm.extract_mfcc(basefilename)
         #utils.ensure_file_exists(basefilename + ".mfcc")
+        if identifier == 'unknown':
+            return False
         fm.build_gmm(basefilename, identifier)
 #        try:
 #            _silence_segmentation(basefilename)
@@ -302,13 +304,28 @@ class GMMVoiceDB(VoiceDB):
         :param gender: the gender of the speaker (optional)"""
 
         wave_basename = os.path.splitext(wave_file)[0]
-
+#         print "MATCH_VOICE"
+#         print (wave_basename, identifier + '.gmm',
+#                      gender, self.get_path())
+        fm._train_init(wave_basename)
+        fm._train_map(wave_basename)
+        
         fm.wav_vs_gmm(wave_basename, identifier + '.gmm',
                      gender, self.get_path())
         
         cls = {}
-        sr.manage_ident(wave_basename,
+        try:
+            sr.manage_ident(wave_basename,
                       gender + '.' + identifier + '.gmm', cls)
+        except ValueError:
+            fm.diarization(wave_basename)
+        
+            fm.wav_vs_gmm(wave_basename, identifier + '.gmm',
+                     gender, self.get_path())
+            sr.manage_ident(wave_basename,
+                      gender + '.' + identifier + '.gmm', cls)
+        
+        
         spkrs = {}
         for clust in cls:
             spkrs.update(cls[clust].speakers)

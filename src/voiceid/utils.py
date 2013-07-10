@@ -59,6 +59,7 @@ def start_subprocess(commandline):
     else:
         #print commandline
         args = shlex.split(commandline)
+#         print commandline
         proc = subprocess.Popen(args, stdin=CONFIGURATION.output_redirect,
                              stdout=CONFIGURATION.output_redirect,
                              stderr=CONFIGURATION.output_redirect)

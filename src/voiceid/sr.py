@@ -237,7 +237,7 @@ class Cluster(object):
             self.value = max(self.speakers.values())
         except ValueError:
             self.value = -100
-        self._speaker = 'unknown'
+        _speaker = 'unknown'
         distance = self.get_distance()
         
         if len(self.speakers.values()) >1:
@@ -254,13 +254,13 @@ class Cluster(object):
         if self.value >= thres and mean_distance > .49:
             for spk in self.speakers:
                 if self.speakers[spk] == self.value:
-                    self._speaker = spk
+                    _speaker = spk
                     break
        
         if distance > -1 and distance < .07:
-            self._speaker = 'unknown'
+            _speaker = 'unknown'
             
-        return self._speaker
+        return _speaker
 
     def get_best_five(self):
         """Get the best five speakers in the db for the cluster.
@@ -421,6 +421,8 @@ class Cluster(object):
             line = seg.get_line()
             if set_speakers:
                 line[-1] = self._speaker
+            else:
+                line[-1] = self._label
             result += "%s %s %s %s %s %s %s %s\n" % tuple(line)
         return result
 
@@ -639,7 +641,7 @@ class Voiceid(object):
         """A dictionary map between speaker label and speaker name."""
         speakers = {}
         for clu in self:
-            speakers[clu] = self[clu].get_best_speaker()
+            speakers[clu] = self[clu].get_speaker()
         return speakers
 
     def _to_wav(self):
@@ -774,6 +776,7 @@ class Voiceid(object):
                     print "speaker ", clu
                     self[clu].print_segments()
             speakers[clu] = self[clu].get_best_speaker()
+            self[clu].set_speaker(speakers[clu])
             """
             if not interactive:
                 for speaker in self[clu].speakers:
@@ -1060,15 +1063,17 @@ class Voiceid(object):
                 self[cluster]._generate_a_seg_file(wave_b + '.seg', wave_b)
             utils.ensure_file_exists(wave_b + '.wav')
 
-            self.get_db().add_model(wave_b, new_speaker,
-                                    self[cluster].gender)
-
-            self[cluster]._generate_a_seg_file(wave_b + '.seg', wave_b)
-            
-            self._match_voice_wrapper(cluster, wave_b + '.wav', new_speaker,
-                                      self[cluster].gender)
-            self._match_voice_wrapper(cluster, wave_b + '.wav', old_speaker,
-                                      self[cluster].gender)
+            if new_speaker != "unknown":
+                self.get_db().add_model(wave_b, new_speaker,
+                                        self[cluster].gender)
+    
+                self[cluster]._generate_a_seg_file(wave_b + '.seg', wave_b)
+                
+                self._match_voice_wrapper(cluster, wave_b + '.wav', new_speaker,
+                                          self[cluster].gender)
+            if old_speaker != "unknown":
+                self._match_voice_wrapper(cluster, wave_b + '.wav', old_speaker,
+                                          self[cluster].gender)
 
 
             b_s = self[cluster].get_best_speaker()
@@ -1077,7 +1082,7 @@ class Voiceid(object):
                 self.get_db().remove_model(wave_b +'.wav', old_speaker,
                                            self[cluster].value,
                                        self[cluster].gender)
-                self[cluster].set_speaker(new_speaker)
+            self[cluster].set_speaker(new_speaker)
             
             if not CONFIGURATION.KEEP_INTERMEDIATE_FILES:
                 try:
@@ -1095,7 +1100,7 @@ class Voiceid(object):
             if clu.up_to_date == False:
                 current_speaker = clu.get_speaker()
                 old_s = clu.get_best_speaker()
-                if current_speaker != 'unknown' and current_speaker != old_s:
+                if current_speaker != old_s:
                     basename = self.get_file_basename()
                     b_file = _get_available_wav_basename(current_speaker,
                                                          basename)

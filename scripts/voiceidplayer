@@ -947,6 +947,7 @@ class Model:
         self.db = db.GMMVoiceDB(dbDir)
         self._clusters = None
         self.mode = 0
+        self.json = None
 
     def load_video(self, video_path):
         """Init Voiceid object
@@ -963,6 +964,7 @@ class Model:
         self.voiceid = sr.Voiceid.from_json_file(self.db, json_path)
         self.voiceid._automerge_segments()  # experimental
         self._clusters = self.voiceid.get_clusters()
+        self.json = json_path
 
     def set_mode(self, mode):
         """
@@ -982,6 +984,8 @@ class Model:
 
     def match_clusters(self):
         """Match clusters"""
+        self.load_json(self.json)
+#         self.voiceid.generate_seg_file(set_speakers=False)
         self.voiceid._to_trim()
         self.voiceid._cluster_matching(thrd_n=4)
         self.voiceid._automerge_segments()  # experimental
