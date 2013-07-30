@@ -176,12 +176,19 @@ class Controller(object):
             dbDir = dialog.GetPath()
             self.model.set_db(dbDir)
             wx.CallAfter(Publisher().sendMessage, "update_info")
+            #print "on_select_db 1" +self.model.voiceid.get_clusters()
             try:
                 path_video = self.player.video_path.replace('"', '')
                 self.model.load_video(str(path_video))
+                trackPath = '"%s"' % path_video.replace("\\", "/")
+                json_path = os.path.splitext(trackPath)[0] + '.json'
+                json_path = json_path.replace('"', '')
+                if os.path.exists(json_path):
+                    self.model.load_json(json_path)
             except StandardError, e:
                 print e
                 #print "No video to load"
+            #print "on_select_db 2" +self.model.voiceid.get_clusters()
         dialog.Destroy()
 
     def log_on_processing(self):
@@ -386,6 +393,7 @@ class Controller(object):
         list_items.Refresh()
         list_items.Update()
         self.model.set_cluster(str(cluster.GetText()), str(speaker))
+        
         wx.CallAfter(Publisher().sendMessage, "update_status", "WARNING: Unsaved changes!")
 
     def init_player_seek(self):
@@ -990,6 +998,7 @@ class Model:
         self.voiceid._cluster_matching(thrd_n=4)
         self.voiceid._automerge_segments()  # experimental
         self._clusters = self.voiceid.get_clusters()
+
 
     def diarization(self):
         #self.voiceid.Set

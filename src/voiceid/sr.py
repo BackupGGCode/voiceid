@@ -1100,6 +1100,18 @@ class Voiceid(object):
             if clu.up_to_date == False:
                 current_speaker = clu.get_speaker()
                 old_s = clu.get_best_speaker()
+                if old_s == 'unknown':
+                    try:
+                        c_s_score = clu.speakers[current_speaker]
+                        for s in clu.speakers:
+                            if s != current_speaker:
+                                s_score = clu.speakers[s]
+                                if abs(abs(s_score) - abs(c_s_score)) < 0.07:
+                                    old_s = s
+                    except:pass
+#                    print clu.speakers
+                    
+                    
                 if current_speaker != old_s:
                     basename = self.get_file_basename()
                     b_file = _get_available_wav_basename(current_speaker,
@@ -1267,7 +1279,10 @@ class Voiceid(object):
         :param mode: the output format: srt, json or xmp"""
         if mode == 'srt':
             self.generate_seg_file()
-            fm.seg2srt(self.get_file_basename() + '.seg')
+            try:
+                fm.seg2srt(self.get_file_basename() + '.seg')
+            except:
+                print "File seg not exist!"
         if mode == 'json':
             self.write_json()
         if mode == 'xmp':

@@ -715,6 +715,7 @@ def wav_vs_gmm(filebasename, gmm_file, gender, custom_db_dir=None):
     :type custom_db_dir: None or string
     :param custom_db_dir: the voice models database to use"""
     database = CONFIGURATION.DB_DIR
+    
     if custom_db_dir != None:
         database = custom_db_dir
     gmm_name = os.path.split(gmm_file)[1]

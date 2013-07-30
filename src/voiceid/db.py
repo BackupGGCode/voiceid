@@ -238,7 +238,6 @@ class GMMVoiceDB(VoiceDB):
 
         :type gender: char F, M or U
         :param gender: the gender of the speaker (optional)"""
-
         folder_db_dir = os.path.join(self.get_path(), gender)
         if os.path.exists(os.path.join(folder_db_dir, identifier + ".gmm")):
             folder_tmp = os.path.join(folder_db_dir, identifier + "_tmp_gmms")
@@ -253,7 +252,7 @@ class GMMVoiceDB(VoiceDB):
                 for gmm in listgmms:
                     fm.wav_vs_gmm(filebasename,
                                 os.path.join(identifier + "_tmp_gmms", gmm),
-                                gender)
+                                gender, self.get_path())
                     segfile = open("%s.ident.%s.%s.seg" %
                              (filebasename, gender, gmm), "r")
                     
@@ -272,20 +271,20 @@ class GMMVoiceDB(VoiceDB):
                 fm.merge_gmms(listgmms_path,
                            os.path.join(folder_db_dir, identifier + ".gmm"))
             else:
-                for g in listgmms: gmm = g
-                fm.wav_vs_gmm(filebasename,
-                                os.path.join(identifier + "_tmp_gmms", gmm),
-                                gender)
-                segfile = open("%s.ident.%s.%s.seg" %
-                         (filebasename, gender, gmm), "r")
-                for line in segfile:
-                    if line.startswith(";;"):
-                        snm = line.split()[1].split(':')[1].split('_')
-                        idx = line.index('score:' + snm[1])
-                        idx = idx + len('score:' + snm[1] + " = ")
-                        iidx = line.index(']', idx) - 1
-                        if float(line[idx:iidx]) == score:
-                            os.remove(os.path.join(folder_db_dir, identifier + ".gmm"))
+                for gmm in listgmms:
+                    fm.wav_vs_gmm(filebasename,
+                                    os.path.join(identifier + "_tmp_gmms", gmm),
+                                    gender, self.get_path())
+                    segfile = open("%s.ident.%s.%s.seg" %
+                             (filebasename, gender, gmm), "r")
+                    for line in segfile:
+                        if line.startswith(";;"):
+                            snm = line.split()[1].split(':')[1].split('_')
+                            idx = line.index('score:' + snm[1])
+                            idx = idx + len('score:' + snm[1] + " = ")
+                            iidx = line.index(']', idx) - 1
+                            if float(line[idx:iidx]) == score:
+                                os.remove(os.path.join(folder_db_dir, identifier + ".gmm"))
                 
             shutil.rmtree(folder_tmp)
             self._read_db()
@@ -304,24 +303,25 @@ class GMMVoiceDB(VoiceDB):
         :param gender: the gender of the speaker (optional)"""
 
         wave_basename = os.path.splitext(wave_file)[0]
-#         print "MATCH_VOICE"
-#         print (wave_basename, identifier + '.gmm',
-#                      gender, self.get_path())
-        fm._train_init(wave_basename)
-        fm._train_map(wave_basename)
-        
-        fm.wav_vs_gmm(wave_basename, identifier + '.gmm',
-                     gender, self.get_path())
-        
-        cls = {}
         try:
+        
+            fm.wav_vs_gmm(wave_basename, identifier + '.gmm',
+                         gender, self.get_path())
+            
+            cls = {}
             sr.manage_ident(wave_basename,
                       gender + '.' + identifier + '.gmm', cls)
         except ValueError:
+            print "ValueError in MATCH_VOICE"
+            print "tring to fix,,, ",  #(wave_basename, identifier + '.gmm',
+                     # gender, self.get_path())
+            fm._train_init(wave_basename)
+            fm._train_map(wave_basename)
             fm.diarization(wave_basename)
         
             fm.wav_vs_gmm(wave_basename, identifier + '.gmm',
                      gender, self.get_path())
+            cls = {}
             sr.manage_ident(wave_basename,
                       gender + '.' + identifier + '.gmm', cls)
         
@@ -443,7 +443,33 @@ class GMMVoiceDB(VoiceDB):
             if not wave_key in res: # "old" res.has_key(mfcc_key)
                 res[wave_key] = {}
             try:
-                res[wave_key].update(arr)
-            except (NameError, KeyError, AttributeError, TypeError):
-                print "missing out[" + thr + "]"
+                c = res[wave_key]
+                
+            except (NameError , KeyError, AttributeError, TypeError), e:
+                
+                print " c = res[wave_key] missing out[" + thr + "]"
+                print e
+                print e.__dict__
+                print e.args
+            try:
+                c.update(arr)
+                
+            except (NameError , KeyError, AttributeError, TypeError), e:
+                
+                print "c.update(arr) missing out[" + thr + "]"
+                print e
+                print c
+                print "arr "+str(arr)
+                print e.__dict__
+                print e.args
+            try:
+                res[wave_key] = c
+                
+            except (NameError , KeyError, AttributeError, TypeError), e:
+                
+                print "res[wave_key] = c missing out[" + thr + "]"
+                print e
+                print e.__dict__
+                print e.args
+            
         return res
