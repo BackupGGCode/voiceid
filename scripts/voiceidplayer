@@ -87,7 +87,7 @@ class Controller(object):
     :type line: App
     :param app: App initializes the application"""
 
-    def __init__(self, app):
+    def __init__(self, app, cl_args=None):
 
         self.model = Model()
         self.frame = MainFrame()
@@ -125,6 +125,17 @@ class Controller(object):
         Publisher().subscribe(self.update_status, "update_status")
         Publisher().subscribe(self.update_list, "update_list")
         Publisher().subscribe(self.update_info_video, "update_info")
+        
+        if cl_args:
+            if len(cl_args) == 3:
+                dbDir = cl_args[2]
+                self.model.set_db(dbDir)
+            path = cl_args[1]
+            self.model.load_video(path)
+            self.on_load_file(path)
+        
+            
+        
 
     def on_close(self, ev):
         """Destroy all processes and windows"""
@@ -133,6 +144,31 @@ class Controller(object):
         except:
             print "MplayerCtrl not started"
         self.frame.Destroy()
+
+    def on_load_file(self, path):
+        self.currentFolder = os.path.dirname(path[0])
+        trackPath = '"%s"' % path.replace("\\", "/")
+        self.player.load_file(trackPath)
+        json_path = os.path.splitext(trackPath)[0] + '.json'
+        json_path = json_path.replace('"', '')
+        self.frame.enable_menu(True)
+        self.clusters_list.clean_list()
+        try:
+            self.player.colorPanel.clear()
+        except:
+            pass
+        #self.clusters_list.set_info_video("")
+
+        if os.path.exists(json_path):
+            self.model.load_json(json_path)
+            self.frame.save_menu_item.Enable(True)
+            wx.CallAfter(Publisher().sendMessage, "update_list", "Loading finished")
+        else:
+            self.frame.save_menu_item.Enable(False)
+        wx.CallAfter(Publisher().sendMessage, "update_info")
+
+        
+        
 
     def on_add_file(self, event):
         """Adds a Movie and start playing it"""
@@ -969,6 +1005,7 @@ class Model:
 
         :type json_path: string
         :param json_path: json path"""
+#         print json_path
         self.voiceid = sr.Voiceid.from_json_file(self.db, json_path)
         self.voiceid._automerge_segments()  # experimental
         self._clusters = self.voiceid.get_clusters()
@@ -1076,13 +1113,18 @@ class Model:
 class App(wx.App):
     """Init Application object"""
     def __init__(self, *args, **kwargs):
-        wx.App.__init__(self, *args, **kwargs)
-        self.controller = Controller(self)
+        wx.App.__init__(self, *args[1:], **kwargs)
+        cl_args = None
+        if len(args) >=1:
+            cl_args = args[0]
+        print cl_args
+        self.controller = Controller(self, cl_args)
+        
 
     def OnExit(self):
         pass
         #self.controller.exit_()
 
 if __name__ == "__main__":
-    app = App(redirect=False)
+    app = App(sys.argv, redirect=False)
     app.MainLoop()

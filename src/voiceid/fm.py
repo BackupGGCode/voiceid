@@ -739,6 +739,13 @@ def wav_vs_gmm(filebasename, gmm_file, gender, custom_db_dir=None):
         + '  --sSetLabel=add --sByCluster ' + filebasename)
     utils.ensure_file_exists(filebasename + '.ident.'
                              + gender + '.' + gmm_name + '.seg')
+    
+#     f = open(filebasename + '.ident.'
+#                              + gender + '.' + gmm_name + '.seg', "r")
+#     print "SEG CREATED "+filebasename + '.ident.' + gender + '.' + gmm_name + '.seg'
+#     print f.readlines()
+#     f.close() 
+#     print "END SEG"
 
 
 

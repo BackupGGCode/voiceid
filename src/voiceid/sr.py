@@ -108,8 +108,16 @@ class Segment(object):
         """Get the speaker identifier of the segment."""
         return self._speaker
 
-    def get_line(self):
+    def get_line(self, cluster=None):
         """Get the line of the segment in the original seg file."""
+#         print self._line
+#         index = self._line.index(":")
+#         half_left = self._line[:index]
+#         r_index = self._line[index:].index(" ")
+#         half_right = self._line[index+r_index:]
+#         if cluster == None:
+#             cluster = self._speaker 
+#         self._line = half_left+":"+cluster+" "+half_right
         return self._line
 
 
@@ -149,7 +157,7 @@ class Cluster(object):
         self._label = label
         self._speaker = identifier
         self._segments = []
-        self._seg_header = ";; cluster:%s [ score:FS = 0.0 ]" % identifier
+        self._seg_header = ";; cluster:%s [ score:FS = 0.0 ]" % label
         self._seg_header += " [ score:FT = 0.0 ] [ score:MS = 0.0 ]"
         self._seg_header += " [ score:MT = 0.0 ]\n"
         self.speakers = {}
@@ -160,6 +168,12 @@ class Cluster(object):
 
     def __str__(self):
         return "%s (%s)" % (self._label, self._speaker)
+
+    def get_seg_header(self):
+        self._seg_header = ";; cluster:%s [ score:FS = 0.0 ]" % self._label
+        self._seg_header += " [ score:FT = 0.0 ] [ score:MS = 0.0 ]"
+        self._seg_header += " [ score:MT = 0.0 ]\n"
+        return self._seg_header
 
     def get_segments(self):
         "Return segments in Cluster"
@@ -325,8 +339,8 @@ class Cluster(object):
         :param first_col_name: the name in the first column of the seg file,
                in fact the name and path of the corresponding wave file"""
         f_desc = open(filename, 'w')
-        f_desc.write(self._seg_header)
-        line = self._segments[0].get_line()[:]
+        f_desc.write(self.get_seg_header())
+        line = self._segments[0].get_line(self.get_name())[:]
         line[0] = first_col_name
         line[2] = 0
         line[3] = self._frames - 1
@@ -416,7 +430,7 @@ class Cluster(object):
 
     def _get_seg_repr(self, set_speakers=True):
         """String representation of the segment"""
-        result = str(self._seg_header)
+        result = str(self.get_seg_header())
         for seg in self._segments:
             line = seg.get_line()
             if set_speakers:
@@ -1296,7 +1310,13 @@ def manage_ident(filebasename, gmm, clusters):
     seg_f = open("%s.ident.%s.seg" % (filebasename, gmm), "r")
     for line in seg_f:
         if line.startswith(";;"):
-            cluster, speaker = line.split()[1].split(':')[1].split('_')
+#             print line
+            splitted_line = line.split()[1].split(':')[1].split('_')
+#             print splitted_line
+            try:
+                cluster, speaker = splitted_line
+            except:
+                speaker = splitted_line[0]
             idx = line.index('score:' + speaker) + len('score:' + speaker + " = ")
             iidx = line.index(']', idx) - 1
             value = line[idx:iidx]

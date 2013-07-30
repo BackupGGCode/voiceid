@@ -18,6 +18,7 @@
 #    GNU General Public License for more details.
 #
 #############################################################################
+from decimal import DivisionByZero
 """Module containing the voice DB relative classes."""
 
 from . import sr, utils, fm
@@ -305,16 +306,21 @@ class GMMVoiceDB(VoiceDB):
         wave_basename = os.path.splitext(wave_file)[0]
         try:
         
+#             print (wave_basename, identifier + '.gmm',
+#                          gender, self.get_path())
             fm.wav_vs_gmm(wave_basename, identifier + '.gmm',
                          gender, self.get_path())
+#             print "after wav_vs_gmm"
             
             cls = {}
             sr.manage_ident(wave_basename,
                       gender + '.' + identifier + '.gmm', cls)
-        except ValueError:
+            
+        except  DivisionByZero: #ValueError, e:
             print "ValueError in MATCH_VOICE"
-            print "tring to fix,,, ",  #(wave_basename, identifier + '.gmm',
+            print "tring to fix... ",  #(wave_basename, identifier + '.gmm',
                      # gender, self.get_path())
+            raise e         
             fm._train_init(wave_basename)
             fm._train_map(wave_basename)
             fm.diarization(wave_basename)
@@ -410,6 +416,7 @@ class GMMVoiceDB(VoiceDB):
             try:
                 speakerkey = wave_file + '***' + speaker + gender
                 out[speakerkey] = self.match_voice(wave_file, speaker, gender)
+                
             except (OSError, IOError):
                 exit(-1)
 
