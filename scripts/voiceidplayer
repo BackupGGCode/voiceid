@@ -103,6 +103,7 @@ class Controller(object):
 
         """ Binding toolbar buttons to control's function """
         self.frame.Bind(wx.EVT_MENU, self.on_add_file, self.frame.add_file_menu_item)
+        self.frame.Bind(wx.EVT_MENU, self.on_close, self.frame.quit_file_menu_item)
         self.frame.Bind(wx.EVT_MENU, self.on_run_all, self.frame.all_menu_item)
         self.frame.Bind(wx.EVT_MENU, self.on_run_recognition, self.frame.recognition_menu_item)
         self.frame.Bind(wx.EVT_MENU, self.on_run_diarization, self.frame.diarization_menu_item)
@@ -130,9 +131,10 @@ class Controller(object):
             if len(cl_args) == 3:
                 dbDir = cl_args[2]
                 self.model.set_db(dbDir)
-            path = cl_args[1]
-            self.model.load_video(path)
-            self.on_load_file(path)
+            if len(cl_args) >=1:
+                path = cl_args[1]
+                self.model.load_video(path)
+                self.on_load_file(path)
         
             
         
@@ -576,6 +578,7 @@ class MainFrame(wx.Frame):
         srMenu = wx.Menu()
         srSettings = wx.Menu()
         self.add_file_menu_item = fileMenu.Append(wx.NewId(), "&Open video", "Add Media File")
+        self.quit_file_menu_item = fileMenu.Append(wx.NewId(), "&Quit", "quit")
         #self.run_menu_item = srMenu.Append(wx.NewId(), "&Run", "Extracts speakers and recognize them")
         self.db_menu_item = srMenu.Append(wx.NewId(), "&Select Db", "Creates new db or select an existing")
 
@@ -610,6 +613,7 @@ class MainFrame(wx.Frame):
         self.Layout()
 
     def enable_menu(self, enable):
+        self.quit_file_menu_item.Enable(True)
         if enable:
             self.add_file_menu_item.Enable(True)
             self.db_menu_item.Enable(True)
@@ -624,6 +628,7 @@ class MainFrame(wx.Frame):
             self.db_menu_item.Enable(False)
             self.mode_menu_item.Enable(False)
             self.save_menu_item.Enable(False)
+        
 
 class Player(wx.Panel):
     """Builds a MpLayerCtrl Player"""
@@ -999,7 +1004,8 @@ class Model:
         :type video_path: string
         :param video_path: video path"""
         self.voiceid = sr.Voiceid(self.db, video_path)
-
+        self.video = video_path
+        
     def load_json(self, json_path):
         """Init Voiceid object with json file
 
@@ -1093,11 +1099,18 @@ class Model:
         c.set_speaker(cluster_speaker)
 
     def save_changes(self):
-        """Save all changes in the JSON file and database"""
-        self.voiceid.update_db(1)
-        self.voiceid.write_output("json")
-        self.voiceid.write_output("srt")
-        self._clusters = self.voiceid.get_clusters()
+       """Save all changes in the JSON file and database"""
+       self.voiceid.update_db(1)
+       self.voiceid.write_output("json")
+       trackPath = '"%s"' % self.video.replace("\\", "/")
+       json_path = os.path.splitext(trackPath)[0] + '.json'
+       json_path = json_path.replace('"', '')
+       if os.path.exists(json_path):
+           self.json = json_path
+       else:
+           print "JSON file not saved"
+       self.voiceid.write_output("srt")
+       self._clusters = self.voiceid.get_clusters()
 
     def set_db(self, db_path):
         """Init db object

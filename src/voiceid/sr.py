@@ -1296,7 +1296,10 @@ class Voiceid(object):
             try:
                 fm.seg2srt(self.get_file_basename() + '.seg')
             except:
-                print "File seg not exist!"
+                print "File seg not exist!"            
+            self.generate_seg_file(False)
+#             if not CONFIGURATION.KEEP_INTERMEDIATE_FILES:
+#                 os.remove(self.get_file_basename() + '.seg')
         if mode == 'json':
             self.write_json()
         if mode == 'xmp':
