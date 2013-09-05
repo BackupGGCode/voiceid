@@ -81,6 +81,8 @@ examples:
                       default=False, help="verbose mode")
     parser.add_option("-q", "--quiet", dest="quiet_mode", action="store_true", 
                       default=False, help="suppress prints")
+    parser.add_option("-n", "--noise", dest="noise_mode", action="store_true", 
+                      default=False, help="mode for noisy audio files")
     parser.add_option("-k", "--keep-intermediatefiles", 
                       dest="keep_intermediate_files", action="store_true", 
                       help="keep all the intermediate files")
@@ -127,6 +129,9 @@ examples:
         default_db = db.GMMVoiceDB(path=configuration.DB_DIR)
         # create voiceid instance
         cmanager = sr.Voiceid(vdb=default_db, filename=options.file_input)
+        if options.noise_mode:
+            # set the parameters for noisy audio diarization
+            cmanager.set_noise_mode(1)
         # extract the speakers
         cmanager.extract_speakers(interactive=options.interactive,
                                   quiet=configuration.QUIET_MODE,

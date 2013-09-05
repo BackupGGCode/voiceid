@@ -367,7 +367,7 @@ class Controller(object):
             if float(c.get_duration())/100 > 3:
                 clusters_review.append(c)
         for c in clusters_review:
-            self.clusters_list.add_cluster(c.get_name(), c.get_speaker(), c.get_duration())
+            self.clusters_list.add_cluster(c.get_name(), c.get_speaker(), c.get_duration()/100)
         self.player.colorPanel.Refresh()
         #wx.PostEvent(self,wx.EVT_PAINT)
 
@@ -483,6 +483,7 @@ class Controller(object):
 
     def on_play_segments(self, event):
         """Plays individual segments of all selected clusters"""
+        to_secs = 100
         list_items = self.clusters_list.list
         start_time = self.get_start_time()
         items = list_items.checked
@@ -496,20 +497,20 @@ class Controller(object):
         offset = self.player.mpc.GetTimePos()
         n = 0
         for s in segments_rev:
-            end = float(s.get_end()) / 100
+            end = float(s.get_end()) / to_secs
             if offset >= end :
                 next_ = len(segments) - n
                 if  n > 0 :
                     self.toggle_play()
-                    start = float(segments[ next_ ].get_start()) / 100
+                    start = float(segments[ next_ ].get_start()) / to_secs
                     self.player.mpc.Seek(start, 2)
                 else:
                     self.toggle_pause()
                     self.on_play_clusters(event)
                 break
-            elif offset >= float(s.get_start()) / 100:
+            elif offset >= float(s.get_start()) / to_secs:
                 break
-            elif offset <= float(start_time) / 100:
+            elif offset <= float(start_time) / to_secs:
                 self.on_play_clusters(event)
                 #self.player.on_play(event)
                 #self.toggle_play()
@@ -877,7 +878,8 @@ class ClustersList(wx.Panel):
         while color in self.speakers_GRB.keys():
             color = randomColor()
         self.speakers_GRB[cluster_label] = color
-        secs = time.strftime('%M:%S', time.gmtime(length / 60))
+        secs = time.strftime('%M:%S', time.gmtime(length))
+#         secs = length
         data = {self.columns : (cluster_speaker, cluster_label, "", secs)}
         for key, d in data.items():
             index = self.list.Append(d)
@@ -1032,6 +1034,7 @@ class Model:
         self.voiceid.extract_speakers(False, False, 4)
         self.voiceid._automerge_segments()  # experimental
         self._clusters = self.voiceid.get_clusters()
+        #self.voiceid._verify_duration()
 
     def match_clusters(self):
         """Match clusters"""

@@ -65,7 +65,9 @@ class Segment(object):
         return 0
 
     def merge(self, otr):
-        """Merge two segments, the otr in to the original.
+        """Merge two adjacent segments, the otr in to the original.
+        Do not use for segments that are not adjacent, it can have
+        odd behaviour.
 
         :type otr: Segment
         :param otr: the segment to be merged with"""
@@ -94,7 +96,7 @@ class Segment(object):
 
     def get_duration(self):
         """Get the duration of the segment in frames."""
-        return self._duration
+        return self._duration 
 
     def get_gender(self):
         """Get the gender of the segment."""
@@ -168,8 +170,13 @@ class Cluster(object):
 
     def __str__(self):
         return "%s (%s)" % (self._label, self._speaker)
+    
+    def add_segment(self, segment):
+        self._segments.append(segment)
 
     def get_seg_header(self):
+        if not self._label:
+            raise TypeError("no label defined for the Cluster")
         self._seg_header = ";; cluster:%s [ score:FS = 0.0 ]" % self._label
         self._seg_header += " [ score:FT = 0.0 ] [ score:MS = 0.0 ]"
         self._seg_header += " [ score:MT = 0.0 ]\n"
@@ -366,11 +373,9 @@ class Cluster(object):
         for seg in self._segments:
             seg.rename(label)
 
-    def merge_waves(self, dirname):
-        """Take all the wave of a cluster and build a single wave.
-
-        :type dirname: string
-        :param dirname: the output dirname"""
+    def merge_waves(self):
+        """Take all the wave of a cluster and build a single wave."""
+        dirname = self.dirname
         name = self.get_name()
         videocluster = os.path.join(dirname, name)
         if sys.platform == 'win32':
@@ -386,14 +391,11 @@ class Cluster(object):
             self.wave = dirname + '/' + name + ".wav"
         fm.merge_waves(listw, self.wave)
 
-    def has_generated_waves(self, dirname):
+    def has_generated_waves(self):
         """Check if the wave files generated for the cluster are still
         present. In case you load a json file you shold not have those
-        files.
-
-        :type dirname: string
-        :param dirname: the output dirname"""
-        
+        files."""
+        dirname = self.dirname
         name = self.get_name()
         videocluster = os.path.join(dirname, name)
         try:
@@ -447,6 +449,9 @@ class Cluster(object):
             dur += seg.get_duration()
         return dur
 
+    def _verify_duration(self):
+        w_dur = fm.wave_duration(self.wave)
+        return w_dur, self.get_duration()
 
 class Voiceid(object):
     """The main object that represents the file audio/video to manage.
@@ -491,7 +496,7 @@ class Voiceid(object):
                 seg = Segment([dirname, 1, int(elm['startTime'] * 100),
                              int(100 * (elm['endTime'] - elm['startTime'])),
                              elm['gender'], 'U', 'U', elm['speaker']])
-                clu._segments.append(seg)
+                clu.add_segment(seg)
                 vid.add_update_cluster(elm['speakerLabel'], clu)
         except (ValueError):
             raise Exception('ERROR: Failed load dict, maybe in wrong format!')
@@ -650,6 +655,19 @@ class Voiceid(object):
             tot.extend(self._clusters[clu].to_dict()[:])
         #tot.sort()
         return tot
+    
+    def get_duration(self):
+        """Return the duration of all the time slices in the audio"""
+        dur = 0
+        for clu in self._clusters:
+            dur += self._clusters[clu].get_duration()
+        return dur
+         
+    def _verify_duration(self):
+        for clu in self._clusters:
+            print clu
+            print self._clusters[clu]._verify_duration()
+        
 
     def get_speakers_map(self):
         """A dictionary map between speaker label and speaker name."""
@@ -764,7 +782,7 @@ class Voiceid(object):
         basename = self.get_file_basename()
         #merging segments wave files for every cluster
         for cluster in self._clusters:
-            self[cluster].merge_waves(basename)
+            self[cluster].merge_waves()
             self[cluster].generate_seg_file(os.path.join(basename,
                                                          cluster + ".seg"))
         wav_files = {}
@@ -1131,10 +1149,10 @@ class Voiceid(object):
                     b_file = _get_available_wav_basename(current_speaker,
                                                          basename)
                     wav_name = b_file + '.wav'
-                    if not clu.has_generated_waves(basename):
+                    if not clu.has_generated_waves():
                         self._to_wav()
                         self._to_trim()
-                    clu.merge_waves(basename)
+                    clu.merge_waves()
                     try:
                         shutil.move(clu.wave, wav_name)
                         utils.ensure_file_exists(wav_name)
@@ -1261,7 +1279,7 @@ class Voiceid(object):
 #        
 #        """
 
-        dic = {"duration": self._time,
+        dic = {"duration": self.get_duration(),
             "url": self._filename,
             "selections": [] }
         for seg in self.get_time_slices():
