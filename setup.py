@@ -74,7 +74,7 @@ image_dir = os.path.join(basedir, 'share', 'bitmaps')
 image_files = [ os.path.join(image_dir, f) for f in os.listdir(image_dir) if not os.path.isdir(os.path.join(image_dir, f)) ]
 
 setup(name='voiceid',
-      version='0.1',
+      version='0.2',
       description='Speaker recognition system',
       long_description=long_desc,
       author='Michela Fancello, Mauro Mereu',
@@ -91,7 +91,7 @@ setup(name='voiceid',
                    'License :: OSI Approved :: GNU General Public License (GPL)',
                    'Operating System :: MacOS :: MacOS X',
                    'Operating System :: POSIX',
-                   'Programming Language :: Python :: 2.6',
+                   'Programming Language :: Python :: 2.7',
                    'Topic :: Multimedia :: Sound/Audio :: Speech',
                    'Topic :: Software Development :: Libraries :: Python Modules', ],
       packages=['voiceid'],

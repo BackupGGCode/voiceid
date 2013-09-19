@@ -137,7 +137,11 @@ class Cluster(object):
     :param frames: total frames of the cluster
 
     :type dirname: string
-    :param dirname: the directory where is the cluster wave file"""
+    :param dirname: the directory where is the cluster wave file
+    
+    :type label: string
+    :param label: the cluster identifier
+    """
 
     def __init__(self, identifier, gender, frames, dirname, label=None):
         """
@@ -167,6 +171,8 @@ class Cluster(object):
         self.wave = dirname + '.wav'
         self.dirname = dirname
         self.value = None
+#        if identifier!= "unknown":
+#            self.add_speaker(identifier, -32.5)
 
     def __str__(self):
         return "%s (%s)" % (self._label, self._speaker)
@@ -381,11 +387,12 @@ class Cluster(object):
         if sys.platform == 'win32':
             videocluster = dirname + '/' + name
         listwaves = os.listdir(videocluster)
+        listwaves.sort()
         listw = [os.path.join(videocluster, fil) for fil in listwaves]
-        file_basename = os.path.join(dirname, name)
+        #file_basename = os.path.join(dirname, name)
         if sys.platform == 'win32':
             listw = [videocluster + '/' + fil for fil in listwaves] 
-            file_basename = dirname + '/' + name
+        #    file_basename = dirname + '/' + name
         self.wave = os.path.join(dirname, name + ".wav")
         if sys.platform == 'win32':
             self.wave = dirname + '/' + name + ".wav"
@@ -420,6 +427,7 @@ class Cluster(object):
             tmp[0] = int(seg.get_start())
             tmp[1] = int(seg.get_end())
             tmp.append(self.get_name())
+            tmp[3] = self.speakers
             segs.append(tmp)
         return segs
 
@@ -497,6 +505,12 @@ class Voiceid(object):
                              int(100 * (elm['endTime'] - elm['startTime'])),
                              elm['gender'], 'U', 'U', elm['speaker']])
                 clu.add_segment(seg)
+                clu.speakers = elm['speakers']
+                try:
+                    clu.value = clu.speakers[elm['speaker']]
+                except (KeyError):
+                    print ('ERROR: For unknown speaker there is not a score')
+                
                 vid.add_update_cluster(elm['speakerLabel'], clu)
         except (ValueError):
             raise Exception('ERROR: Failed load dict, maybe in wrong format!')
@@ -1095,26 +1109,58 @@ class Voiceid(object):
                 self[cluster]._generate_a_seg_file(wave_b + '.seg', wave_b)
             utils.ensure_file_exists(wave_b + '.wav')
 
+            old_cluster_value = self[cluster].value
+
             if new_speaker != "unknown":
                 self.get_db().add_model(wave_b, new_speaker,
-                                        self[cluster].gender)
+                                        self[cluster].gender,self[cluster].value)
     
-                self[cluster]._generate_a_seg_file(wave_b + '.seg', wave_b)
+                #self[cluster]._generate_a_seg_file(wave_b + '.seg', wave_b)
                 
                 self._match_voice_wrapper(cluster, wave_b + '.wav', new_speaker,
                                           self[cluster].gender)
-            if old_speaker != "unknown":
-                self._match_voice_wrapper(cluster, wave_b + '.wav', old_speaker,
-                                          self[cluster].gender)
-
+#            if old_speaker != "unknown":
+#                self._match_voice_wrapper(cluster, wave_b + '.wav', old_speaker,
+#                                          self[cluster].gender)
 
             b_s = self[cluster].get_best_speaker()
-
-            if b_s != new_speaker :
-                self.get_db().remove_model(wave_b +'.wav', old_speaker,
-                                           self[cluster].value,
+            
+            if old_speaker != new_speaker and old_speaker!='unknown':
+                #self.get_db().remove_model(wav_name, old_s,clu.value,clu.get_gender())
+                old_basename = self.get_file_basename()
+#                old_b_file = os.path.join(old_basename,old_s)
+#                old_wav_name = os.path.join(old_basename,old_s)+'.wav'
+#                if not os.path.exists(old_wav_name):
+                old_b_file = _get_available_wav_basename(old_s,
+                                                     old_basename)
+                old_wav_name = old_b_file + '.wav'
+                if not clu.has_generated_waves():
+                    self._to_wav()
+                    self._to_trim()
+                clu.merge_waves()
+                try:
+                    shutil.move(clu.wave, old_wav_name)
+                    utils.ensure_file_exists(old_wav_name)
+                
+                except OSError:
+                    print 'WARNING: error renaming some wave files' 
+                try:
+                    utils.ensure_file_exists(old_b_file + '.seg')
+                except IOError:
+                    clu._generate_a_seg_file(old_b_file + '.seg', old_b_file)
+                    
+                #print " argument for remove model line 1154"
+                #print (wave_b, old_speaker, old_cluster_value, self[cluster].gender)
+                
+                removed = self.get_db().remove_model(wave_b, old_speaker,
+                                           old_cluster_value,
                                        self[cluster].gender)
-            self[cluster].set_speaker(new_speaker)
+                if removed: 
+                    a = self[cluster].speakers
+                    a.pop(old_speaker) 
+                    
+                #print self[cluster].speakers
+            if new_speaker != "unknown": self[cluster].set_speaker(new_speaker)
             
             if not CONFIGURATION.KEEP_INTERMEDIATE_FILES:
                 try:
@@ -1122,6 +1168,9 @@ class Voiceid(object):
 #                    os.remove("%s.ident.seg" % wave_b )
                     os.remove("%s.init.gmm" % wave_b)
                     os.remove("%s.wav" % wave_b)
+                    if os.path.exists(old_wav_name):
+                        os.remove("%s" % old_wav_name)
+                        os.remove(old_b_file + '.seg')
                 except OSError:
                     print 'WARNING: error deleting some intermediate files'
             
@@ -1132,40 +1181,55 @@ class Voiceid(object):
             if clu.up_to_date == False:
                 current_speaker = clu.get_speaker()
                 old_s = clu.get_best_speaker()
-                if old_s == 'unknown':
+                
+                #
+                if old_s == 'unknown' and current_speaker!= "unknown":
                     try:
-                        c_s_score = clu.speakers[current_speaker]
-                        for s in clu.speakers:
-                            if s != current_speaker:
-                                s_score = clu.speakers[s]
-                                if abs(abs(s_score) - abs(c_s_score)) < 0.07:
-                                    old_s = s
-                    except:pass
-#                    print clu.speakers
-                    
-                    
-                if current_speaker != old_s:
-                    basename = self.get_file_basename()
-                    b_file = _get_available_wav_basename(current_speaker,
-                                                         basename)
-                    wav_name = b_file + '.wav'
-                    if not clu.has_generated_waves():
-                        self._to_wav()
-                        self._to_trim()
-                    clu.merge_waves()
-                    try:
-                        shutil.move(clu.wave, wav_name)
-                        utils.ensure_file_exists(wav_name)
-                    except OSError:
-                        print 'WARNING: error renaming some wave files'
-                    cluster_label = clu.get_name()
-                    thrds[cluster_label] = threading.Thread(
-                                              target=_build_model_wrapper,
-                                              args=(self, b_file,
-                                                    cluster_label,
-                                                    basename,
-                                                    current_speaker, old_s))
-                    thrds[cluster_label].start()
+                        if current_speaker in clu.speakers:
+                            c_s_score = clu.speakers[current_speaker] # current_speaker in db
+                            for s in clu.speakers:
+                                if s != current_speaker:
+                                    s_score = clu.speakers[s]
+                                    if abs(abs(s_score) - abs(c_s_score)) < 0.07:
+                                        old_s = s
+                    except:
+                        print "updatedb "+str(clu.speakers)
+#                print clu.speakers    
+#                print "current_speaker out "+current_speaker
+#                print "old_s  "+old_s
+                
+                basename = self.get_file_basename()
+#                b_file = os.path.join(basename,current_speaker)
+#                wav_name = os.path.join(basename,current_speaker)+'.wav'
+#                if not os.path.exists(wav_name):
+                        
+                b_file = _get_available_wav_basename(current_speaker,
+                                                     basename)
+                wav_name = b_file + '.wav'
+                if not clu.has_generated_waves():
+                    self._to_wav()
+                    self._to_trim()
+                clu.merge_waves()
+                try:
+                    shutil.move(clu.wave, wav_name)
+                    utils.ensure_file_exists(wav_name)
+               
+                except OSError:
+                    print 'WARNING: error renaming some wave files' 
+                try:
+                    utils.ensure_file_exists(b_file + '.seg')
+                except IOError:
+                    clu._generate_a_seg_file(b_file + '.seg', b_file)
+                     
+                cluster_label = clu.get_name()
+                thrds[cluster_label] = threading.Thread(
+                                          target=_build_model_wrapper,
+                                          args=(self, b_file,
+                                                cluster_label,
+                                                basename,
+                                                current_speaker, old_s))
+                thrds[cluster_label].start()
+                
                 clu.up_to_date = True
         for thr in thrds:
             if thrds[thr].is_alive():
@@ -1281,6 +1345,7 @@ class Voiceid(object):
 
         dic = {"duration": self.get_duration(),
             "url": self._filename,
+            "db":self.get_db().get_path(),
             "selections": [] }
         for seg in self.get_time_slices():
             dic['selections'].append({
@@ -1288,7 +1353,8 @@ class Voiceid(object):
                          "endTime": float(seg[1]) / 100.0,
                          'speaker': seg[-2],
                          'speakerLabel': seg[-1],
-                         'gender': seg[2]
+                         'gender': seg[2],
+                         'speakers': seg[3]
                          })
         return dic
 

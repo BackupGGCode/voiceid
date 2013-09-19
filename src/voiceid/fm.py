@@ -568,7 +568,7 @@ def diarization(filebasename, h_par='3', c_par='1.5'):
     utils.start_subprocess(JAVA_EXE +' -Xmx' + JAVA_MEM + 'm -classpath '
            + CONFIGURATION.LIUM_JAR
            + ' fr.lium.spkDiarization.programs.MClust ' + par
-           + ' --fInputMask=%s.wav --fInputDesc=' + st_fdesc
+           + ' --fInputMask=%s.wav --fInputSpeechThr=0.1 --fInputDesc=' + st_fdesc
            + ' --sInputMask=%s.s.seg --cMethod=l --cThr=2 '
            + '--sOutputMask=%s.l.seg ' + filebasename)
     utils.ensure_file_exists(filebasename + '.l.seg')
@@ -659,7 +659,7 @@ def diarization(filebasename, h_par='3', c_par='1.5'):
            + CONFIGURATION.LIUM_JAR
            + ' fr.lium.spkDiarization.programs.MClust ' + par
            + ' --fInputMask=%s.wav --fInputDesc=' + f_desc_clr
-           + ' --sInputMask=%s.g.' + h_par + '.seg   –fInputSpeechThr=0.1 --tInputMask='
+           + ' --sInputMask=%s.g.' + h_par + '.seg   –fInputSpeechThr=1 --tInputMask='
            + CONFIGURATION.UBM_PATH + ' --cMethod=ce --cThr=' + c_par
            + ' --emCtrl=1,5,0.01 --sTop=5,'
            + CONFIGURATION.UBM_PATH

@@ -60,7 +60,7 @@ class VoiceDB(object):
         """Read the db structure"""
         raise NotImplementedError()
 
-    def add_model(self, basefilename, identifier, gender=None):
+    def add_model(self, basefilename, identifier, gender=None, score=None):
         """Add a voice model to the database.
 
         :type basefilename: string
@@ -72,7 +72,11 @@ class VoiceDB(object):
             a single word without special characters
 
         :type gender: char F, M or U
-        :param gender: the gender of the speaker in the model"""
+        :param gender: the gender of the speaker in the model
+        
+        :type score: float
+        :param score: the score obtained in the voice matching
+        """
         raise NotImplementedError()
 
     def remove_model(self, wave_file, identifier, score, gender):
@@ -162,7 +166,7 @@ class GMMVoiceDB(VoiceDB):
                 os.makedirs(path)
             self._speakermodels[gen] = [f for f in dir_ if f.endswith('.gmm')]
 
-    def add_model(self, basefilename, identifier, gender=None):
+    def add_model(self, basefilename, identifier, gender=None, score=None):
         """Add a gmm model to db.
 
         :type basefilename: string
@@ -176,8 +180,10 @@ class GMMVoiceDB(VoiceDB):
 
         #fm.extract_mfcc(basefilename)
         #utils.ensure_file_exists(basefilename + ".mfcc")
+        #print ("%s,%s" % (basefilename, identifier))
         if identifier == 'unknown':
             return False
+        
         fm.build_gmm(basefilename, identifier)
 #        try:
 #            _silence_segmentation(basefilename)
@@ -212,13 +218,45 @@ class GMMVoiceDB(VoiceDB):
         gmm_path = basefilename + '.gmm'
         orig_gmm = os.path.join(self.get_path(),
                                     gender, identifier + '.gmm')
+        folder_db_dir = os.path.join(self.get_path(), gender)
+        folder_tmp = os.path.join(folder_db_dir, identifier + "_tmp_gmms")
+        #print "add model score first gmm " + str(abs(float(score)))
         try:
             utils.ensure_file_exists(orig_gmm)
+            if not os.path.exists(folder_tmp):
+                os.mkdir(folder_tmp)
+            fm.split_gmm(os.path.join(folder_db_dir, identifier + ".gmm"),
+                      folder_tmp)
+            listgmms = os.listdir(folder_tmp)
+            for gmm in listgmms:
+                fm.wav_vs_gmm(basefilename,
+                                        os.path.join(identifier + "_tmp_gmms", gmm),
+                                        gender, self.get_path())
+                segfile = open("%s.ident.%s.%s.seg" % 
+                         (basefilename, gender, gmm), "r")
+                
+                for line in segfile:
+                    if line.startswith(";;"):
+                        snm = line.split()[1].split(':')[1].split('_')
+                        idx = line.index('score:' + snm[1])
+                        idx = idx + len('score:' + snm[1] + " = ")
+                        iidx = line.index(']', idx) - 1
+                        #print "add model score second gmm " +str(abs(float(line[idx:iidx])))
+                        #print "add model score second gmm " + str(score)
+                        if abs(abs(float(line[idx:iidx])) - abs(score)) < 0.07:
+                            shutil.rmtree(folder_tmp)
+                            #print "not added model"
+                            return False
+                        
+            shutil.rmtree(folder_tmp)
             fm.merge_gmms([orig_gmm, gmm_path], orig_gmm)
             self._read_db()
             return True
         except IOError, exc:
             msg = "File %s doesn't exist or not correctly created" % orig_gmm
+            print msg
+            if os.path.exists(folder_tmp):
+                shutil.rmtree(folder_tmp)
             if str(exc) == msg:
                 shutil.move(gmm_path, orig_gmm)
                 self._read_db()
@@ -240,6 +278,7 @@ class GMMVoiceDB(VoiceDB):
         :type gender: char F, M or U
         :param gender: the gender of the speaker (optional)"""
         folder_db_dir = os.path.join(self.get_path(), gender)
+        #print "score first gmm " + str(abs(float(score)))
         if os.path.exists(os.path.join(folder_db_dir, identifier + ".gmm")):
             folder_tmp = os.path.join(folder_db_dir, identifier + "_tmp_gmms")
             if not os.path.exists(folder_tmp):
@@ -248,13 +287,13 @@ class GMMVoiceDB(VoiceDB):
                       folder_tmp)
             listgmms = os.listdir(folder_tmp)
             filebasename = os.path.splitext(wave_file)[0]
-            
+            removed = False
             if len(listgmms) != 1:
                 for gmm in listgmms:
                     fm.wav_vs_gmm(filebasename,
                                 os.path.join(identifier + "_tmp_gmms", gmm),
                                 gender, self.get_path())
-                    segfile = open("%s.ident.%s.%s.seg" %
+                    segfile = open("%s.ident.%s.%s.seg" % 
                              (filebasename, gender, gmm), "r")
                     
                     for line in segfile:
@@ -263,8 +302,14 @@ class GMMVoiceDB(VoiceDB):
                             idx = line.index('score:' + snm[1])
                             idx = idx + len('score:' + snm[1] + " = ")
                             iidx = line.index(']', idx) - 1
-                            if float(line[idx:iidx]) == score:
+                            #print "multiple score second gmm " + str(abs(float(line[idx:iidx])))
+                            #print "multiple score second gmm " + str(score)
+                            #if abs(abs(s_score) - abs(c_s_score)) < 0.07:
+                            
+                            if abs(abs(float(line[idx:iidx])) - abs(score)) < 0.07:
+                                #print "removeeed"
                                 os.remove(os.path.join(folder_tmp, gmm))
+                                removed = True
                 listgmms_path = []
                 listgmms = os.listdir(folder_tmp)
                 for gmm in listgmms:
@@ -273,10 +318,13 @@ class GMMVoiceDB(VoiceDB):
                            os.path.join(folder_db_dir, identifier + ".gmm"))
             else:
                 for gmm in listgmms:
+#                    print (filebasename,
+#                                    os.path.join(identifier + "_tmp_gmms", gmm),
+#                                    gender, self.get_path())
                     fm.wav_vs_gmm(filebasename,
                                     os.path.join(identifier + "_tmp_gmms", gmm),
                                     gender, self.get_path())
-                    segfile = open("%s.ident.%s.%s.seg" %
+                    segfile = open("%s.ident.%s.%s.seg" % 
                              (filebasename, gender, gmm), "r")
                     for line in segfile:
                         if line.startswith(";;"):
@@ -284,11 +332,16 @@ class GMMVoiceDB(VoiceDB):
                             idx = line.index('score:' + snm[1])
                             idx = idx + len('score:' + snm[1] + " = ")
                             iidx = line.index(']', idx) - 1
-                            if float(line[idx:iidx]) == score:
+                            #print "score second gmm " + str(float(line[idx:iidx]))
+                            #print "score second gmm " + str(score)
+                            if str(float(line[idx:iidx])) == str(score):
+                                #print "removeeed"
                                 os.remove(os.path.join(folder_db_dir, identifier + ".gmm"))
+                                removed = True
                 
             shutil.rmtree(folder_tmp)
             self._read_db()
+            return removed
 
     def match_voice(self, wave_file, identifier, gender):
         """Match the voice (wave file) versus the gmm model of
@@ -305,8 +358,8 @@ class GMMVoiceDB(VoiceDB):
 
         wave_basename = os.path.splitext(wave_file)[0]
         try:
-        
-#             print (wave_basename, identifier + '.gmm',
+#            print "match_voice"
+#            print (wave_basename, identifier + '.gmm',
 #                          gender, self.get_path())
             fm.wav_vs_gmm(wave_basename, identifier + '.gmm',
                          gender, self.get_path())
@@ -318,7 +371,7 @@ class GMMVoiceDB(VoiceDB):
             
         except  DivisionByZero: #ValueError, e:
             print "ValueError in MATCH_VOICE"
-            print "tring to fix... ",  #(wave_basename, identifier + '.gmm',
+            print "tring to fix... ", #(wave_basename, identifier + '.gmm',
                      # gender, self.get_path())
             raise e         
             fm._train_init(wave_basename)
@@ -466,7 +519,7 @@ class GMMVoiceDB(VoiceDB):
                 print "c.update(arr) missing out[" + thr + "]"
                 print e
                 print c
-                print "arr "+str(arr)
+                print "arr " + str(arr)
                 print e.__dict__
                 print e.args
             try:

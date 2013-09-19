@@ -46,7 +46,7 @@ import wx.lib.buttons as buttons
 
 configuration = VConf()
 local = 'local'
-if sys.platform == 'win32':
+if sys.platform == 'win32' or sys.platform == 'darwin':
     local = ''
 dirName = os.path.join(sys.prefix, local, 'share', 'voiceid')
 bitmapDir = os.path.join(dirName, 'bitmaps')
@@ -131,7 +131,7 @@ class Controller(object):
             if len(cl_args) == 3:
                 dbDir = cl_args[2]
                 self.model.set_db(dbDir)
-            if len(cl_args) >=1:
+            if len(cl_args) >1:
                 path = cl_args[1]
                 self.model.load_video(path)
                 self.on_load_file(path)
@@ -363,10 +363,13 @@ class Controller(object):
         self.clusters_list.clean_list()
         clusters = self.model.get_clusters()
         clusters_review = []
+        
         for c in clusters.values():
-            if float(c.get_duration())/100 > 3:
-                clusters_review.append(c)
-        for c in clusters_review:
+            #print "before name %s, speaker %s, duration %s" % (c.get_name(), c.get_speaker(), c.get_duration())
+#            if float(c.get_duration())/100 > 3:
+#                clusters_review.append(c)
+#        for c in clusters_review:
+#            print "after name %s, speaker %s, duration %s" % (c.get_name(), c.get_speaker(), c.get_duration())
             self.clusters_list.add_cluster(c.get_name(), c.get_speaker(), c.get_duration()/100)
         self.player.colorPanel.Refresh()
         #wx.PostEvent(self,wx.EVT_PAINT)
@@ -380,10 +383,26 @@ class Controller(object):
 
         try:
             u, k = self.model.get_clusters_info()
-            text = "*Video: \n %s \n Length: %.2f \n\n *Database folder: %s \n\n *Speakers : %s unknown + %s known" % (str(os.path.basename(self.player.video_path)), float(self.player.video_length) / 60, str(os.path.basename(self.model.get_db())), str(u), str(k))
+            total_seconds = float(self.player.video_length)
+            hours = int(total_seconds / 3600)
+            minuts = int(total_seconds / 60) 
+            seconds = int(total_seconds - minuts * 60)
+            if len(str(hours)) <2:
+                hours = "0"+str(hours)
+            if len(str(minuts)) <2:
+                minuts = "0"+str(minuts)
+            text = "*Video: \n %s \n Length: %s:%s:%s \n\n *Database folder: %s \n\n *Speakers : %s unknown + %s known" % (str(os.path.basename(self.player.video_path)),  str(hours),str(minuts),str(seconds), str(os.path.basename(self.model.get_db())), str(u), str(k))
         except:
             if self.player.video_length != None:
-                text = "*Video: \n %s \n Length: %.2f \n\n *Database folder: %s \n\n" % (str(os.path.basename(self.player.video_path)), float(self.player.video_length) / 60, str(os.path.basename(self.model.get_db())))
+                total_seconds = float(self.player.video_length)
+                hours = int(total_seconds / 3600)
+                minuts = int(total_seconds / 60) 
+                seconds = int(total_seconds - minuts * 60)
+                if len(str(hours)) <2:
+                    hours = "0"+str(hours)
+                if len(str(minuts)) <2:
+                    minuts = "0"+str(minuts)
+                text = "*Video - \n %s \n Length - %s:%s:%s \n\n *Database folder - %s \n\n" % (str(os.path.basename(self.player.video_path)), str(hours),str(minuts),str(seconds), str(os.path.basename(self.model.get_db())))
             else:
                 text = "*Database folder: %s \n\n" % str(os.path.basename(self.model.get_db()))
         self.clusters_list.set_info_video(text)
@@ -828,8 +847,9 @@ class ClustersList(wx.Panel):
         self.info.text_info = wx.StaticText(self.info, 1, "")
         sb_list = wx.StaticBox(self, label=" Speakers ")
         sb_info = wx.StaticBox(self, label=" Info ")
-        self.boxsizer_list = wx.StaticBoxSizer(sb_list, wx.VERTICAL)
-        self.boxsizer_list.Add(self.list, 5, wx.EXPAND | wx.EXPAND, 2)
+        if sys.platform != 'darwin':
+            self.boxsizer_list = wx.StaticBoxSizer(sb_list, wx.VERTICAL)
+            self.boxsizer_list.Add(self.list, 5, wx.EXPAND | wx.EXPAND, 2)
         self.boxsizer_info = wx.StaticBoxSizer(sb_info, wx.VERTICAL)
         self.boxsizer_info.Add(self.info, 5, wx.EXPAND | wx.ALL, 2)
         first = ULC.UltimateListItem()
@@ -860,7 +880,10 @@ class ClustersList(wx.Panel):
         self.list.Bind(wx.EVT_MOTION, self.on_mouse_over)
         self.columns = 0
         self.sizer.Add(self.boxsizer_info, 2, wx.EXPAND | wx.ALL, 2)
-        self.sizer.Add(self.boxsizer_list, 5, wx.EXPAND | wx.ALL, 2)
+        if sys.platform != 'darwin':
+            self.sizer.Add(self.boxsizer_list, 5, wx.EXPAND | wx.ALL, 2)
+        else:
+            self.sizer.Add(self.list, 5, wx.EXPAND | wx.ALL, 2)
         self.SetSizer(self.sizer)
         self.sizer.Layout()
 
@@ -879,7 +902,6 @@ class ClustersList(wx.Panel):
             color = randomColor()
         self.speakers_GRB[cluster_label] = color
         secs = time.strftime('%M:%S', time.gmtime(length))
-#         secs = length
         data = {self.columns : (cluster_speaker, cluster_label, "", secs)}
         for key, d in data.items():
             index = self.list.Append(d)
@@ -944,6 +966,7 @@ class ColorPanel(wx.Panel):
         self.dc = wx.ClientDC(self)
         self.dc.Clear()
         #del self.dc
+        
     def write_slice(self, start_time, end_time, color, event=None):
         """Calculates area to draw the segment
 
@@ -1008,13 +1031,17 @@ class Model:
         self.voiceid = sr.Voiceid(self.db, video_path)
         self.video = video_path
         
+
     def load_json(self, json_path):
         """Init Voiceid object with json file
 
         :type json_path: string
         :param json_path: json path"""
 #         print json_path
-        self.voiceid = sr.Voiceid.from_json_file(self.db, json_path)
+        try:
+            self.voiceid = sr.Voiceid.from_json_file(self.db, json_path)
+        except:
+            print "Json file not found!"
         self.voiceid._automerge_segments()  # experimental
         self._clusters = self.voiceid.get_clusters()
         self.json = json_path
@@ -1102,18 +1129,20 @@ class Model:
         c.set_speaker(cluster_speaker)
 
     def save_changes(self):
-       """Save all changes in the JSON file and database"""
-       self.voiceid.update_db(1)
-       self.voiceid.write_output("json")
-       trackPath = '"%s"' % self.video.replace("\\", "/")
-       json_path = os.path.splitext(trackPath)[0] + '.json'
-       json_path = json_path.replace('"', '')
-       if os.path.exists(json_path):
-           self.json = json_path
-       else:
-           print "JSON file not saved"
-       self.voiceid.write_output("srt")
-       self._clusters = self.voiceid.get_clusters()
+
+        """Save all changes in the JSON file and database"""
+        cl = self.voiceid.get_clusters()
+        self.voiceid.update_db(1)
+        self.voiceid.write_output("json")
+        trackPath = '"%s"' % self.video.replace("\\", "/")
+        json_path = os.path.splitext(trackPath)[0] + '.json'
+        json_path = json_path.replace('"', '')
+        if os.path.exists(json_path):
+            self.json = json_path
+        else:
+            print "JSON file not saved"
+        self.voiceid.write_output("srt")
+        self._clusters = self.voiceid.get_clusters()
 
     def set_db(self, db_path):
         """Init db object

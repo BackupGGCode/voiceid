@@ -122,7 +122,7 @@ class VConf(object):
         self.VERBOSE = False
         self.KEEP_INTERMEDIATE_FILES = False
         local = 'local'
-        if sys.platform == 'win32':
+        if sys.platform == 'win32' or sys.platform == 'darwin':
             local = ''
         self.LIUM_JAR = os.path.join(sys.prefix, local, 'share',
                                      'voiceid', 'LIUM_SpkDiarization-4.7.jar')
