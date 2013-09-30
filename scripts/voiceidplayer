@@ -1039,6 +1039,14 @@ class Model:
         :param json_path: json path"""
 #         print json_path
         try:
+            opf = open(json_path, 'r')
+            jdict = eval(opf.read())
+            opf.close()
+            db = jdict['db']
+            self.set_db(db)
+        except:
+            print "Json error"
+        try:
             self.voiceid = sr.Voiceid.from_json_file(self.db, json_path)
         except:
             print "Json file not found!"

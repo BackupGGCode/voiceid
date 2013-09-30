@@ -1102,7 +1102,20 @@ class Voiceid(object):
 
         def _build_model_wrapper(self, wave_b, cluster, wave_dir, new_speaker,
                                  old_speaker):
-            """ A procedure to wrap the model building to run in a Thread """
+            """ A procedure to wrap the model building to run in a Thread 
+            :type wave_b: string
+            :param wave_b: path for the wave renamed with the current speaker name
+            :type cluster: string
+            :param cluster: the cluster label
+            :type wave_dir: string
+            :param wave_dir: basename for the wave
+            :type new_speaker: string
+            :param new_speaker: the current speaker name
+            :type old_speaker: string
+            :param old_speaker: the old speaker name
+            
+            """
+            
             try:
                 utils.ensure_file_exists(wave_b + '.seg')
             except IOError:
@@ -1111,7 +1124,7 @@ class Voiceid(object):
 
             old_cluster_value = self[cluster].value
 
-            if new_speaker != "unknown":
+            if new_speaker != "unknown": #add a new model
                 self.get_db().add_model(wave_b, new_speaker,
                                         self[cluster].gender,self[cluster].value)
     
@@ -1119,21 +1132,14 @@ class Voiceid(object):
                 
                 self._match_voice_wrapper(cluster, wave_b + '.wav', new_speaker,
                                           self[cluster].gender)
-#            if old_speaker != "unknown":
-#                self._match_voice_wrapper(cluster, wave_b + '.wav', old_speaker,
-#                                          self[cluster].gender)
 
-            b_s = self[cluster].get_best_speaker()
+            #b_s = self[cluster].get_best_speaker()
             
+            old_basename = self.get_file_basename()
+            old_b_file = _get_available_wav_basename(old_s,
+                                                 old_basename) #create a available wave name for the old speaker
+            old_wav_name = old_b_file + '.wav'
             if old_speaker != new_speaker and old_speaker!='unknown':
-                #self.get_db().remove_model(wav_name, old_s,clu.value,clu.get_gender())
-                old_basename = self.get_file_basename()
-#                old_b_file = os.path.join(old_basename,old_s)
-#                old_wav_name = os.path.join(old_basename,old_s)+'.wav'
-#                if not os.path.exists(old_wav_name):
-                old_b_file = _get_available_wav_basename(old_s,
-                                                     old_basename)
-                old_wav_name = old_b_file + '.wav'
                 if not clu.has_generated_waves():
                     self._to_wav()
                     self._to_trim()
@@ -1154,13 +1160,13 @@ class Voiceid(object):
                 
                 removed = self.get_db().remove_model(wave_b, old_speaker,
                                            old_cluster_value,
-                                       self[cluster].gender)
+                                       self[cluster].gender)#remove the old speaker model from db if present
                 if removed: 
                     a = self[cluster].speakers
-                    a.pop(old_speaker) 
+                    a.pop(old_speaker) #update the cluster speaker's list
                     
                 #print self[cluster].speakers
-            if new_speaker != "unknown": self[cluster].set_speaker(new_speaker)
+            if new_speaker != "unknown": self[cluster].set_speaker(new_speaker) #set new cluster's speaker name
             
             if not CONFIGURATION.KEEP_INTERMEDIATE_FILES:
                 try:
@@ -1177,12 +1183,16 @@ class Voiceid(object):
             #end _build_model_wrapper
 
         thrds = {}
+        if not os.path.exists(self.get_file_basename()+'.seg'): self.generate_seg_file(set_speakers=False)
+           
+            
         for clu in self._clusters.values():
             if clu.up_to_date == False:
                 current_speaker = clu.get_speaker()
                 old_s = clu.get_best_speaker()
                 
-                #
+                #If old speaker is unknown and current speaker is not unknown
+                #set the old speaker score with the score closer to the current speaker 
                 if old_s == 'unknown' and current_speaker!= "unknown":
                     try:
                         if current_speaker in clu.speakers:
@@ -1203,10 +1213,13 @@ class Voiceid(object):
 #                wav_name = os.path.join(basename,current_speaker)+'.wav'
 #                if not os.path.exists(wav_name):
                         
+                        
+                        
+                        
                 b_file = _get_available_wav_basename(current_speaker,
-                                                     basename)
+                                                     basename) #search an available wave name for the current cluster starting from the current speaker
                 wav_name = b_file + '.wav'
-                if not clu.has_generated_waves():
+                if not clu.has_generated_waves():#
                     self._to_wav()
                     self._to_trim()
                 clu.merge_waves()
@@ -1219,7 +1232,7 @@ class Voiceid(object):
                 try:
                     utils.ensure_file_exists(b_file + '.seg')
                 except IOError:
-                    clu._generate_a_seg_file(b_file + '.seg', b_file)
+                    clu._generate_a_seg_file(b_file + '.seg', b_file) #generate a seg file for the current cluster
                      
                 cluster_label = clu.get_name()
                 thrds[cluster_label] = threading.Thread(
