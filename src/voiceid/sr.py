@@ -1096,7 +1096,9 @@ class Voiceid(object):
                         break
                     cont = cont + 1
             else:
+                open(label+".wav",'w').close()
                 return label
+            open(label+str(cont)+".wav",'w').close()
             return label + str(cont)
             #end _get_available_wav_basename
 
@@ -1393,7 +1395,7 @@ class Voiceid(object):
             try:
                 fm.seg2srt(self.get_file_basename() + '.seg')
             except:
-                print "File seg not exist!"            
+                print "File seg do not exist!"            
             self.generate_seg_file(False)
 #             if not CONFIGURATION.KEEP_INTERMEDIATE_FILES:
 #                 os.remove(self.get_file_basename() + '.seg')

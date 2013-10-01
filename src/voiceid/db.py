@@ -221,8 +221,9 @@ class GMMVoiceDB(VoiceDB):
         folder_db_dir = os.path.join(self.get_path(), gender)
         folder_tmp = os.path.join(folder_db_dir, identifier + "_tmp_gmms")
         #print "add model score first gmm " + str(abs(float(score)))
-        try:
-            utils.ensure_file_exists(orig_gmm)
+#        try:
+#            utils.ensure_file_exists(orig_gmm)
+        if os.path.exists(orig_gmm):
             if not os.path.exists(folder_tmp):
                 os.mkdir(folder_tmp)
             fm.split_gmm(os.path.join(folder_db_dir, identifier + ".gmm"),
@@ -248,19 +249,23 @@ class GMMVoiceDB(VoiceDB):
                             #print "not added model"
                             return False
                         
-            shutil.rmtree(folder_tmp)
+            try:
+                shutil.rmtree(folder_tmp)
+            except:
+                pass
             fm.merge_gmms([orig_gmm, gmm_path], orig_gmm)
             self._read_db()
             return True
-        except IOError, exc:
-            msg = "File %s doesn't exist or not correctly created" % orig_gmm
-            print msg
+ #       except IOError, exc:
+        else:
+            #msg = "File %s doesn't exist or not correctly created" % orig_gmm
+            #print msg
             if os.path.exists(folder_tmp):
                 shutil.rmtree(folder_tmp)
-            if str(exc) == msg:
-                shutil.move(gmm_path, orig_gmm)
-                self._read_db()
-                return True
+#            if str(exc) == msg:
+            shutil.move(gmm_path, orig_gmm)
+            self._read_db()
+            return True
         return False
 
     def remove_model(self, wave_file, identifier, score, gender):

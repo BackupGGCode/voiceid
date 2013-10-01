@@ -213,6 +213,7 @@ class Controller(object):
         if dialog.ShowModal() == wx.ID_OK:
             dbDir = dialog.GetPath()
             self.model.set_db(dbDir)
+	    print "setting ["+dbDir+"] as db"
             wx.CallAfter(Publisher().sendMessage, "update_info")
             #print "on_select_db 1" +self.model.voiceid.get_clusters()
             try:
@@ -223,6 +224,7 @@ class Controller(object):
                 json_path = json_path.replace('"', '')
                 if os.path.exists(json_path):
                     self.model.load_json(json_path)
+            	self.model.set_db(dbDir)
             except StandardError, e:
                 print e
                 #print "No video to load"
@@ -1038,6 +1040,15 @@ class Model:
         :type json_path: string
         :param json_path: json path"""
 #         print json_path
+	try:
+            opf = open(json_path, 'r')
+            jdict = eval(opf.read())
+            opf.close()
+            db = jdict['db']
+            self.set_db(db)
+        except:
+            print "Json error"
+
         try:
             opf = open(json_path, 'r')
             jdict = eval(opf.read())
