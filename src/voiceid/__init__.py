@@ -124,6 +124,12 @@ class VConf(object):
         local = 'local'
         if sys.platform == 'win32' or sys.platform == 'darwin':
             local = ''
+        try:
+            import platform
+            if platform and hasattr(platform,'linux_distribution') and platform.linux_distribution()[0] in ['CentOS','Fedora','Red Hat Linux','Red Hat Enterprise Linux']:
+                local = ''
+        except ImportError:
+            pass
         self.LIUM_JAR = os.path.join(sys.prefix, local, 'share',
                                      'voiceid', 'LIUM_SpkDiarization-4.7.jar')
         self.UBM_PATH = os.path.join(sys.prefix, local, 'share',
