@@ -68,4 +68,4 @@ GUI:
 > to run voiceidplayer with a video/audio file and database path
 > > `voiceidplayer video_file database_path`
 
-<img src="https://web.archive.org/web/20150430120121/https://voiceid.googlecode.com/svn/trunk/doc/source/img-latex/player1_pix.png">
+<img src='https://web.archive.org/web/20150430120121/https://voiceid.googlecode.com/svn/trunk/doc/source/img-latex/player1_pix.png'>
